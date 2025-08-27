@@ -299,7 +299,29 @@ namespace LTC.Timeline
             }
             
             signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
-            hasSignal = signalLevel > noiseFloor;
+            
+            // Apply noise hysteresis if enabled
+            if (enableDebugMode && useNoiseHysteresis)
+            {
+                float signalOnThreshold = noiseFloor * 1.2f;
+                float signalOffThreshold = noiseFloor * 0.8f;
+                
+                if (!hasSignal && signalLevel > signalOnThreshold)
+                {
+                    hasSignal = true;
+                    LogDebug($"Signal ON (hysteresis): level={signalLevel:F4}, threshold={signalOnThreshold:F4}");
+                }
+                else if (hasSignal && signalLevel < signalOffThreshold)
+                {
+                    hasSignal = false;
+                    LogDebug($"Signal OFF (hysteresis): level={signalLevel:F4}, threshold={signalOffThreshold:F4}");
+                }
+            }
+            else
+            {
+                // Original implementation
+                hasSignal = signalLevel > noiseFloor;
+            }
             
             if (hasSignal)
             {
@@ -310,10 +332,19 @@ namespace LTC.Timeline
                 {
                     if (lastDecodedTimecode == null || !lastDecodedTimecode.Equals(decoder.LastTimecode))
                     {
-                        lastDecodedTimecode = decoder.LastTimecode;
-                        currentTimecode = lastDecodedTimecode.ToString();
-                        dropFrame = lastDecodedTimecode.DropFrame;
-                        framesSinceLastUpdate = 0;
+                        // Apply timecode validation if enabled
+                        if (ValidateTimecode(decoder.LastTimecode, lastDecodedTimecode))
+                        {
+                            lastDecodedTimecode = decoder.LastTimecode;
+                            currentTimecode = lastDecodedTimecode.ToString();
+                            dropFrame = lastDecodedTimecode.DropFrame;
+                            framesSinceLastUpdate = 0;
+                            
+                            if (logDebugInfo)
+                            {
+                                LogDebug($"Timecode updated: {currentTimecode}");
+                            }
+                        }
                     }
                     else
                     {
