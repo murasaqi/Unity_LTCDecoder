@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
+using UnityEditor.Graphs;
 
 namespace LTC.Timeline
 {
@@ -15,15 +16,20 @@ namespace LTC.Timeline
         private string[] deviceOptions;
         private bool showAdvancedSettings = false;
         private bool showAudioMonitoring = true;
+        private bool showJitterAnalysis = false;
         private Texture2D waveformTexture;
+        private Texture2D jitterGraphTexture;
         private Color waveformColor = new Color(0.2f, 0.8f, 0.2f);
         private Color waveformBackgroundColor = new Color(0.1f, 0.1f, 0.1f);
+        private Color jitterGraphColor = new Color(0.8f, 0.4f, 0.2f);
+        private Color jitterGraphBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
         
         private void OnEnable()
         {
             component = (LTCDecoderComponent)target;
             RefreshDeviceList();
             waveformTexture = new Texture2D(512, 100);
+            jitterGraphTexture = new Texture2D(300, 150);
         }
         
         private void OnDisable()
@@ -31,6 +37,10 @@ namespace LTC.Timeline
             if (waveformTexture != null)
             {
                 DestroyImmediate(waveformTexture);
+            }
+            if (jitterGraphTexture != null)
+            {
+                DestroyImmediate(jitterGraphTexture);
             }
         }
         
@@ -246,6 +256,344 @@ namespace LTC.Timeline
                 EditorGUILayout.EndVertical();
             }
             
+            EditorGUILayout.Space(10);
+            
+            // Jitter Analysis Section
+            showJitterAnalysis = EditorGUILayout.Foldout(showJitterAnalysis, "Timecode Jitter Analysis & Comparison", true);
+            
+            if (showJitterAnalysis)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                
+                // Filtering Effectiveness Statistics
+                EditorGUILayout.LabelField("Filtering Effectiveness", EditorStyles.boldLabel);
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Total Decoded:", GUILayout.Width(120));
+                EditorGUILayout.LabelField(component.TotalDecodedCount.ToString(), EditorStyles.boldLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Rejected Count:", GUILayout.Width(120));
+                GUI.color = component.RejectedCount > 0 ? Color.yellow : Color.green;
+                EditorGUILayout.LabelField($"{component.RejectedCount} ({component.RejectionRate:F1}%)", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Jump Reduction:", GUILayout.Width(120));
+                int jumpReduction = component.RawJumpCount - component.JumpCount;
+                float reductionRate = component.RawJumpCount > 0 ? (float)jumpReduction / component.RawJumpCount * 100f : 0f;
+                GUI.color = reductionRate > 50 ? Color.green : (reductionRate > 25 ? Color.yellow : Color.red);
+                EditorGUILayout.LabelField($"{jumpReduction} jumps removed ({reductionRate:F1}%)", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.Space(10);
+                
+                // RAW Data Statistics (Before Filtering)
+                EditorGUILayout.LabelField("RAW Data (Before Filtering)", EditorStyles.boldLabel);
+                GUI.backgroundColor = new Color(1f, 0.8f, 0.8f); // Light red background
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Average Jitter:", GUILayout.Width(100));
+                GUI.color = component.RawAverageJitter > 0.01f ? Color.red : Color.yellow;
+                EditorGUILayout.LabelField($"{component.RawAverageJitter * 1000:F2} ms", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Max Jump:", GUILayout.Width(100));
+                GUI.color = Color.red;
+                EditorGUILayout.LabelField($"{component.RawMaxJump:F3} seconds", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Jump Count:", GUILayout.Width(100));
+                GUI.color = Color.red;
+                EditorGUILayout.LabelField(component.RawJumpCount.ToString(), EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                // Raw Jitter Graph
+                EditorGUILayout.Space(5);
+                EditorGUILayout.LabelField("Raw Jitter Graph (ms)", EditorStyles.miniLabel);
+                Rect rawJitterGraphRect = GUILayoutUtility.GetRect(0, 120, GUILayout.ExpandWidth(true));
+                DrawJitterGraph(rawJitterGraphRect, component.RawJitterHistory, new Color(1f, 0.5f, 0.5f));
+                
+                EditorGUILayout.EndVertical();
+                GUI.backgroundColor = Color.white;
+                
+                EditorGUILayout.Space(10);
+                
+                // FILTERED Data Statistics (After Filtering)
+                EditorGUILayout.LabelField("FILTERED Data (After Validation)", EditorStyles.boldLabel);
+                GUI.backgroundColor = new Color(0.8f, 1f, 0.8f); // Light green background
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Average Jitter:", GUILayout.Width(100));
+                GUI.color = component.AverageJitter > 0.01f ? Color.yellow : Color.green;
+                EditorGUILayout.LabelField($"{component.AverageJitter * 1000:F2} ms", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Max Jump:", GUILayout.Width(100));
+                GUI.color = component.MaxJump > 0.1f ? Color.yellow : Color.green;
+                EditorGUILayout.LabelField($"{component.MaxJump:F3} seconds", EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Jump Count:", GUILayout.Width(100));
+                GUI.color = component.JumpCount > 5 ? Color.yellow : Color.green;
+                EditorGUILayout.LabelField(component.JumpCount.ToString(), EditorStyles.boldLabel);
+                GUI.color = Color.white;
+                EditorGUILayout.EndHorizontal();
+                
+                // Filtered Jitter Graph
+                EditorGUILayout.Space(5);
+                EditorGUILayout.LabelField("Filtered Jitter Graph (ms)", EditorStyles.miniLabel);
+                Rect jitterGraphRect = GUILayoutUtility.GetRect(0, 120, GUILayout.ExpandWidth(true));
+                DrawJitterGraph(jitterGraphRect, component.JitterHistory, new Color(0.2f, 0.8f, 0.2f));
+                
+                EditorGUILayout.EndVertical();
+                GUI.backgroundColor = Color.white;
+                
+                // Control buttons
+                EditorGUILayout.Space(10);
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Reset All Statistics", GUILayout.Height(30)))
+                {
+                    component.ResetJitterStatistics();
+                }
+                EditorGUILayout.EndHorizontal();
+                
+                // Jump threshold indicator
+                EditorGUILayout.Space(5);
+                EditorGUILayout.HelpBox($"Jump Threshold: 100ms\nFiltering removes invalid timecodes and large jumps\nGreen = Stable, Yellow = Warning, Red = Critical", MessageType.Info);
+                
+                EditorGUILayout.EndVertical();
+            }
+            
+            EditorGUILayout.Space(10);
+            
+            // Jitter Detection Settings Section
+            bool showJitterSettings = EditorGUILayout.Foldout(true, "Jitter Detection Settings", true);
+            if (showJitterSettings)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField("Jitter Detection Parameters", EditorStyles.boldLabel);
+                
+                SerializedProperty enableJitterDetectionProp = serializedObject.FindProperty("enableJitterDetection");
+                SerializedProperty jitterThresholdProp = serializedObject.FindProperty("jitterThreshold");
+                SerializedProperty maxAllowedJitterProp = serializedObject.FindProperty("maxAllowedJitter");
+                SerializedProperty jitterHistorySizeProp = serializedObject.FindProperty("jitterHistorySize");
+                
+                if (enableJitterDetectionProp != null)
+                    EditorGUILayout.PropertyField(enableJitterDetectionProp, new GUIContent("Enable Jitter Detection", "Enable detection of timecode jumps"));
+                
+                if (jitterThresholdProp != null)
+                {
+                    EditorGUILayout.Slider(jitterThresholdProp, 0.001f, 1.0f, new GUIContent("Jitter Threshold (sec)", "Minimum time difference to consider as a jump"));
+                    EditorGUILayout.HelpBox($"Current: {jitterThresholdProp.floatValue * 1000:F1} ms", MessageType.None);
+                }
+                
+                if (maxAllowedJitterProp != null)
+                {
+                    EditorGUILayout.Slider(maxAllowedJitterProp, 0.0f, 1.0f, new GUIContent("Max Allowed Jitter (sec)", "Maximum allowed jump before rejection"));
+                    EditorGUILayout.HelpBox($"Current: {maxAllowedJitterProp.floatValue * 1000:F1} ms", MessageType.None);
+                }
+                
+                if (jitterHistorySizeProp != null)
+                    EditorGUILayout.IntSlider(jitterHistorySizeProp, 1, 100, new GUIContent("History Size", "Number of samples to keep for jitter averaging"));
+                
+                EditorGUILayout.EndVertical();
+            }
+            
+            EditorGUILayout.Space(10);
+            
+            // Denoising Settings Section
+            bool showDenoisingSettings = EditorGUILayout.Foldout(true, "Denoising Settings", true);
+            if (showDenoisingSettings)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField("Denoising Parameters", EditorStyles.boldLabel);
+                
+                SerializedProperty enableAdaptiveFilteringProp = serializedObject.FindProperty("enableAdaptiveFiltering");
+                SerializedProperty denoisingStrengthProp = serializedObject.FindProperty("denoisingStrength");
+                SerializedProperty continuityCheckFramesProp = serializedObject.FindProperty("continuityCheckFrames");
+                SerializedProperty timecodeStabilityWindowProp = serializedObject.FindProperty("timecodeStabilityWindow");
+                SerializedProperty minConsecutiveValidFramesProp = serializedObject.FindProperty("minConsecutiveValidFrames");
+                
+                if (enableAdaptiveFilteringProp != null)
+                    EditorGUILayout.PropertyField(enableAdaptiveFilteringProp, new GUIContent("Enable Adaptive Filtering", "Adjust filter based on signal quality"));
+                
+                if (denoisingStrengthProp != null)
+                {
+                    EditorGUILayout.Slider(denoisingStrengthProp, 0.0f, 1.0f, new GUIContent("Denoising Strength", "Filter strength (0=off, 1=maximum)"));
+                    if (denoisingStrengthProp.floatValue == 0)
+                    {
+                        EditorGUILayout.HelpBox("Denoising is disabled (strength = 0)", MessageType.Warning);
+                    }
+                }
+                
+                if (timecodeStabilityWindowProp != null)
+                {
+                    EditorGUILayout.Slider(timecodeStabilityWindowProp, 0.001f, 0.1f, new GUIContent("Stability Window (sec)", "Minimum time change to accept as valid"));
+                    EditorGUILayout.HelpBox($"Current: {timecodeStabilityWindowProp.floatValue * 1000:F1} ms (~{timecodeStabilityWindowProp.floatValue * 30:F1} frames @ 30fps)", MessageType.None);
+                }
+                
+                if (continuityCheckFramesProp != null)
+                    EditorGUILayout.IntSlider(continuityCheckFramesProp, 1, 10, new GUIContent("Continuity Check Frames", "Number of frames to buffer for continuity checking"));
+                
+                if (minConsecutiveValidFramesProp != null)
+                    EditorGUILayout.IntSlider(minConsecutiveValidFramesProp, 1, 5, new GUIContent("Min Consecutive Valid", "Minimum consecutive valid frames before accepting (also used for detecting intentional jumps)"));
+                
+                EditorGUILayout.Space(5);
+                EditorGUILayout.HelpBox("Denoising helps filter out invalid timecodes and stabilize the output. Higher strength = more aggressive filtering.", MessageType.Info);
+                
+                EditorGUILayout.EndVertical();
+            }
+            
+            EditorGUILayout.Space(10);
+            
+            // Debug Settings Section
+            SerializedProperty enableDebugModeProp = serializedObject.FindProperty("enableDebugMode");
+            if (enableDebugModeProp != null)
+            {
+                bool showDebugSettingsSection = EditorGUILayout.Foldout(true, "Debug Settings", true);
+                
+                if (showDebugSettingsSection)
+                {
+                    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                    
+                    EditorGUILayout.LabelField("Debug Options", EditorStyles.boldLabel);
+                    
+                    // Enable Debug Mode checkbox
+                    EditorGUILayout.PropertyField(enableDebugModeProp, new GUIContent("Enable Debug Mode"));
+                    EditorGUILayout.Space(5);
+                    
+                    SerializedProperty useImprovedBufferProp = serializedObject.FindProperty("useImprovedBufferHandling");
+                    SerializedProperty useTimecodeValidationProp = serializedObject.FindProperty("useTimecodeValidation");
+                    SerializedProperty useAdvancedBinarizationProp = serializedObject.FindProperty("useAdvancedBinarization");
+                    SerializedProperty usePeriodStabilizationProp = serializedObject.FindProperty("usePeriodStabilization");
+                    SerializedProperty useNoiseHysteresisProp = serializedObject.FindProperty("useNoiseHysteresis");
+                    SerializedProperty logDebugInfoProp = serializedObject.FindProperty("logDebugInfo");
+                    SerializedProperty maxDebugLogsProp = serializedObject.FindProperty("maxDebugLogs");
+                    
+                    if (useImprovedBufferProp != null)
+                        EditorGUILayout.PropertyField(useImprovedBufferProp, new GUIContent("Improved Buffer Handling"));
+                    
+                    if (useTimecodeValidationProp != null)
+                        EditorGUILayout.PropertyField(useTimecodeValidationProp, new GUIContent("Timecode Validation"));
+                    
+                    if (useAdvancedBinarizationProp != null)
+                        EditorGUILayout.PropertyField(useAdvancedBinarizationProp, new GUIContent("Advanced Binarization"));
+                    
+                    if (usePeriodStabilizationProp != null)
+                        EditorGUILayout.PropertyField(usePeriodStabilizationProp, new GUIContent("Period Stabilization"));
+                    
+                    if (useNoiseHysteresisProp != null)
+                        EditorGUILayout.PropertyField(useNoiseHysteresisProp, new GUIContent("Noise Hysteresis"));
+                    
+                    EditorGUILayout.EndVertical();
+                }
+            }
+            
+            EditorGUILayout.Space(10);
+            
+            // Logging Settings Section
+            bool showLoggingSettings = EditorGUILayout.Foldout(true, "Logging Settings", true);
+            if (showLoggingSettings)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField("Logging Configuration", EditorStyles.boldLabel);
+                
+                SerializedProperty logDebugInfoProp = serializedObject.FindProperty("logDebugInfo");
+                SerializedProperty logLevelProp = serializedObject.FindProperty("logLevel");
+                SerializedProperty logToConsoleProp = serializedObject.FindProperty("logToConsole");
+                SerializedProperty logValidationProp = serializedObject.FindProperty("logValidation");
+                SerializedProperty logJumpsProp = serializedObject.FindProperty("logJumps");
+                SerializedProperty logBufferIssuesProp = serializedObject.FindProperty("logBufferIssues");
+                SerializedProperty maxDebugLogsProp = serializedObject.FindProperty("maxDebugLogs");
+                SerializedProperty logThrottleIntervalProp = serializedObject.FindProperty("logThrottleInterval");
+                
+                if (logDebugInfoProp != null)
+                {
+                    EditorGUILayout.PropertyField(logDebugInfoProp, new GUIContent("Enable Logging", "Master switch for all logging"));
+                    
+                    if (logDebugInfoProp.boolValue)
+                    {
+                        EditorGUI.indentLevel++;
+                        
+                        if (logLevelProp != null)
+                            EditorGUILayout.PropertyField(logLevelProp, new GUIContent("Log Level", "Minimum level to log"));
+                        
+                        if (logToConsoleProp != null)
+                        {
+                            EditorGUILayout.PropertyField(logToConsoleProp, new GUIContent("Log to Unity Console", "WARNING: Can impact performance!"));
+                            if (logToConsoleProp.boolValue)
+                            {
+                                EditorGUILayout.HelpBox("Console logging is enabled. This may impact frame rate during heavy logging!", MessageType.Warning);
+                            }
+                        }
+                        
+                        EditorGUILayout.Space(5);
+                        EditorGUILayout.LabelField("Log Categories", EditorStyles.miniLabel);
+                        
+                        if (logValidationProp != null)
+                            EditorGUILayout.PropertyField(logValidationProp, new GUIContent("Log Validation", "Log timecode validation rejections"));
+                        
+                        if (logJumpsProp != null)
+                            EditorGUILayout.PropertyField(logJumpsProp, new GUIContent("Log Jumps", "Log timecode jumps"));
+                        
+                        if (logBufferIssuesProp != null)
+                            EditorGUILayout.PropertyField(logBufferIssuesProp, new GUIContent("Log Buffer Issues", "Log audio buffer problems"));
+                        
+                        EditorGUILayout.Space(5);
+                        
+                        if (logThrottleIntervalProp != null)
+                            EditorGUILayout.Slider(logThrottleIntervalProp, 0.1f, 5.0f, new GUIContent("Throttle Interval (sec)", "Minimum time between similar messages"));
+                        
+                        if (maxDebugLogsProp != null)
+                            EditorGUILayout.PropertyField(maxDebugLogsProp, new GUIContent("Max Log Buffer", "Max logs kept in memory"));
+                        
+                        EditorGUI.indentLevel--;
+                    }
+                }
+                    
+                // Display debug logs if available
+                if (logDebugInfoProp != null && logDebugInfoProp.boolValue && component.DebugLogs != null && component.DebugLogs.Count > 0)
+                {
+                    EditorGUILayout.Space(5);
+                    EditorGUILayout.LabelField($"Recent Logs (showing last 5 of {component.DebugLogs.Count}):", EditorStyles.boldLabel);
+                    
+                    int startIndex = Mathf.Max(0, component.DebugLogs.Count - 5);
+                    for (int i = startIndex; i < component.DebugLogs.Count; i++)
+                    {
+                        // Parse log level from the log string to determine message type
+                        MessageType msgType = MessageType.Info;
+                        if (component.DebugLogs[i].Contains("[Error]"))
+                            msgType = MessageType.Error;
+                        else if (component.DebugLogs[i].Contains("[Warning]"))
+                            msgType = MessageType.Warning;
+                        
+                        EditorGUILayout.HelpBox(component.DebugLogs[i], msgType);
+                    }
+                    
+                    if (GUILayout.Button("Clear Logs"))
+                    {
+                        component.DebugLogs.Clear();
+                    }
+                }
+                
+                EditorGUILayout.EndVertical();
+            }
+            
             serializedObject.ApplyModifiedProperties();
             
             // Repaint continuously when recording for real-time updates
@@ -327,6 +675,111 @@ namespace LTC.Timeline
             
             waveformTexture.Apply();
             GUI.DrawTexture(rect, waveformTexture);
+            
+            // Draw border
+            Handles.DrawSolidRectangleWithOutline(rect, Color.clear, Color.gray);
+        }
+        
+        private void DrawJitterGraph(Rect rect)
+        {
+            DrawJitterGraph(rect, component.JitterHistory, jitterGraphColor);
+        }
+        
+        private void DrawJitterGraph(Rect rect, System.Collections.Generic.Queue<float> jitterData, Color graphColor)
+        {
+            if (jitterGraphTexture == null) return;
+            
+            // Clear texture
+            Color[] clearColors = new Color[jitterGraphTexture.width * jitterGraphTexture.height];
+            for (int i = 0; i < clearColors.Length; i++)
+                clearColors[i] = jitterGraphBackgroundColor;
+            jitterGraphTexture.SetPixels(clearColors);
+            
+            var jitterHistory = jitterData;
+            if (jitterHistory != null && jitterHistory.Count > 0)
+            {
+                int textureWidth = jitterGraphTexture.width;
+                int textureHeight = jitterGraphTexture.height;
+                
+                // Convert queue to array
+                float[] jitterArray = jitterHistory.ToArray();
+                
+                // Find max value for scaling
+                float maxJitter = 0.05f; // 50ms default max scale
+                foreach (float j in jitterArray)
+                {
+                    if (j > maxJitter) maxJitter = j;
+                }
+                
+                // Draw grid lines
+                Color gridColor = new Color(0.3f, 0.3f, 0.3f);
+                
+                // Horizontal grid lines (time values)
+                for (int i = 1; i <= 5; i++)
+                {
+                    int y = (textureHeight * i) / 5;
+                    for (int x = 0; x < textureWidth; x += 5)
+                    {
+                        jitterGraphTexture.SetPixel(x, y, gridColor);
+                    }
+                }
+                
+                // Draw threshold line at 100ms
+                float thresholdY = (0.1f / maxJitter) * textureHeight;
+                if (thresholdY < textureHeight)
+                {
+                    Color thresholdColor = new Color(0.8f, 0.2f, 0.2f, 0.5f);
+                    for (int x = 0; x < textureWidth; x++)
+                    {
+                        jitterGraphTexture.SetPixel(x, (int)thresholdY, thresholdColor);
+                    }
+                }
+                
+                // Draw jitter values
+                for (int i = 0; i < jitterArray.Length && i < textureWidth; i++)
+                {
+                    float normalizedJitter = jitterArray[i] / maxJitter;
+                    int height = Mathf.Clamp((int)(normalizedJitter * textureHeight), 0, textureHeight - 1);
+                    
+                    // Choose color based on jitter value
+                    Color barColor = graphColor;
+                    if (jitterArray[i] > 0.1f) // > 100ms
+                        barColor = Color.red;
+                    else if (jitterArray[i] > 0.05f) // > 50ms
+                        barColor = Color.yellow;
+                    else if (jitterArray[i] > 0.01f) // > 10ms
+                        barColor = graphColor;
+                    else
+                        barColor = Color.green;
+                    
+                    // Draw vertical bar from bottom to height
+                    int xPos = (i * textureWidth) / jitterArray.Length;
+                    for (int y = 0; y <= height; y++)
+                    {
+                        jitterGraphTexture.SetPixel(xPos, y, barColor);
+                        if (xPos + 1 < textureWidth)
+                            jitterGraphTexture.SetPixel(xPos + 1, y, barColor);
+                    }
+                }
+                
+                // Add scale labels (overlay text on GUI after texture)
+                jitterGraphTexture.Apply();
+                GUI.DrawTexture(rect, jitterGraphTexture);
+                
+                // Draw scale labels
+                GUI.Label(new Rect(rect.x + 5, rect.y + 5, 100, 20), $"Max: {maxJitter * 1000:F1}ms", EditorStyles.miniLabel);
+                GUI.Label(new Rect(rect.x + 5, rect.y + rect.height - 20, 100, 20), "0ms", EditorStyles.miniLabel);
+                
+                // Draw sample count
+                GUI.Label(new Rect(rect.x + rect.width - 100, rect.y + 5, 95, 20), 
+                    $"Samples: {jitterArray.Length}", EditorStyles.miniLabel);
+            }
+            else
+            {
+                jitterGraphTexture.Apply();
+                GUI.DrawTexture(rect, jitterGraphTexture);
+                GUI.Label(rect, "No jitter data available", EditorStyles.centeredGreyMiniLabel);
+            }
             
             // Draw border
             Handles.DrawSolidRectangleWithOutline(rect, Color.clear, Color.gray);

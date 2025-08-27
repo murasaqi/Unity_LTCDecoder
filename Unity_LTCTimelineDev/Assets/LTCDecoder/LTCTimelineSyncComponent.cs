@@ -29,6 +29,10 @@ public class LTCTimelineSyncComponent : MonoBehaviour
     [SerializeField] private float timelineTime = 0f;
     [SerializeField] private float ltcTime = 0f;
     
+    [Header("Logging")]
+    [SerializeField] private bool enableLogging = false;
+    [SerializeField] private bool logToConsole = false;
+    
     private PlayableDirector playableDirector;
     private Coroutine syncCoroutine;
     private Timecode lastTimecode;
@@ -52,7 +56,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
             ltcDecoder = FindObjectOfType<LTCDecoderComponent>();
             if (ltcDecoder == null)
             {
-                Debug.LogError("LTC Decoder Component not found. Please assign it manually.");
+                LogError("LTC Decoder Component not found. Please assign it manually.");
             }
         }
     }
@@ -95,7 +99,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         }
         
         syncCoroutine = StartCoroutine(SyncTimeline());
-        Debug.Log("Started LTC Timeline synchronization");
+        LogInfo("Started LTC Timeline synchronization");
     }
     
     public void StopSync()
@@ -108,7 +112,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         
         isSynced = false;
         consecutiveSyncFrames = 0;
-        Debug.Log("Stopped LTC Timeline synchronization");
+        LogInfo("Stopped LTC Timeline synchronization");
     }
     
     private IEnumerator SyncTimeline()
@@ -130,7 +134,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
                 playableDirector.Pause();
                 isSynced = false;
                 consecutiveSyncFrames = 0;
-                Debug.Log("No LTC signal detected, pausing timeline");
+                LogInfo("No LTC signal detected, pausing timeline");
             }
             
             yield return new WaitForSeconds(1f / 60f);
@@ -183,7 +187,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
                     playableDirector.Play();
                 }
                 
-                Debug.Log($"Syncing Timeline: LTC={currentLTCTimecode}, Timeline={timelineTime:F3}s, Difference={timeDifference:F3}s");
+                LogInfo($"Syncing Timeline: LTC={currentLTCTimecode}, Timeline={timelineTime:F3}s, Difference={timeDifference:F3}s");
                 
                 consecutiveSyncFrames = 0;
                 isSynced = false;
@@ -196,7 +200,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
                 {
                     if (!isSynced)
                     {
-                        Debug.Log($"Timeline in sync with LTC (difference: {timeDifference:F3}s)");
+                        LogInfo($"Timeline in sync with LTC (difference: {timeDifference:F3}s)");
                     }
                     isSynced = true;
                 }
@@ -295,7 +299,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         currentTimeDifference = 0f;
         lastSyncedTimecode = "00:00:00:00";
         
-        Debug.Log("Timeline sync reset");
+        LogInfo("Timeline sync reset");
     }
     
     public void SeekToTimecode(string timecodeString)
@@ -307,7 +311,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
             playableDirector.time = targetTime;
             playableDirector.Evaluate();
             
-            Debug.Log($"Timeline seeked to {timecodeString} ({targetTime:F3}s)");
+            LogInfo($"Timeline seeked to {timecodeString} ({targetTime:F3}s)");
         }
     }
     
@@ -319,4 +323,19 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         frameRate = Mathf.Clamp(frameRate, 1f, 120f);
     }
     #endif
+    
+    private void LogInfo(string message)
+    {
+        if (!enableLogging) return;
+        if (logToConsole)
+        {
+            Debug.Log($"[LTC Sync] {message}");
+        }
+    }
+    
+    private void LogError(string message)
+    {
+        // Always log errors even if logging is disabled
+        Debug.LogError($"[LTC Sync] {message}");
+    }
 }
