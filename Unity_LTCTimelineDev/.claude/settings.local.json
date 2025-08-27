@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell:*)",
+      "Bash(claude-code config:*)",
+      "Bash(cat:*)",
+      "mcp__serena__list_dir",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__find_symbol",
+      "mcp__serena__search_for_pattern",
+      "mcp__unity-natural-mcp__refresh_assets",
+      "mcp__unity-natural-mcp__get_compile_logs"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\uma92\\AppData\\Roaming",
+      "C:\\Users\\uma92",
+      "F:\\c\\Users\\uma92\\AppData\\Roaming"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "unity-natural-mcp"
+  ]
+}
