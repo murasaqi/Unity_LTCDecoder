@@ -1,146 +1,119 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace LTC.Timeline
 {
+    /// <summary>
+    /// DSPクロックベースのLTCデコーダー
+    /// 内部クロックで自走し、デコードされたLTCと同期を取る
+    /// </summary>
     [AddComponentMenu("Audio/LTC Decoder")]
     public class LTCDecoder : MonoBehaviour
     {
+        #region Enums
+        
+        /// <summary>
+        /// 同期状態
+        /// </summary>
+        public enum SyncState
+        {
+            NoSignal,    // 信号なし
+            Syncing,     // 同期中（バッファ蓄積）
+            Locked,      // 同期確立（DSP自走）
+            Drifting     // ドリフト検出（補正中）
+        }
+        
+        #endregion
+        
+        #region Serialized Fields
+        
         [Header("Audio Input Settings")]
         [SerializeField] private string selectedDevice = "";
         [SerializeField] private int sampleRate = 48000;
         [SerializeField] private int bufferSize = 2048;
         
-        [Header("Status")]
-        [SerializeField] private bool isRecording = false;
-        [SerializeField] private bool hasSignal = false;
-        [SerializeField] private float signalLevel = 0f;
-        
-        [Header("Timecode Output")]
-        [SerializeField] private string currentTimecode = "00:00:00:00";
-        [SerializeField] private bool dropFrame = false;
-        [SerializeField] private int framesSinceLastUpdate = 0;
-        
-        [Header("Raw Timecode Output (No Filtering)")]
-        [SerializeField] private string rawTimecode = "00:00:00:00";
-        [SerializeField] private bool rawDropFrame = false;
-        [SerializeField] private int rawFramesSinceLastUpdate = 0;
-        
-        [Header("Audio Monitoring")]
-        [SerializeField] private float currentLevel = 0f;
-        [SerializeField] private float peakLevel = 0f;
-        [SerializeField] private float[] waveformData = new float[512];
-        [SerializeField] private int waveformWriteIndex = 0;
-        [SerializeField] private float peakHoldTime = 2f;
+        [Header("Sync Settings")]
+        [SerializeField, Range(5, 30)] private int bufferQueueSize = 15;
+        [SerializeField, Range(0.01f, 1.0f)] private float syncThreshold = 0.1f;
+        [SerializeField, Range(0.5f, 5.0f)] private float jumpThreshold = 1.0f;
+        [SerializeField, Range(0.0001f, 0.01f)] private float stopThreshold = 0.001f;
+        [SerializeField, Range(0.01f, 1.0f)] private float driftCorrection = 0.1f;
         
         [Header("Signal Detection")]
-        [SerializeField, Range(0.001f, 0.1f)] private float signalThreshold = 0.01f; // Signal detection threshold
-        [SerializeField, Range(0.001f, 0.1f)] private float noiseFloor = 0.001f; // Noise floor level
+        [SerializeField, Range(0.001f, 0.1f)] private float signalThreshold = 0.01f;
         
-        [Header("Jitter Detection Settings")]
-        [SerializeField, Range(0.001f, 1.0f)] private float jitterThreshold = 0.1f; // 100ms default - threshold for detecting jitter
-        [SerializeField, Range(0.5f, 10.0f)] private float intentionalJumpThreshold = 2.0f; // Minimum time for intentional jump detection (default: 2 seconds)
-        [SerializeField, Range(0.1f, 7200.0f)] private float maxAllowedJitter = 3600.0f; // Maximum allowed time jump in seconds (default: 1 hour)
-        [SerializeField, Range(1, 100)] private int jitterHistorySize = 50; // Sample count for averaging
-        [SerializeField] private bool enableJitterDetection = true;
+        [Header("Status")]
+        [SerializeField] private SyncState currentState = SyncState.NoSignal;
+        [SerializeField] private string currentTimecode = "00:00:00:00";
+        [SerializeField] private string decodedTimecode = "00:00:00:00";
+        [SerializeField] private bool hasSignal = false;
+        [SerializeField] private float signalLevel = 0f;
+        [SerializeField] private float timeDifference = 0f;
         
-        [Header("Denoising Settings")]
-        [SerializeField, Range(1, 10)] private int continuityCheckFrames = 3; // Frames to check for continuity
-        [SerializeField, Range(0.001f, 0.1f)] private float timecodeStabilityWindow = 0.033f; // ~1 frame at 30fps
-        [SerializeField, Range(0.0f, 1.0f)] private float denoisingStrength = 0.8f; // Filter strength (0=off, 1=max)
-        [SerializeField] private bool enableAdaptiveFiltering = true; // Adjust filter based on signal quality
-        [SerializeField, Range(1, 5)] private int minConsecutiveValidFrames = 2; // Min valid frames before accepting (reduced max for faster response)
+        [Header("Frame Rate")]
+        [SerializeField] private float frameRate = 30.0f;
+        [SerializeField] private bool dropFrame = false;
         
-        [Header("Debug Settings")]
-        [SerializeField] private bool useTimecodeValidation = true;
+        [Header("Debug")]
+        [SerializeField] private bool enableDebugLogging = false;
         
-        [Header("Logging Settings")]
-        [SerializeField] private bool logDebugInfo = false;
-        [SerializeField] private LogLevel logLevel = LogLevel.Warning;
-        [SerializeField] private bool logToConsole = false; // Disable Console.Log by default for performance
-        [SerializeField] private bool logValidation = false; // Log validation rejections
-        [SerializeField] private bool logJumps = true; // Log significant jumps
-        [SerializeField] private bool logBufferIssues = true; // Log buffer problems
-        [SerializeField] private int maxDebugLogs = 100;
+        #endregion
         
-        public enum LogLevel
-        {
-            Error = 0,
-            Warning = 1,
-            Info = 2,
-            Debug = 3,
-            Verbose = 4
-        }
+        #region Private Fields
         
+        // DSPクロック管理
+        private double dspTimeBase;
+        private double internalTcTime;
+        private bool isRunning;
+        
+        // オーディオ処理
         private AudioClip microphoneClip;
         private TimecodeDecoder decoder;
-        private Timecode lastDecodedTimecode;
         private float[] audioBuffer;
-        private int lastSamplePosition = 0;
+        private int lastSamplePosition;
         private Coroutine audioProcessingCoroutine;
-        private float lastPeakTime = 0f;
         
-        // Debug logging
-        private System.Collections.Generic.List<string> debugLogs = new System.Collections.Generic.List<string>();
-        public System.Collections.Generic.List<string> DebugLogs => debugLogs;
+        // LTCバッファリング
+        private struct LTCSample
+        {
+            public double dspTime;
+            public string timecode;
+            public double tcSeconds;
+        }
+        private Queue<LTCSample> ltcBuffer;
         
-        // For improved buffer handling
-        private float[] tempBuffer;
+        // 統計情報
+        private int consecutiveStops = 0;
+        private string lastDecodedTc = "";
+        private double lastSyncTime = 0;
         
-        // Jitter tracking
-        private System.Collections.Generic.Queue<float> jitterHistory;
-        private float lastTimecodeSeconds = 0f;
-        private float maxJump = 0f;
-        private float averageJitter = 0f;
-        private int jumpCount = 0;
-        private int rejectedCount = 0;
-        private int totalDecodedCount = 0;
+        #endregion
         
-        // Denoising state
-        private int consecutiveValidFrames = 0;
-        private Timecode lastAcceptedTimecode = null;
-        // Simplified jump tracking
-        private Timecode potentialJumpTarget = null; // Store potential new stable timecode
+        #region Properties
         
-        public System.Collections.Generic.Queue<float> JitterHistory => jitterHistory;
-        public float MaxJump => maxJump;
-        public float AverageJitter => averageJitter;
-        public int JumpCount => jumpCount;
-        public int RejectedCount => rejectedCount;
-        public int TotalDecodedCount => totalDecodedCount;
-        public float RejectionRate => totalDecodedCount > 0 ? (float)rejectedCount / totalDecodedCount * 100f : 0f;
-        
-        public string[] AvailableDevices => Microphone.devices;
-        public string SelectedDevice => selectedDevice;
         public string CurrentTimecode => currentTimecode;
-        public bool IsRecording => isRecording;
+        public string DecodedTimecode => decodedTimecode;
+        public SyncState State => currentState;
         public bool HasSignal => hasSignal;
         public float SignalLevel => signalLevel;
-        public float CurrentLevel => currentLevel;
-        public float PeakLevel => peakLevel;
-        public float[] WaveformData => waveformData;
-        public float NoiseFloor => noiseFloor;
+        public float TimeDifference => timeDifference;
+        public bool IsRecording => microphoneClip != null;
+        public string SelectedDevice => selectedDevice;
+        public string[] AvailableDevices => Microphone.devices;
+        public bool DropFrame => dropFrame;
         
-        // Raw TC properties
-        public string RawTimecode => rawTimecode;
-        public bool RawDropFrame => rawDropFrame;
-        public int RawFramesSinceLastUpdate => rawFramesSinceLastUpdate;
-        public int FramesSinceLastUpdate => framesSinceLastUpdate;
+        #endregion
+        
+        #region Unity Lifecycle
         
         private void Awake()
         {
             decoder = new TimecodeDecoder();
+            ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
             audioBuffer = new float[bufferSize];
-            
-            // Initialize jitter tracking queue with user-defined size
-            jitterHistory = new System.Collections.Generic.Queue<float>(jitterHistorySize);
-            
-            if (Microphone.devices.Length > 0 && string.IsNullOrEmpty(selectedDevice))
-            {
-                selectedDevice = Microphone.devices[0];
-            }
         }
         
         private void OnEnable()
@@ -156,20 +129,59 @@ namespace LTC.Timeline
             StopRecording();
         }
         
-        private void OnDestroy()
+        private void Update()
         {
-            StopRecording();
+            // DSPクロック更新
+            UpdateInternalClock();
         }
+        
+        #endregion
+        
+        #region DSP Clock Management
+        
+        /// <summary>
+        /// 内部クロックを更新
+        /// </summary>
+        private void UpdateInternalClock()
+        {
+            if (!isRunning) return;
+            
+            double currentDsp = AudioSettings.dspTime;
+            if (currentDsp <= 0) return;
+            
+            double deltaTime = currentDsp - dspTimeBase;
+            if (deltaTime < 0 || deltaTime > 1.0)
+            {
+                dspTimeBase = currentDsp;
+                return;
+            }
+            
+            // 内部タイムコードを更新
+            internalTcTime += deltaTime;
+            dspTimeBase = currentDsp;
+            
+            // タイムコード文字列に変換
+            currentTimecode = SecondsToTimecode(internalTcTime);
+            
+            // デコードされたTCとの差分を計算
+            if (ltcBuffer.Count > 0)
+            {
+                var latest = ltcBuffer.Last();
+                double age = currentDsp - latest.dspTime;
+                timeDifference = (float)(internalTcTime - (latest.tcSeconds + age));
+            }
+        }
+        
+        #endregion
+        
+        #region Audio Processing
         
         public void SetDevice(string deviceName)
         {
             if (selectedDevice == deviceName) return;
             
-            bool wasRecording = isRecording;
-            if (wasRecording)
-            {
-                StopRecording();
-            }
+            bool wasRecording = IsRecording;
+            if (wasRecording) StopRecording();
             
             selectedDevice = deviceName;
             
@@ -179,53 +191,44 @@ namespace LTC.Timeline
             }
         }
         
-        public void StartRecording()
+        private void StartRecording()
         {
-            if (isRecording || string.IsNullOrEmpty(selectedDevice)) return;
+            if (string.IsNullOrEmpty(selectedDevice)) return;
             
             if (!Microphone.devices.Contains(selectedDevice))
             {
-                LogDebug($"Device '{selectedDevice}' not found. Available devices: {string.Join(", ", Microphone.devices)}", LogLevel.Error);
+                Debug.LogWarning($"Device '{selectedDevice}' not found");
                 return;
             }
             
-            int minFreq, maxFreq;
-            Microphone.GetDeviceCaps(selectedDevice, out minFreq, out maxFreq);
-            
-            if (maxFreq == 0) maxFreq = sampleRate;
-            int actualSampleRate = Mathf.Clamp(sampleRate, minFreq, maxFreq);
-            
-            microphoneClip = Microphone.Start(selectedDevice, true, 1, actualSampleRate);
-            
+            microphoneClip = Microphone.Start(selectedDevice, true, 1, sampleRate);
             if (microphoneClip == null)
             {
-                LogDebug($"Failed to start recording from device: {selectedDevice}", LogLevel.Error);
+                Debug.LogError($"Failed to start recording from {selectedDevice}");
                 return;
             }
             
-            isRecording = true;
             lastSamplePosition = 0;
             
             if (audioProcessingCoroutine != null)
-            {
                 StopCoroutine(audioProcessingCoroutine);
-            }
             audioProcessingCoroutine = StartCoroutine(ProcessAudioData());
             
-            LogDebug($"Started recording from: {selectedDevice} at {actualSampleRate} Hz", LogLevel.Info);
+            LogDebug($"Started recording from {selectedDevice}");
         }
         
-        public void StopRecording()
+        private void StopRecording()
         {
-            if (!isRecording) return;
-            
             if (audioProcessingCoroutine != null)
             {
                 StopCoroutine(audioProcessingCoroutine);
                 audioProcessingCoroutine = null;
             }
             
-            Microphone.End(selectedDevice);
+            if (!string.IsNullOrEmpty(selectedDevice))
+            {
+                Microphone.End(selectedDevice);
+            }
             
             if (microphoneClip != null)
             {
@@ -233,498 +236,387 @@ namespace LTC.Timeline
                 microphoneClip = null;
             }
             
-            isRecording = false;
+            currentState = SyncState.NoSignal;
             hasSignal = false;
-            signalLevel = 0f;
+            isRunning = false;
             
-            LogDebug($"Stopped recording from: {selectedDevice}", LogLevel.Info);
+            LogDebug("Stopped recording");
         }
         
         private IEnumerator ProcessAudioData()
         {
-            while (isRecording && microphoneClip != null)
+            while (microphoneClip != null)
             {
                 int currentPosition = Microphone.GetPosition(selectedDevice);
                 
-                if (currentPosition < 0)
+                if (currentPosition < lastSamplePosition)
                 {
-                    yield return null;
-                    continue;
+                    int samplesToRead = microphoneClip.samples - lastSamplePosition;
+                    if (samplesToRead > 0)
+                    {
+                        ProcessAudioSegment(lastSamplePosition, samplesToRead);
+                    }
+                    lastSamplePosition = 0;
                 }
                 
-                int samplesToRead = 0;
-                bool isWrapped = false;
-                
-                if (currentPosition >= lastSamplePosition)
+                if (currentPosition > lastSamplePosition)
                 {
-                    samplesToRead = currentPosition - lastSamplePosition;
-                }
-                else
-                {
-                    // Buffer has wrapped around
-                    samplesToRead = (microphoneClip.samples - lastSamplePosition) + currentPosition;
-                    isWrapped = true;
-                }
-                
-                if (samplesToRead > 0)
-                {
-                    // Limit processing to prevent decoder overload
-                    const int MAX_SAMPLES_PER_PROCESS = 2048;  // Reduced for better stability
-                    
-                    // Check if we need to process in chunks
-                    if (samplesToRead > MAX_SAMPLES_PER_PROCESS)
-                    {
-                        if (logDebugInfo)
-                        {
-                            LogDebug($"Large buffer detected: {samplesToRead} samples, processing in chunks", LogLevel.Info, "buffer");
-                        }
-                    }
-                    
-                    // Always use improved buffer handling for wrapped case
-                    if (isWrapped)
-                    {
-                        // Improved buffer handling for wrapped case
-                        int part1Size = microphoneClip.samples - lastSamplePosition;
-                        int part2Size = currentPosition;
-                        
-                        if (logDebugInfo)
-                        {
-                            LogDebug($"Buffer wrap detected: part1={part1Size}, part2={part2Size}, total={samplesToRead}", LogLevel.Debug, "buffer");
-                        }
-                        
-                        if (tempBuffer == null || tempBuffer.Length < samplesToRead)
-                        {
-                            tempBuffer = new float[samplesToRead];
-                        }
-                        
-                        // Read the two parts correctly
-                        if (part1Size > 0)
-                        {
-                            float[] part1 = new float[part1Size];
-                            microphoneClip.GetData(part1, lastSamplePosition);
-                            Array.Copy(part1, 0, tempBuffer, 0, part1Size);
-                        }
-                        
-                        if (part2Size > 0)
-                        {
-                            float[] part2 = new float[part2Size];
-                            microphoneClip.GetData(part2, 0);
-                            Array.Copy(part2, 0, tempBuffer, part1Size, part2Size);
-                        }
-                        
-                        // Remove verbose success log for performance
-                        // LogDebug($"Buffer wrap handled correctly: {part1Size}+{part2Size}={samplesToRead} samples", LogLevel.Verbose, "buffer");
-                        
-                        // Process in chunks if necessary
-                        if (samplesToRead > MAX_SAMPLES_PER_PROCESS)
-                        {
-                            for (int offset = 0; offset < samplesToRead; offset += MAX_SAMPLES_PER_PROCESS)
-                            {
-                                int chunkSize = Mathf.Min(MAX_SAMPLES_PER_PROCESS, samplesToRead - offset);
-                                float[] chunk = new float[chunkSize];
-                                Array.Copy(tempBuffer, offset, chunk, 0, chunkSize);
-                                ProcessAudioBuffer(chunk, chunkSize);
-                            }
-                        }
-                        else
-                        {
-                            ProcessAudioBuffer(tempBuffer, samplesToRead);
-                        }
-                    }
-                    else
-                    {
-                        // Non-wrapped case
-                        if (samplesToRead > audioBuffer.Length)
-                        {
-                            audioBuffer = new float[samplesToRead];
-                        }
-                        
-                        microphoneClip.GetData(audioBuffer, lastSamplePosition);
-                        
-                        // Process in chunks if necessary
-                        if (samplesToRead > MAX_SAMPLES_PER_PROCESS)
-                        {
-                            for (int offset = 0; offset < samplesToRead; offset += MAX_SAMPLES_PER_PROCESS)
-                            {
-                                int chunkSize = Mathf.Min(MAX_SAMPLES_PER_PROCESS, samplesToRead - offset);
-                                float[] chunk = new float[chunkSize];
-                                Array.Copy(audioBuffer, offset, chunk, 0, chunkSize);
-                                ProcessAudioBuffer(chunk, chunkSize);
-                            }
-                        }
-                        else
-                        {
-                            ProcessAudioBuffer(audioBuffer, samplesToRead);
-                        }
-                    }
-                    
+                    int samplesToRead = currentPosition - lastSamplePosition;
+                    ProcessAudioSegment(lastSamplePosition, samplesToRead);
                     lastSamplePosition = currentPosition;
                 }
                 
-                yield return new WaitForSeconds(0.005f); // Poll more frequently (5ms) to avoid missing data
+                yield return new WaitForSeconds(0.01f);
             }
         }
         
-        private void ProcessAudioBuffer(float[] buffer, int length)
+        private void ProcessAudioSegment(int startPosition, int length)
         {
-            if (length <= 0) return;
+            if (length > audioBuffer.Length)
+            {
+                audioBuffer = new float[length];
+            }
             
+            microphoneClip.GetData(audioBuffer, startPosition);
+            
+            // 信号レベル検出
             float maxAmplitude = 0f;
-            float sumAmplitude = 0f;
-            
-            // Calculate levels and update waveform
             for (int i = 0; i < length; i++)
             {
-                float sample = buffer[i];
-                float absValue = Mathf.Abs(sample);
-                
+                float absValue = Mathf.Abs(audioBuffer[i]);
                 if (absValue > maxAmplitude)
-                {
                     maxAmplitude = absValue;
-                }
-                
-                sumAmplitude += absValue;
-                
-                // Store samples for waveform visualization (decimated)
-                int decimation = Mathf.Max(1, length / 64);  // Avoid divide by zero
-                if (i % decimation == 0 && waveformWriteIndex < waveformData.Length)
-                {
-                    waveformData[waveformWriteIndex] = sample;
-                    waveformWriteIndex = (waveformWriteIndex + 1) % waveformData.Length;
-                }
-            }
-            
-            // Update current level (RMS-like)
-            float avgAmplitude = sumAmplitude / length;
-            currentLevel = Mathf.Lerp(currentLevel, avgAmplitude, 0.3f);
-            
-            // Update peak level with hold
-            if (maxAmplitude > peakLevel)
-            {
-                peakLevel = maxAmplitude;
-                lastPeakTime = Time.time;
-            }
-            else if (Time.time - lastPeakTime > peakHoldTime)
-            {
-                peakLevel = Mathf.Lerp(peakLevel, maxAmplitude, 0.1f);
             }
             
             signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
+            hasSignal = signalLevel > signalThreshold;
             
-            // Simple signal detection with adjustable threshold
-            if (!hasSignal && signalLevel > signalThreshold)
+            if (!hasSignal)
             {
-                hasSignal = true;
-                LogDebug($"Signal ON: level={signalLevel:F4}, threshold={signalThreshold:F4}", LogLevel.Debug, "signal");
-            }
-            else if (hasSignal && signalLevel < signalThreshold * 0.5f)
-            {
-                hasSignal = false;
-                LogDebug($"Signal OFF: level={signalLevel:F4}, threshold={signalThreshold * 0.5f:F4}", LogLevel.Debug, "signal");
+                if (currentState != SyncState.NoSignal)
+                {
+                    currentState = SyncState.NoSignal;
+                    LogDebug("Signal lost");
+                }
+                return;
             }
             
-            if (hasSignal)
+            // LTCデコード
+            var span = new ReadOnlySpan<float>(audioBuffer, 0, length);
+            decoder.ParseAudioData(span);
+            
+            if (decoder.LastTimecode != null)
             {
-                // オーディオフィルタリングを無効化し、元のバッファをそのまま使用
-                var span = new ReadOnlySpan<float>(buffer, 0, length);
-                decoder.ParseAudioData(span);
+                string tcString = decoder.LastTimecode.ToString();
+                if (tcString != lastDecodedTc)
+                {
+                    ProcessDecodedLTC(tcString, decoder.LastTimecode);
+                    lastDecodedTc = tcString;
+                }
+            }
+        }
+        
+        #endregion
+        
+        #region LTC Buffer Analysis
+        
+        /// <summary>
+        /// デコードされたLTCを処理
+        /// </summary>
+        private void ProcessDecodedLTC(string tcString, Timecode tc)
+        {
+            decodedTimecode = tcString;
+            dropFrame = tc.DropFrame;
+            
+            var sample = new LTCSample
+            {
+                dspTime = AudioSettings.dspTime,
+                timecode = tcString,
+                tcSeconds = TimecodeToSeconds(tc)
+            };
+            
+            // バッファに追加
+            ltcBuffer.Enqueue(sample);
+            while (ltcBuffer.Count > bufferQueueSize)
+            {
+                ltcBuffer.Dequeue();
+            }
+            
+            // バッファ解析
+            AnalyzeBuffer();
+        }
+        
+        /// <summary>
+        /// バッファを解析して同期状態を判定
+        /// </summary>
+        private void AnalyzeBuffer()
+        {
+            if (ltcBuffer.Count < 3)
+            {
+                if (currentState != SyncState.Syncing)
+                {
+                    currentState = SyncState.Syncing;
+                    LogDebug("Acquiring LTC samples...");
+                }
+                return;
+            }
+            
+            var samples = ltcBuffer.TakeLast(5).ToArray();
+            
+            // 停止検出
+            if (DetectStop(samples))
+            {
+                HandleStop();
+                return;
+            }
+            
+            // ジャンプ検出
+            if (DetectJump(samples))
+            {
+                HandleJump(samples.Last());
+                return;
+            }
+            
+            // 安定性チェック
+            if (CheckStability(samples))
+            {
+                HandleStableProgression(samples.Last());
+            }
+        }
+        
+        /// <summary>
+        /// 停止状態を検出
+        /// </summary>
+        private bool DetectStop(LTCSample[] samples)
+        {
+            if (samples.Length < 2) return false;
+            
+            int sameCount = 0;
+            for (int i = 1; i < samples.Length; i++)
+            {
+                double diff = Math.Abs(samples[i].tcSeconds - samples[i - 1].tcSeconds);
+                if (diff < stopThreshold)
+                {
+                    sameCount++;
+                }
+            }
+            
+            return sameCount >= samples.Length - 1;
+        }
+        
+        /// <summary>
+        /// ジャンプを検出
+        /// </summary>
+        private bool DetectJump(LTCSample[] samples)
+        {
+            if (samples.Length < 2) return false;
+            
+            double diff = Math.Abs(samples[samples.Length - 1].tcSeconds - samples[samples.Length - 2].tcSeconds);
+            return diff > jumpThreshold;
+        }
+        
+        /// <summary>
+        /// 安定した進行をチェック
+        /// </summary>
+        private bool CheckStability(LTCSample[] samples)
+        {
+            if (samples.Length < 3) return false;
+            
+            var diffs = new List<double>();
+            for (int i = 1; i < samples.Length; i++)
+            {
+                double timeDiff = samples[i].tcSeconds - samples[i - 1].tcSeconds;
+                double dspDiff = samples[i].dspTime - samples[i - 1].dspTime;
                 
-                if (decoder.LastTimecode != null)
+                if (dspDiff > 0)
                 {
-                    if (lastDecodedTimecode == null || !lastDecodedTimecode.Equals(decoder.LastTimecode))
-                    {
-                        totalDecodedCount++;
-                        
-                        // RAW TCを無条件で更新（フィルタリング前）
-                        rawTimecode = decoder.LastTimecode.ToString();
-                        rawDropFrame = decoder.LastTimecode.DropFrame;
-                        rawFramesSinceLastUpdate = 0;
-                        
-                        // Apply timecode validation
-                        if (ValidateTimecode(decoder.LastTimecode, lastDecodedTimecode))
-                        {
-                            // Track FILTERED jitter after validation
-                            float newSeconds = TimecodeToSeconds(decoder.LastTimecode);
-                            if (lastTimecodeSeconds > 0)
-                            {
-                                float timeDiff = newSeconds - lastTimecodeSeconds;
-                                float jitter = Mathf.Abs(timeDiff - (1.0f / 30.0f)); // Assuming 30fps nominal
-                                
-                                // Add to jitter history with user-defined size
-                                if (jitterHistory.Count >= jitterHistorySize)
-                                    jitterHistory.Dequeue();
-                                jitterHistory.Enqueue(jitter);
-                                
-                                // Track jumps using user-defined threshold
-                                if (enableJitterDetection && Mathf.Abs(timeDiff) > jitterThreshold)
-                                {
-                                    jumpCount++;
-                                    if (Mathf.Abs(timeDiff) > maxJump)
-                                        maxJump = Mathf.Abs(timeDiff);
-                                    
-                                    if (logDebugInfo)
-                                    {
-                                        int framesSkipped = Mathf.RoundToInt(Mathf.Abs(timeDiff) * 30f);
-                                        LogDebug($"TC Jump detected: {timeDiff:F3}s ({framesSkipped} frames) from {lastDecodedTimecode} to {decoder.LastTimecode}", LogLevel.Warning, "jump");
-                                        // Remove verbose buffer state log
-                                    }
-                                }
-                                
-                                // Update average jitter
-                                if (jitterHistory.Count > 0)
-                                {
-                                    float sum = 0;
-                                    foreach (float j in jitterHistory)
-                                        sum += j;
-                                    averageJitter = sum / jitterHistory.Count;
-                                }
-                            }
-                            lastTimecodeSeconds = newSeconds;
-                            
-                            lastDecodedTimecode = decoder.LastTimecode;
-                            currentTimecode = lastDecodedTimecode.ToString();
-                            dropFrame = lastDecodedTimecode.DropFrame;
-                            framesSinceLastUpdate = 0;
-                            
-                            // Remove verbose timecode update log - too frequent
-                            // if (logDebugInfo) LogDebug($"Timecode updated: {currentTimecode}", LogLevel.Verbose);
-                        }
-                        else
-                        {
-                            // Timecode was rejected
-                            rejectedCount++;
-                            // Log rejection statistics periodically, not every rejection
-                            if (logDebugInfo && rejectedCount % 10 == 0)
-                            {
-                                LogDebug($"Timecode rejection rate: {rejectedCount}/{totalDecodedCount} ({RejectionRate:F1}%)", LogLevel.Info, "validation");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        framesSinceLastUpdate++;
-                        rawFramesSinceLastUpdate++;
-                    }
+                    diffs.Add(Math.Abs(timeDiff - dspDiff));
                 }
             }
+            
+            if (diffs.Count < 2) return false;
+            
+            // 差分が全て閾値以内
+            return diffs.All(d => d < syncThreshold);
         }
         
-        public void RefreshDevices()
-        {
-            if (Microphone.devices.Length > 0)
-            {
-                if (string.IsNullOrEmpty(selectedDevice) || !Microphone.devices.Contains(selectedDevice))
-                {
-                    selectedDevice = Microphone.devices[0];
-                }
-            }
-            else
-            {
-                selectedDevice = "";
-            }
-        }
+        #endregion
         
-        public void ResetJitterStatistics()
-        {
-            // Reset jitter tracking data
-            jitterHistory.Clear();
-            lastTimecodeSeconds = 0f;
-            maxJump = 0f;
-            averageJitter = 0f;
-            jumpCount = 0;
-            rejectedCount = 0;
-            totalDecodedCount = 0;
-            
-            // Reset denoising state
-            consecutiveValidFrames = 0;
-            lastAcceptedTimecode = null;
-            potentialJumpTarget = null;
-            
-            // Reset RAW TC
-            rawTimecode = "00:00:00:00";
-            rawDropFrame = false;
-            rawFramesSinceLastUpdate = 0;
-            
-            LogDebug("All jitter statistics and denoising state reset");
-        }
+        #region Sync Handlers
         
-        private void LogDebug(string message, LogLevel level = LogLevel.Debug, string category = "general")
+        /// <summary>
+        /// 停止状態を処理
+        /// </summary>
+        private void HandleStop()
         {
-            if (!logDebugInfo) return;
-            if (level > logLevel) return; // Skip if log level is too low
-            
-            // Check category-specific settings
-            if (!ShouldLogCategory(category)) return;
-            
-            // Store in internal buffer (always, for Inspector display)
-            string logEntry = $"[{Time.time:F3}] [{level}] {message}";
-            debugLogs.Add(logEntry);
-            
-            // Keep log size manageable
-            while (debugLogs.Count > maxDebugLogs)
+            consecutiveStops++;
+            if (consecutiveStops > 2)
             {
-                debugLogs.RemoveAt(0);
-            }
-            
-            // Only output to Unity Console if explicitly enabled (performance critical)
-            if (logToConsole)
-            {
-                switch (level)
-                {
-                    case LogLevel.Error:
-                        Debug.LogError($"[LTC] {message}");
-                        break;
-                    case LogLevel.Warning:
-                        Debug.LogWarning($"[LTC] {message}");
-                        break;
-                    default:
-                        Debug.Log($"[LTC {level}] {message}");
-                        break;
-                }
+                isRunning = false;
+                currentState = SyncState.Locked;
+                LogDebug("TC stopped - pausing internal clock");
             }
         }
         
-        private bool ShouldLogCategory(string category)
+        /// <summary>
+        /// ジャンプを処理
+        /// </summary>
+        private void HandleJump(LTCSample target)
         {
-            switch (category)
-            {
-                case "validation":
-                    return logValidation;
-                case "jump":
-                    return logJumps;
-                case "buffer":
-                    return logBufferIssues;
-                default:
-                    return true;
-            }
+            SyncToLTC(target);
+            currentState = SyncState.Locked;
+            consecutiveStops = 0;
+            LogDebug($"Jump detected - synced to {target.timecode}");
         }
         
-        private float TimecodeToSeconds(Timecode tc)
+        /// <summary>
+        /// 安定した進行を処理
+        /// </summary>
+        private void HandleStableProgression(LTCSample target)
         {
-            if (tc == null) return 0f;
+            consecutiveStops = 0;
             
-            float fps = tc.DropFrame ? 29.97f : 30f;
-            return tc.Hour * 3600f + tc.Minute * 60f + tc.Second + (tc.Frame / fps);
-        }
-        
-        private bool ValidateTimecode(Timecode newTC, Timecode lastTC)
-        {
-            // Always validate basic timecode ranges
-            if (newTC == null) return false;
-            
-            // Check for invalid time values
-            if (newTC.Hour < 0 || newTC.Hour > 23)
+            if (currentState == SyncState.Syncing || currentState == SyncState.NoSignal)
             {
-                LogDebug($"Timecode rejected: Invalid hour {newTC.Hour}", LogLevel.Warning, "validation");
-                return false;
+                // 初回同期
+                SyncToLTC(target);
+                currentState = SyncState.Locked;
+                LogDebug($"Initial sync to {target.timecode}");
             }
-            if (newTC.Minute < 0 || newTC.Minute > 59)
+            else if (currentState == SyncState.Locked || currentState == SyncState.Drifting)
             {
-                LogDebug($"Timecode rejected: Invalid minute {newTC.Minute}", LogLevel.Warning, "validation");
-                return false;
-            }
-            if (newTC.Second < 0 || newTC.Second > 59)
-            {
-                LogDebug($"Timecode rejected: Invalid second {newTC.Second}", LogLevel.Warning, "validation");
-                return false;
-            }
-            // Frame check based on drop frame mode
-            int maxFrame = newTC.DropFrame ? 29 : 29;  // Both NTSC formats use 30 frames (0-29)
-            if (newTC.Frame < 0 || newTC.Frame > maxFrame)
-            {
-                LogDebug($"Timecode rejected: Invalid frame {newTC.Frame} (max={maxFrame})", LogLevel.Warning, "validation");
-                return false;
-            }
-            
-            // If validation is disabled, only do basic range checks
-            if (!useTimecodeValidation) return true;
-            
-            // Additional continuity validation when enabled
-            if (lastTC == null)
-            {
-                // First timecode - always accept to avoid startup delays
-                lastAcceptedTimecode = newTC;
-                consecutiveValidFrames = minConsecutiveValidFrames; // Start in stable state
-                return true;
-            }
-            
-            float newTime = TimecodeToSeconds(newTC);
-            float lastTime = TimecodeToSeconds(lastTC);
-            float diff = Mathf.Abs(newTime - lastTime);
-            
-            // Reject jumps larger than maxAllowedJitter
-            if (diff > maxAllowedJitter)
-            {
-                LogDebug($"Timecode rejected: Unrealistic jump {diff:F3}s (>{maxAllowedJitter}s) from {lastTC} to {newTC}", LogLevel.Error, "jump");
-                return false;
-            }
-            
-            // Apply denoising based on user settings
-            if (enableAdaptiveFiltering && denoisingStrength > 0)
-            {
-                // Check for duplicate/stale timecodes with user-defined window
-                // Only reject if it's truly a duplicate (same value), not just small changes
-                if (diff < 0.001f) // Less than 1ms is considered duplicate
-                {
-                    LogDebug($"Timecode rejected: Duplicate value {newTC}", LogLevel.Debug, "validation");
-                    return false;
-                }
+                // ドリフトチェック
+                double currentDsp = AudioSettings.dspTime;
+                double age = currentDsp - target.dspTime;
+                double expectedTc = target.tcSeconds + age;
+                double drift = Math.Abs(internalTcTime - expectedTc);
                 
-                // Three-stage jump detection for better noise filtering
-                if (diff > intentionalJumpThreshold)
+                if (drift > syncThreshold)
                 {
-                    // Stage 3: Large jumps (>2 seconds) are intentional (user seeking)
-                    // Accept immediately for responsive operation
-                    LogDebug($"Intentional jump detected and accepted: {newTC} (jump: {diff:F3}s)", LogLevel.Info, "jump");
-                    consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
-                    lastAcceptedTimecode = newTC;  // Update last accepted timecode
-                    potentialJumpTarget = null;     // Clear any jump tracking
-                    return true;
-                }
-                else if (diff > jitterThreshold)
-                {
-                    // Stage 2: Medium jumps (0.1s to 2s) are likely noise/glitches
-                    // Reject these to maintain stable timecode
-                    LogDebug($"Timecode rejected: Noisy jump {diff:F3}s from {lastTC} to {newTC}", LogLevel.Warning, "validation");
-                    return false;
+                    currentState = SyncState.Drifting;
+                    // ソフトな補正
+                    double correction = (expectedTc - internalTcTime) * driftCorrection;
+                    internalTcTime += correction;
+                    LogDebug($"Drift correction: {drift:F3}s");
                 }
                 else
                 {
-                    // Stage 1: Small changes (<0.1s) are normal continuous playback
-                    // Accept immediately for smooth operation
-                    if (potentialJumpTarget != null)
-                    {
-                        // Clear any jump tracking
-                        potentialJumpTarget = null;
-                    }
-                    
-                    // Normal continuous playback - always accept
-                    consecutiveValidFrames = minConsecutiveValidFrames; // Maintain stable state
-                    lastAcceptedTimecode = newTC;
-                    return true;
+                    currentState = SyncState.Locked;
                 }
             }
-            else
+            
+            if (!isRunning)
             {
-                // Simple backward jump check without adaptive filtering
-                if (newTime < lastTime && diff > jitterThreshold)
-                {
-                    LogDebug($"Timecode backward jump: {newTC} ({diff:F3}s behind {lastTC})", LogLevel.Warning, "jump");
-                    return false;
-                }
-                
-                // Accept forward progress
-                lastAcceptedTimecode = newTC;
-                return true;
+                isRunning = true;
+                dspTimeBase = AudioSettings.dspTime;
             }
         }
         
-        #if UNITY_EDITOR
-        private void OnValidate()
+        /// <summary>
+        /// LTCに同期
+        /// </summary>
+        private void SyncToLTC(LTCSample target)
         {
-            sampleRate = Mathf.Clamp(sampleRate, 8000, 192000);
-            bufferSize = Mathf.Clamp(bufferSize, 256, 8192);
+            double currentDsp = AudioSettings.dspTime;
+            double age = currentDsp - target.dspTime;
+            
+            dspTimeBase = currentDsp;
+            internalTcTime = target.tcSeconds + age;
+            isRunning = true;
+            lastSyncTime = currentDsp;
         }
-        #endif
+        
+        #endregion
+        
+        #region Utility Methods
+        
+        /// <summary>
+        /// タイムコードを秒に変換
+        /// </summary>
+        private double TimecodeToSeconds(Timecode tc)
+        {
+            if (tc == null) return 0;
+            
+            double totalSeconds = tc.Hour * 3600 + tc.Minute * 60 + tc.Second;
+            totalSeconds += tc.Frame / frameRate;
+            
+            return totalSeconds;
+        }
+        
+        /// <summary>
+        /// 秒をタイムコード文字列に変換
+        /// </summary>
+        private string SecondsToTimecode(double totalSeconds)
+        {
+            if (totalSeconds < 0) totalSeconds = 0;
+            
+            int hours = (int)(totalSeconds / 3600);
+            int minutes = (int)((totalSeconds % 3600) / 60);
+            int seconds = (int)(totalSeconds % 60);
+            int frames = (int)((totalSeconds % 1.0) * frameRate);
+            
+            hours = hours % 24;
+            frames = Math.Min(frames, (int)frameRate - 1);
+            
+            return $"{hours:D2}:{minutes:D2}:{seconds:D2}:{frames:D2}";
+        }
+        
+        /// <summary>
+        /// デバッグログ
+        /// </summary>
+        private void LogDebug(string message)
+        {
+            if (enableDebugLogging)
+            {
+                Debug.Log($"[LTCDecoder] {message}");
+            }
+        }
+        
+        #endregion
+        
+        #region Public Methods
+        
+        /// <summary>
+        /// デバイスリストを更新
+        /// </summary>
+        public void RefreshDevices()
+        {
+            LogDebug($"Found {AvailableDevices.Length} audio devices");
+        }
+        
+        /// <summary>
+        /// 統計をリセット
+        /// </summary>
+        public void ResetStatistics()
+        {
+            ltcBuffer.Clear();
+            consecutiveStops = 0;
+            currentState = SyncState.NoSignal;
+            timeDifference = 0;
+            isRunning = false;
+            LogDebug("Statistics reset");
+        }
+        
+        /// <summary>
+        /// 手動同期
+        /// </summary>
+        public void ManualSync(string timecode)
+        {
+            var parts = timecode.Split(':');
+            if (parts.Length == 4 &&
+                int.TryParse(parts[0], out int h) &&
+                int.TryParse(parts[1], out int m) &&
+                int.TryParse(parts[2], out int s) &&
+                int.TryParse(parts[3], out int f))
+            {
+                internalTcTime = h * 3600 + m * 60 + s + f / frameRate;
+                dspTimeBase = AudioSettings.dspTime;
+                isRunning = true;
+                currentState = SyncState.Locked;
+                LogDebug($"Manual sync to {timecode}");
+            }
+        }
+        
+        #endregion
     }
 }
