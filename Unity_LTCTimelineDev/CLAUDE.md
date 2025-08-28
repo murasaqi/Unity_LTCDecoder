@@ -1,5 +1,46 @@
 # Unity LTC Timeline Project
 
+## 🎯 開発行動指針
+
+### 基本原則
+1. **言語ルール**
+   - 対話：日本語で行う
+   - コード内コメント：日本語で記述
+   - 思考処理：英語（効率性のため）
+   - ドキュメント：基本日本語、技術用語は英語可
+
+2. **Unity Natural MCP活用**
+   - 必ず**Unity Natural MCP**でConsole確認しながら開発
+   - `mcp__unity-natural-mcp__get_compile_logs` でコンパイルエラー確認
+   - `mcp__unity-natural-mcp__get_current_console_logs` で実行時ログ確認
+   - `mcp__unity-natural-mcp__refresh_assets` でアセット更新
+
+3. **タスク管理**
+   - タスクは`TODO.md`で管理
+   - 作業前に必ずToDoリスト確認
+   - 優先度順に着手
+   - 進捗をこまめに記録
+   - 新規課題は即座にTODO.mdに追加
+
+4. **開発サイクル**
+   ```
+   1. TODO.md確認 → 優先タスク選択
+   2. Unity Console確認 → エラーなし確認
+   3. 実装・テスト
+   4. エラー対処 → Console確認
+   5. タスク完了 → TODO.md更新
+   6. Gitコミット
+   7. 次タスクへ
+   ```
+
+5. **品質基準**
+   - Unity Consoleエラーゼロ
+   - パフォーマンス影響を考慮
+   - 既存機能への影響確認
+   - タスク完了ごとにコミット
+
+---
+
 ## Overview
 This Unity project implements Linear Timecode (LTC) decoding and synchronization with Unity Timeline. It provides real-time timecode decoding from audio input and automatic synchronization of Unity's PlayableDirector with the incoming LTC signal.
 
@@ -136,65 +177,6 @@ Key areas to monitor:
 3. `LogDebug` calls - Should be minimal in hot paths
 4. Unity Console output - Major performance impact if enabled
 
-## Development Rules & Workflow
-
-### 🚀 開発の進め方
-
-#### 0. 言語ルール
-- **対話**: 日本語で行うこと
-- **コメント**: コード内のコメントは日本語で記述
-- **思考**: 内部思考は英語で行う（効率的な処理のため）
-- **ドキュメント**: 基本的に日本語、技術用語は英語可
-
-#### 1. Unity Natural MCPの活用
-- 開発は必ず**Unity Natural MCP**を使用してUnity Consoleを確認しながら進める
-- コンパイルエラーは即座に確認: `mcp__unity-natural-mcp__get_compile_logs`
-- 実行時ログの確認: `mcp__unity-natural-mcp__get_current_console_logs`
-- アセットのリフレッシュ: `mcp__unity-natural-mcp__refresh_assets`
-
-#### 2. タスク管理
-- **作業開始前**：必ずToDoリストを作成し、タスクを優先度順に整理
-- **タスク着手前**：現在のToDoリストを確認し、最優先タスクから着手
-- **進捗記録**：各タスクの進捗をこまめに記入（in_progress, completed等）
-- **新規課題**：開発中に発見した課題は即座にToDoリストに追加
-
-#### 3. 開発サイクル
-```
-1. ToDoリスト確認 → 優先度の高いタスクを選択
-2. タスクのステータスを "in_progress" に更新
-3. Unity Consoleで動作確認しながら実装
-4. エラーが出たら即座に対処
-5. タスク完了 → ステータスを "completed" に更新
-6. Gitにコミット
-7. 次のタスクへ（1に戻る）
-```
-
-#### 4. Git運用
-- **タスク完了ごと**にコミット（大きなタスクは適切に分割）
-- コミットメッセージは明確に（何を・なぜ・どのように）
-- エラーが残っている状態でのコミットは避ける
-
-#### 5. 品質管理
-- Unity Consoleにエラーが出ていないことを確認
-- パフォーマンスへの影響を常に意識
-- 既存機能を壊していないか確認
-
-### 実装例
-```
-// 良い例：タスク管理されたワークフロー
-1. TodoWrite: "Add new feature X" → in_progress
-2. Unity Console確認 → エラーなし
-3. 実装完了
-4. Unity Console再確認 → 動作確認OK
-5. TodoWrite: "Add new feature X" → completed
-6. git commit -m "Add feature X: implemented Y for Z purpose"
-7. 次のタスクへ
-
-// 悪い例：場当たり的な開発
-- ToDoリストなしで作業開始
-- エラーを無視して次の作業へ
-- まとめて大量の変更をコミット
-```
 
 ## Version History
 - Initial implementation: Basic LTC decoding
