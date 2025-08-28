@@ -23,6 +23,11 @@ namespace LTC.Timeline
         [SerializeField] private bool dropFrame = false;
         [SerializeField] private int framesSinceLastUpdate = 0;
         
+        [Header("Raw Timecode Output (No Filtering)")]
+        [SerializeField] private string rawTimecode = "00:00:00:00";
+        [SerializeField] private bool rawDropFrame = false;
+        [SerializeField] private int rawFramesSinceLastUpdate = 0;
+        
         [Header("Audio Monitoring")]
         [SerializeField] private float currentLevel = 0f;
         [SerializeField] private float peakLevel = 0f;
@@ -36,7 +41,7 @@ namespace LTC.Timeline
         
         [Header("Jitter Detection Settings")]
         [SerializeField, Range(0.001f, 1.0f)] private float jitterThreshold = 0.1f; // 100ms default - threshold for detecting jitter
-        [SerializeField, Range(0.5f, 10.0f)] private float intentionalJumpThreshold = 1.0f; // Minimum time for intentional jump detection (default: 1 second)
+        [SerializeField, Range(0.5f, 10.0f)] private float intentionalJumpThreshold = 2.0f; // Minimum time for intentional jump detection (default: 2 seconds)
         [SerializeField, Range(0.1f, 7200.0f)] private float maxAllowedJitter = 3600.0f; // Maximum allowed time jump in seconds (default: 1 hour)
         [SerializeField, Range(1, 100)] private int jitterHistorySize = 50; // Sample count for averaging
         [SerializeField] private bool enableJitterDetection = true;
@@ -117,6 +122,12 @@ namespace LTC.Timeline
         public float PeakLevel => peakLevel;
         public float[] WaveformData => waveformData;
         public float NoiseFloor => noiseFloor;
+        
+        // Raw TC properties
+        public string RawTimecode => rawTimecode;
+        public bool RawDropFrame => rawDropFrame;
+        public int RawFramesSinceLastUpdate => rawFramesSinceLastUpdate;
+        public int FramesSinceLastUpdate => framesSinceLastUpdate;
         
         private void Awake()
         {
@@ -424,6 +435,11 @@ namespace LTC.Timeline
                     {
                         totalDecodedCount++;
                         
+                        // RAW TCを無条件で更新（フィルタリング前）
+                        rawTimecode = decoder.LastTimecode.ToString();
+                        rawDropFrame = decoder.LastTimecode.DropFrame;
+                        rawFramesSinceLastUpdate = 0;
+                        
                         // Apply timecode validation
                         if (ValidateTimecode(decoder.LastTimecode, lastDecodedTimecode))
                         {
@@ -487,6 +503,7 @@ namespace LTC.Timeline
                     else
                     {
                         framesSinceLastUpdate++;
+                        rawFramesSinceLastUpdate++;
                     }
                 }
             }
@@ -522,6 +539,11 @@ namespace LTC.Timeline
             consecutiveValidFrames = 0;
             lastAcceptedTimecode = null;
             potentialJumpTarget = null;
+            
+            // Reset RAW TC
+            rawTimecode = "00:00:00:00";
+            rawDropFrame = false;
+            rawFramesSinceLastUpdate = 0;
             
             LogDebug("All jitter statistics and denoising state reset");
         }
@@ -648,22 +670,10 @@ namespace LTC.Timeline
                     return false;
                 }
                 
-                // For very small changes that might be noise (but not duplicates)
-                if (diff < timecodeStabilityWindow * denoisingStrength && diff > 0.001f)
-                {
-                    // Only reject if we're not in stable continuous playback
-                    if (consecutiveValidFrames < minConsecutiveValidFrames)
-                    {
-                        LogDebug($"Timecode rejected: Within stability window {diff:F3}s for {newTC} (not yet stable)", LogLevel.Verbose, "validation");
-                        return false;
-                    }
-                    // If stable, allow small changes as they might be legitimate frame advances
-                }
-                
                 // Three-stage jump detection for better noise filtering
                 if (diff > intentionalJumpThreshold)
                 {
-                    // Stage 3: Large jumps (>1 second) are intentional (user seeking)
+                    // Stage 3: Large jumps (>2 seconds) are intentional (user seeking)
                     // Accept immediately for responsive operation
                     LogDebug($"Intentional jump detected and accepted: {newTC} (jump: {diff:F3}s)", LogLevel.Info, "jump");
                     consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
@@ -673,7 +683,7 @@ namespace LTC.Timeline
                 }
                 else if (diff > jitterThreshold)
                 {
-                    // Stage 2: Medium jumps (0.1s to 1s) are likely noise/glitches
+                    // Stage 2: Medium jumps (0.1s to 2s) are likely noise/glitches
                     // Reject these to maintain stable timecode
                     LogDebug($"Timecode rejected: Noisy jump {diff:F3}s from {lastTC} to {newTC}", LogLevel.Warning, "validation");
                     return false;
@@ -702,10 +712,11 @@ namespace LTC.Timeline
                     LogDebug($"Timecode backward jump: {newTC} ({diff:F3}s behind {lastTC})", LogLevel.Warning, "jump");
                     return false;
                 }
+                
+                // Accept forward progress
+                lastAcceptedTimecode = newTC;
+                return true;
             }
-            
-            lastAcceptedTimecode = newTC;
-            return true;
         }
         
         #if UNITY_EDITOR

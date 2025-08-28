@@ -102,29 +102,70 @@ namespace LTC.Timeline
             
             EditorGUILayout.Space(10);
             
-            // Timecode Display Section
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Timecode Output", EditorStyles.boldLabel);
+            // Timecode Comparison Section
+            EditorGUILayout.LabelField("Timecode Comparison", EditorStyles.boldLabel);
             
-            // Large timecode display
+            // Two-column layout for RAW and Filtered TC
             EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
+            
+            // RAW TC (Left side, Red theme)
+            EditorGUILayout.BeginVertical();
+            GUI.backgroundColor = new Color(1f, 0.9f, 0.9f);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("RAW TC (No Filter)", EditorStyles.boldLabel);
             
             Color originalColor = GUI.color;
+            GUI.color = new Color(0.8f, 0.2f, 0.2f);
+            
+            var rawStyle = new GUIStyle(EditorStyles.largeLabel);
+            rawStyle.fontSize = 18;
+            rawStyle.fontStyle = FontStyle.Bold;
+            rawStyle.alignment = TextAnchor.MiddleCenter;
+            
+            EditorGUILayout.LabelField(component.RawTimecode ?? "00:00:00:00", rawStyle, GUILayout.Height(30));
+            GUI.color = originalColor;
+            
+            EditorGUILayout.LabelField($"Frames since update: {component.RawFramesSinceLastUpdate}", EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+            GUI.backgroundColor = Color.white;
+            EditorGUILayout.EndVertical();
+            
+            GUILayout.Space(10);
+            
+            // Filtered TC (Right side, Green theme)
+            EditorGUILayout.BeginVertical();
+            GUI.backgroundColor = new Color(0.9f, 1f, 0.9f);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("Filtered TC", EditorStyles.boldLabel);
+            
             if (component.HasSignal)
             {
-                GUI.color = Color.green;
+                GUI.color = new Color(0.2f, 0.8f, 0.2f);
             }
             else
             {
                 GUI.color = Color.gray;
             }
             
-            EditorGUILayout.LabelField(component.CurrentTimecode, timecodeStyle, GUILayout.Height(40));
-            
+            EditorGUILayout.LabelField(component.CurrentTimecode, rawStyle, GUILayout.Height(30));
             GUI.color = originalColor;
-            GUILayout.FlexibleSpace();
+            
+            EditorGUILayout.LabelField($"Frames since update: {component.FramesSinceLastUpdate}", EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+            GUI.backgroundColor = Color.white;
+            EditorGUILayout.EndVertical();
+            
             EditorGUILayout.EndHorizontal();
+            
+            // Difference warning
+            string rawTC = component.RawTimecode ?? "00:00:00:00";
+            if (rawTC != component.CurrentTimecode)
+            {
+                EditorGUILayout.HelpBox(
+                    $"Filtering active - RAW: {rawTC} | Filtered: {component.CurrentTimecode}",
+                    MessageType.Info
+                );
+            }
             
             // Status indicators
             EditorGUILayout.BeginHorizontal();
@@ -149,8 +190,6 @@ namespace LTC.Timeline
             EditorGUI.BeginDisabledGroup(true);
             EditorGUILayout.Toggle("Drop Frame", dropFrameProp.boolValue);
             EditorGUI.EndDisabledGroup();
-            
-            EditorGUILayout.EndVertical();
             
             EditorGUILayout.Space(10);
             
