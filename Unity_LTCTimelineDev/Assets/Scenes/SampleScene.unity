@@ -822,14 +822,16 @@ MonoBehaviour:
   smoothingFactor: 0.3
   enableSync: 1
   pauseWhenNoSignal: 1
-  frameRate: 30
-  autoDetectFrameRate: 1
+  frameRate: 12.97
+  autoDetectFrameRate: 0
   isSynced: 0
   currentTimeDifference: 0
   lastSyncedTimecode: 00:00:00:00
   consecutiveSyncFrames: 0
   timelineTime: 0
   ltcTime: 0
+  enableLogging: 0
+  logToConsole: 0
 --- !u!1 &1594228300
 GameObject:
   m_ObjectHideFlags: 0
@@ -1401,6 +1403,29 @@ MonoBehaviour:
   waveformWriteIndex: 0
   noiseFloor: 0.001
   peakHoldTime: 2
+  jitterThreshold: 0.029
+  maxAllowedJitter: 0.158
+  jitterHistorySize: 60
+  enableJitterDetection: 1
+  continuityCheckFrames: 3
+  timecodeStabilityWindow: 0.033
+  denoisingStrength: 0.8
+  enableAdaptiveFiltering: 1
+  minConsecutiveValidFrames: 2
+  enableDebugMode: 0
+  useImprovedBufferHandling: 0
+  useTimecodeValidation: 0
+  useAdvancedBinarization: 0
+  usePeriodStabilization: 0
+  useNoiseHysteresis: 0
+  logDebugInfo: 0
+  logLevel: 1
+  logToConsole: 0
+  logValidation: 0
+  logJumps: 1
+  logBufferIssues: 1
+  maxDebugLogs: 100
+  logThrottleInterval: 1
 --- !u!1 &1713316561
 GameObject:
   m_ObjectHideFlags: 0

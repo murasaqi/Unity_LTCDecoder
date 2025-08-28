@@ -9,7 +9,9 @@
       "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
       "mcp__unity-natural-mcp__refresh_assets",
-      "mcp__unity-natural-mcp__get_compile_logs"
+      "mcp__unity-natural-mcp__get_compile_logs",
+      "mcp__unity-natural-mcp__get_current_console_logs",
+      "mcp__serena__replace_symbol_body"
     ],
     "additionalDirectories": [
       "C:\\Users\\uma92\\AppData\\Roaming",
