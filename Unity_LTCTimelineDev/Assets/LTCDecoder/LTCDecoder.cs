@@ -425,31 +425,24 @@ namespace LTC.Timeline
             
             signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
             
-            // Apply noise hysteresis if enabled
-            if (enableDebugMode && useNoiseHysteresis)
+            // Simple signal detection with fixed threshold
+            // アダプティブノイズフロアトラッキングを無効化し、固定閾値を使用
+            float fixedThreshold = 0.01f; // 固定の信号検出閾値
+            
+            if (!hasSignal && signalLevel > fixedThreshold)
             {
-                float signalOnThreshold = noiseFloor * 1.2f;
-                float signalOffThreshold = noiseFloor * 0.8f;
-                
-                if (!hasSignal && signalLevel > signalOnThreshold)
-                {
-                    hasSignal = true;
-                    LogDebug($"Signal ON (hysteresis): level={signalLevel:F4}, threshold={signalOnThreshold:F4}", LogLevel.Info, "signal");
-                }
-                else if (hasSignal && signalLevel < signalOffThreshold)
-                {
-                    hasSignal = false;
-                    LogDebug($"Signal OFF (hysteresis): level={signalLevel:F4}, threshold={signalOffThreshold:F4}", LogLevel.Info, "signal");
-                }
+                hasSignal = true;
+                LogDebug($"Signal ON: level={signalLevel:F4}, threshold={fixedThreshold:F4}", LogLevel.Debug, "signal");
             }
-            else
+            else if (hasSignal && signalLevel < fixedThreshold * 0.5f)
             {
-                // Original implementation
-                hasSignal = signalLevel > noiseFloor;
+                hasSignal = false;
+                LogDebug($"Signal OFF: level={signalLevel:F4}, threshold={fixedThreshold * 0.5f:F4}", LogLevel.Debug, "signal");
             }
             
             if (hasSignal)
             {
+                // オーディオフィルタリングを無効化し、元のバッファをそのまま使用
                 var span = new ReadOnlySpan<float>(buffer, 0, length);
                 decoder.ParseAudioData(span);
                 
@@ -729,10 +722,10 @@ namespace LTC.Timeline
             float lastTime = TimecodeToSeconds(lastTC);
             float diff = Mathf.Abs(newTime - lastTime);
             
-            // Use user-defined max allowed jitter instead of hard-coded value
-            if (diff > maxAllowedJitter)
+            // Only reject extremely unrealistic jumps (over 1 hour)
+            if (diff > 3600.0f)
             {
-                LogDebug($"Timecode rejected: Large jump {diff:F3}s from {lastTC} to {newTC}", LogLevel.Warning, "jump");
+                LogDebug($"Timecode rejected: Unrealistic jump {diff:F3}s (>1 hour) from {lastTC} to {newTC}", LogLevel.Error, "jump");
                 return false;
             }
             
@@ -764,88 +757,30 @@ namespace LTC.Timeline
                 
                 if (isLargeJump)
                 {
-                    // Check if this is a stable intentional jump
-                    if (potentialJumpTarget != null)
-                    {
-                        // Check if this is a continuation from the jump target
-                        float timeSinceJump = newTime - jumpTargetTime;
-                        
-                        // Allow for continuous progression from jump point (up to 1 second forward)
-                        if (timeSinceJump >= -0.1f && timeSinceJump <= 1.0f)
-                        {
-                            // This looks like continuous playback from the jump point
-                            stableJumpCounter++;
-                            LogDebug($"Continuous from jump target: {newTC} (progress: {timeSinceJump:F3}s, stability: {stableJumpCounter}/{minConsecutiveValidFrames})", LogLevel.Debug, "jump");
-                            
-                            // If we've seen continuous progression, accept it as intentional
-                            if (stableJumpCounter >= minConsecutiveValidFrames)
-                            {
-                                LogDebug($"Accepting intentional jump sequence after {stableJumpCounter} continuous readings", LogLevel.Info, "jump");
-                                consecutiveValidFrames = minConsecutiveValidFrames; // Reset to stable state
-                                stableJumpCounter = 0;
-                                potentialJumpTarget = null;
-                                jumpTargetTime = 0f;
-                                // Accept this as part of intentional jump sequence
-                            }
-                            else
-                            {
-                                // Still verifying the jump is intentional
-                                return false;
-                            }
-                        }
-                        else
-                        {
-                            // This is a different jump, reset tracking
-                            potentialJumpTarget = newTC;
-                            jumpTargetTime = newTime;
-                            stableJumpCounter = 1;
-                            LogDebug($"New jump detected while tracking another: {newTC}", LogLevel.Debug, "jump");
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        // First jump detected - accept it immediately but track for stability
-                        potentialJumpTarget = newTC;
-                        jumpTargetTime = newTime;
-                        stableJumpCounter = 1;
-                        LogDebug($"Intentional jump detected: {newTC} - accepting immediately", LogLevel.Info, "jump");
-                        consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
-                        // Accept the first jump immediately for responsiveness
-                    }
+                    // Large jumps are generally intentional (user seeking)
+                    // Accept immediately for responsive operation
+                    LogDebug($"Intentional jump detected and accepted: {newTC} (jump: {diff:F3}s)", LogLevel.Info, "jump");
+                    consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
+                    lastAcceptedTimecode = newTC;  // Update last accepted timecode
+                    potentialJumpTarget = null;     // Clear any jump tracking
+                    stableJumpCounter = 0;          // Reset counter
+                    return true;
                 }
                 else
                 {
                     // Small change - this is continuous playback
+                    // Accept immediately for smooth operation
                     if (potentialJumpTarget != null)
                     {
-                        // We were tracking a jump but now getting continuous values, reset
+                        // Clear any jump tracking
                         potentialJumpTarget = null;
                         stableJumpCounter = 0;
-                        LogDebug($"Continuous playback resumed, clearing jump tracking", LogLevel.Debug, "jump");
                     }
                     
-                    // Check if we're already in stable state
-                    if (consecutiveValidFrames >= minConsecutiveValidFrames)
-                    {
-                        // Already stable - accept continuous values immediately
-                        // This is normal continuous playback, no need to buffer
-                    }
-                    else
-                    {
-                        // Still building initial confidence after a disruption
-                        consecutiveValidFrames++;
-                        LogDebug($"Timecode buffered: Building confidence ({consecutiveValidFrames}/{minConsecutiveValidFrames}) for {newTC}", LogLevel.Verbose, "validation");
-                        
-                        // Store in buffer but don't accept yet
-                        if (timecodeBuffer.Count >= continuityCheckFrames)
-                            timecodeBuffer.Dequeue();
-                        timecodeBuffer.Enqueue(newTC);
-                        
-                        // Need to reach minimum frames before accepting
-                        if (consecutiveValidFrames < minConsecutiveValidFrames)
-                            return false;
-                    }
+                    // Normal continuous playback - always accept
+                    consecutiveValidFrames = minConsecutiveValidFrames; // Maintain stable state
+                    lastAcceptedTimecode = newTC;
+                    return true;
                 }
             }
             else
