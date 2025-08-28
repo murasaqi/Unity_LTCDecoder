@@ -6,7 +6,7 @@
 - [ ] CLAUDE.mdの開発指針を最上部に移動
 
 ### ⏳ 待機中 (Pending)
-- [ ] （現在なし）
+- [ ] Package化して、開発しているUnityプロジェクトとPackageを分離管理
 
 ### ✅ 完了済み (Completed)
 - [x] CLAUDE.md作成と開発ルール追加

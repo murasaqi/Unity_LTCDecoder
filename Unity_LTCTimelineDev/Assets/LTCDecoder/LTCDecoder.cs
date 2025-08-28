@@ -6,7 +6,7 @@ using UnityEngine;
 namespace LTC.Timeline
 {
     [AddComponentMenu("Audio/LTC Decoder")]
-    public class LTCDecoderComponent : MonoBehaviour
+    public class LTCDecoder : MonoBehaviour
     {
         [Header("Audio Input Settings")]
         [SerializeField] private string selectedDevice = "";

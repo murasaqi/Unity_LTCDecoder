@@ -5,10 +5,10 @@ using UnityEditor.Graphs;
 
 namespace LTC.Timeline
 {
-    [CustomEditor(typeof(LTCDecoderComponent))]
-    public class LTCDecoderComponentEditor : Editor
+    [CustomEditor(typeof(LTCDecoder))]
+    public class LTCDecoderEditor : Editor
     {
-        private LTCDecoderComponent component;
+        private LTCDecoder component;
         private GUIStyle timecodeStyle;
         private GUIStyle statusStyle;
         private GUIStyle levelMeterStyle;
@@ -26,7 +26,7 @@ namespace LTC.Timeline
         
         private void OnEnable()
         {
-            component = (LTCDecoderComponent)target;
+            component = (LTCDecoder)target;
             RefreshDeviceList();
             waveformTexture = new Texture2D(512, 100);
             jitterGraphTexture = new Texture2D(300, 150);

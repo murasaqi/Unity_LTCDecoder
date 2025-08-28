@@ -6,10 +6,10 @@ using LTC.Timeline;
 
 [AddComponentMenu("Audio/LTC Timeline Sync")]
 [RequireComponent(typeof(PlayableDirector))]
-public class LTCTimelineSyncComponent : MonoBehaviour
+public class LTCTimelineSync : MonoBehaviour
 {
     [Header("LTC Source")]
-    [SerializeField] private LTCDecoderComponent ltcDecoder;
+    [SerializeField] private LTCDecoder ltcDecoder;
     
     [Header("Sync Settings")]
     [SerializeField] private float syncThreshold = 0.1f;
@@ -53,7 +53,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         
         if (ltcDecoder == null)
         {
-            ltcDecoder = FindObjectOfType<LTCDecoderComponent>();
+            ltcDecoder = FindFirstObjectByType<LTCDecoder>();
             if (ltcDecoder == null)
             {
                 LogError("LTC Decoder Component not found. Please assign it manually.");
@@ -74,7 +74,7 @@ public class LTCTimelineSyncComponent : MonoBehaviour
         StopSync();
     }
     
-    public void SetLTCDecoder(LTCDecoderComponent decoder)
+    public void SetLTCDecoder(LTCDecoder decoder)
     {
         bool wasRunning = syncCoroutine != null;
         

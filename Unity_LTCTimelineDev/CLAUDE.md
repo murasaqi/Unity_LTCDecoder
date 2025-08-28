@@ -46,8 +46,8 @@ This Unity project implements Linear Timecode (LTC) decoding and synchronization
 
 ## Key Components
 
-### 1. LTCDecoderComponent
-**Location**: `Assets/LTCDecoder/LTCDecoderComponent.cs`
+### 1. LTCDecoder
+**Location**: `Assets/LTCDecoder/LTCDecoder.cs`
 
 Main component for decoding LTC from audio input. Features:
 - Real-time LTC decoding from microphone input
@@ -63,8 +63,8 @@ Main component for decoding LTC from audio input. Features:
 - `denoisingStrength`: Filter strength 0-1 (default 0.8)
 - `logToConsole`: Set to false for better performance (default false)
 
-### 2. LTCTimelineSyncComponent
-**Location**: `Assets/LTCDecoder/LTCTimelineSyncComponent.cs`
+### 2. LTCTimelineSync
+**Location**: `Assets/LTCDecoder/LTCTimelineSync.cs`
 
 Synchronizes Unity Timeline with decoded LTC. Features:
 - Automatic timeline synchronization with configurable threshold
@@ -77,8 +77,8 @@ Synchronizes Unity Timeline with decoded LTC. Features:
 - `smoothingFactor`: Smoothing for timeline adjustments (0-1)
 - `pauseWhenNoSignal`: Auto-pause timeline when LTC signal lost
 
-### 3. LTCDecoderComponentEditor
-**Location**: `Assets/LTCDecoder/Editor/LTCDecoderComponentEditor.cs`
+### 3. LTCDecoderEditor
+**Location**: `Assets/LTCDecoder/Editor/LTCDecoderEditor.cs`
 
 Custom Inspector UI providing:
 - Real-time timecode display
@@ -118,8 +118,8 @@ The validation system distinguishes between:
 ## Testing & Debugging
 
 ### Quick Test Setup
-1. Add `LTCDecoderComponent` to a GameObject
-2. Add `LTCTimelineSyncComponent` to GameObject with PlayableDirector
+1. Add `LTCDecoder` to a GameObject
+2. Add `LTCTimelineSync` to GameObject with PlayableDirector
 3. Link the decoder component to the sync component
 4. Select audio input device in Inspector
 5. Press Play and start LTC source
