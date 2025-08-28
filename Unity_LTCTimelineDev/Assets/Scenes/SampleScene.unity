@@ -814,7 +814,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 982331614}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 60984459e48633841a4bf2f654420ec4, type: 3}
+  m_Script: {fileID: 11500000, guid: c1d96840e2153cd4ba4458bfff5e21ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ltcDecoder: {fileID: 1594228302}
@@ -822,8 +822,8 @@ MonoBehaviour:
   smoothingFactor: 0.3
   enableSync: 1
   pauseWhenNoSignal: 1
-  frameRate: 12.97
-  autoDetectFrameRate: 0
+  frameRate: 30
+  autoDetectFrameRate: 1
   isSynced: 0
   currentTimeDifference: 0
   lastSyncedTimecode: 00:00:00:00
@@ -843,7 +843,7 @@ GameObject:
   - component: {fileID: 1594228301}
   - component: {fileID: 1594228302}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: LTC Decoder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -873,11 +873,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1594228300}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b95e4ffdb40f97f468de2583926efe0e, type: 3}
+  m_Script: {fileID: 11500000, guid: 74ab7e1dfb78f1b499f9e02ee1e73cfe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectedDevice: "\u30E9\u30A4\u30F3 (AUDIO4c D2)"
-  sampleRate: 44100
+  selectedDevice: 
+  sampleRate: 48000
   bufferSize: 2048
   isRecording: 0
   hasSignal: 0
@@ -1403,21 +1403,21 @@ MonoBehaviour:
   waveformWriteIndex: 0
   noiseFloor: 0.001
   peakHoldTime: 2
-  jitterThreshold: 0.029
-  maxAllowedJitter: 0.158
-  jitterHistorySize: 60
+  jitterThreshold: 0.1
+  maxAllowedJitter: 0.5
+  jitterHistorySize: 50
   enableJitterDetection: 1
   continuityCheckFrames: 3
   timecodeStabilityWindow: 0.033
   denoisingStrength: 0.8
   enableAdaptiveFiltering: 1
   minConsecutiveValidFrames: 2
-  enableDebugMode: 0
-  useImprovedBufferHandling: 0
-  useTimecodeValidation: 0
-  useAdvancedBinarization: 0
-  usePeriodStabilization: 0
-  useNoiseHysteresis: 0
+  enableDebugMode: 1
+  useImprovedBufferHandling: 1
+  useTimecodeValidation: 1
+  useAdvancedBinarization: 1
+  usePeriodStabilization: 1
+  useNoiseHysteresis: 1
   logDebugInfo: 0
   logLevel: 1
   logToConsole: 0
