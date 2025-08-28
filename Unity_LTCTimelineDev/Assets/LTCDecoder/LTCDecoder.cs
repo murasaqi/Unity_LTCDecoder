@@ -35,7 +35,8 @@ namespace LTC.Timeline
         [SerializeField, Range(0.001f, 0.1f)] private float noiseFloor = 0.001f; // Noise floor level
         
         [Header("Jitter Detection Settings")]
-        [SerializeField, Range(0.001f, 1.0f)] private float jitterThreshold = 0.1f; // 100ms default
+        [SerializeField, Range(0.001f, 1.0f)] private float jitterThreshold = 0.1f; // 100ms default - threshold for detecting jitter
+        [SerializeField, Range(0.5f, 10.0f)] private float intentionalJumpThreshold = 1.0f; // Minimum time for intentional jump detection (default: 1 second)
         [SerializeField, Range(0.1f, 7200.0f)] private float maxAllowedJitter = 3600.0f; // Maximum allowed time jump in seconds (default: 1 hour)
         [SerializeField, Range(1, 100)] private int jitterHistorySize = 50; // Sample count for averaging
         [SerializeField] private bool enableJitterDetection = true;
@@ -659,12 +660,10 @@ namespace LTC.Timeline
                     // If stable, allow small changes as they might be legitimate frame advances
                 }
                 
-                // Detect intentional jump vs noise
-                bool isLargeJump = diff > jitterThreshold;
-                
-                if (isLargeJump)
+                // Three-stage jump detection for better noise filtering
+                if (diff > intentionalJumpThreshold)
                 {
-                    // Large jumps are generally intentional (user seeking)
+                    // Stage 3: Large jumps (>1 second) are intentional (user seeking)
                     // Accept immediately for responsive operation
                     LogDebug($"Intentional jump detected and accepted: {newTC} (jump: {diff:F3}s)", LogLevel.Info, "jump");
                     consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
@@ -672,9 +671,16 @@ namespace LTC.Timeline
                     potentialJumpTarget = null;     // Clear any jump tracking
                     return true;
                 }
+                else if (diff > jitterThreshold)
+                {
+                    // Stage 2: Medium jumps (0.1s to 1s) are likely noise/glitches
+                    // Reject these to maintain stable timecode
+                    LogDebug($"Timecode rejected: Noisy jump {diff:F3}s from {lastTC} to {newTC}", LogLevel.Warning, "validation");
+                    return false;
+                }
                 else
                 {
-                    // Small change - this is continuous playback
+                    // Stage 1: Small changes (<0.1s) are normal continuous playback
                     // Accept immediately for smooth operation
                     if (potentialJumpTarget != null)
                     {
