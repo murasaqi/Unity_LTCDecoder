@@ -280,51 +280,6 @@ namespace LTC.Timeline
                 GUI.color = Color.white;
                 EditorGUILayout.EndHorizontal();
                 
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Jump Reduction:", GUILayout.Width(120));
-                int jumpReduction = component.RawJumpCount - component.JumpCount;
-                float reductionRate = component.RawJumpCount > 0 ? (float)jumpReduction / component.RawJumpCount * 100f : 0f;
-                GUI.color = reductionRate > 50 ? Color.green : (reductionRate > 25 ? Color.yellow : Color.red);
-                EditorGUILayout.LabelField($"{jumpReduction} jumps removed ({reductionRate:F1}%)", EditorStyles.boldLabel);
-                GUI.color = Color.white;
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.Space(10);
-                
-                // RAW Data Statistics (Before Filtering)
-                EditorGUILayout.LabelField("RAW Data (Before Filtering)", EditorStyles.boldLabel);
-                GUI.backgroundColor = new Color(1f, 0.8f, 0.8f); // Light red background
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Average Jitter:", GUILayout.Width(100));
-                GUI.color = component.RawAverageJitter > 0.01f ? Color.red : Color.yellow;
-                EditorGUILayout.LabelField($"{component.RawAverageJitter * 1000:F2} ms", EditorStyles.boldLabel);
-                GUI.color = Color.white;
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Max Jump:", GUILayout.Width(100));
-                GUI.color = Color.red;
-                EditorGUILayout.LabelField($"{component.RawMaxJump:F3} seconds", EditorStyles.boldLabel);
-                GUI.color = Color.white;
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Jump Count:", GUILayout.Width(100));
-                GUI.color = Color.red;
-                EditorGUILayout.LabelField(component.RawJumpCount.ToString(), EditorStyles.boldLabel);
-                GUI.color = Color.white;
-                EditorGUILayout.EndHorizontal();
-                
-                // Raw Jitter Graph
-                EditorGUILayout.Space(5);
-                EditorGUILayout.LabelField("Raw Jitter Graph (ms)", EditorStyles.miniLabel);
-                Rect rawJitterGraphRect = GUILayoutUtility.GetRect(0, 120, GUILayout.ExpandWidth(true));
-                DrawJitterGraph(rawJitterGraphRect, component.RawJitterHistory, new Color(1f, 0.5f, 0.5f));
-                
-                EditorGUILayout.EndVertical();
-                GUI.backgroundColor = Color.white;
                 
                 EditorGUILayout.Space(10);
                 

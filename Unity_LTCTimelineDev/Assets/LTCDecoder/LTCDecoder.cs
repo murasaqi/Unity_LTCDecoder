@@ -28,12 +28,15 @@ namespace LTC.Timeline
         [SerializeField] private float peakLevel = 0f;
         [SerializeField] private float[] waveformData = new float[512];
         [SerializeField] private int waveformWriteIndex = 0;
-        [SerializeField] private float noiseFloor = 0.001f;
         [SerializeField] private float peakHoldTime = 2f;
+        
+        [Header("Signal Detection")]
+        [SerializeField, Range(0.001f, 0.1f)] private float signalThreshold = 0.01f; // Signal detection threshold
+        [SerializeField, Range(0.001f, 0.1f)] private float noiseFloor = 0.001f; // Noise floor level
         
         [Header("Jitter Detection Settings")]
         [SerializeField, Range(0.001f, 1.0f)] private float jitterThreshold = 0.1f; // 100ms default
-        [SerializeField, Range(0.0f, 1.0f)] private float maxAllowedJitter = 0.5f; // 500ms max jump
+        [SerializeField, Range(0.1f, 7200.0f)] private float maxAllowedJitter = 3600.0f; // Maximum allowed time jump in seconds (default: 1 hour)
         [SerializeField, Range(1, 100)] private int jitterHistorySize = 50; // Sample count for averaging
         [SerializeField] private bool enableJitterDetection = true;
         
@@ -45,12 +48,7 @@ namespace LTC.Timeline
         [SerializeField, Range(1, 5)] private int minConsecutiveValidFrames = 2; // Min valid frames before accepting (reduced max for faster response)
         
         [Header("Debug Settings")]
-        [SerializeField] private bool enableDebugMode = false;
-        [SerializeField] private bool useImprovedBufferHandling = true;
         [SerializeField] private bool useTimecodeValidation = true;
-        [SerializeField] private bool useAdvancedBinarization = false;
-        [SerializeField] private bool usePeriodStabilization = false;
-        [SerializeField] private bool useNoiseHysteresis = false;
         
         [Header("Logging Settings")]
         [SerializeField] private bool logDebugInfo = false;
@@ -60,7 +58,6 @@ namespace LTC.Timeline
         [SerializeField] private bool logJumps = true; // Log significant jumps
         [SerializeField] private bool logBufferIssues = true; // Log buffer problems
         [SerializeField] private int maxDebugLogs = 100;
-        [SerializeField, Range(0.1f, 5.0f)] private float logThrottleInterval = 1.0f; // Minimum time between similar logs
         
         public enum LogLevel
         {
@@ -77,7 +74,6 @@ namespace LTC.Timeline
         private float[] audioBuffer;
         private int lastSamplePosition = 0;
         private Coroutine audioProcessingCoroutine;
-        private float peakHoldTimer = 0f;
         private float lastPeakTime = 0f;
         
         // Debug logging
@@ -87,43 +83,25 @@ namespace LTC.Timeline
         // For improved buffer handling
         private float[] tempBuffer;
         
-        // Jitter tracking - Filtered (after validation)
+        // Jitter tracking
         private System.Collections.Generic.Queue<float> jitterHistory;
         private float lastTimecodeSeconds = 0f;
         private float maxJump = 0f;
         private float averageJitter = 0f;
         private int jumpCount = 0;
-        
-        // Jitter tracking - Raw (before validation)
-        private System.Collections.Generic.Queue<float> rawJitterHistory;
-        private float rawLastTimecodeSeconds = 0f;
-        private float rawMaxJump = 0f;
-        private float rawAverageJitter = 0f;
-        private int rawJumpCount = 0;
         private int rejectedCount = 0;
         private int totalDecodedCount = 0;
         
         // Denoising state
         private int consecutiveValidFrames = 0;
         private Timecode lastAcceptedTimecode = null;
-        private System.Collections.Generic.Queue<Timecode> timecodeBuffer;
-        private int stableJumpCounter = 0; // Track consecutive same timecodes after a jump
+        // Simplified jump tracking
         private Timecode potentialJumpTarget = null; // Store potential new stable timecode
-        private float jumpTargetTime = 0f; // Time value of the jump target for range checking
-        
-        // Log throttling
-        private System.Collections.Generic.Dictionary<string, float> lastLogTimes = new System.Collections.Generic.Dictionary<string, float>();
-        private System.Collections.Generic.Dictionary<string, int> suppressedLogCounts = new System.Collections.Generic.Dictionary<string, int>();
         
         public System.Collections.Generic.Queue<float> JitterHistory => jitterHistory;
         public float MaxJump => maxJump;
         public float AverageJitter => averageJitter;
         public int JumpCount => jumpCount;
-        
-        public System.Collections.Generic.Queue<float> RawJitterHistory => rawJitterHistory;
-        public float RawMaxJump => rawMaxJump;
-        public float RawAverageJitter => rawAverageJitter;
-        public int RawJumpCount => rawJumpCount;
         public int RejectedCount => rejectedCount;
         public int TotalDecodedCount => totalDecodedCount;
         public float RejectionRate => totalDecodedCount > 0 ? (float)rejectedCount / totalDecodedCount * 100f : 0f;
@@ -144,12 +122,8 @@ namespace LTC.Timeline
             decoder = new TimecodeDecoder();
             audioBuffer = new float[bufferSize];
             
-            // Initialize jitter tracking queues with user-defined size
+            // Initialize jitter tracking queue with user-defined size
             jitterHistory = new System.Collections.Generic.Queue<float>(jitterHistorySize);
-            rawJitterHistory = new System.Collections.Generic.Queue<float>(jitterHistorySize);
-            
-            // Initialize timecode buffer for denoising
-            timecodeBuffer = new System.Collections.Generic.Queue<Timecode>(continuityCheckFrames);
             
             if (Microphone.devices.Length > 0 && string.IsNullOrEmpty(selectedDevice))
             {
@@ -425,19 +399,16 @@ namespace LTC.Timeline
             
             signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
             
-            // Simple signal detection with fixed threshold
-            // アダプティブノイズフロアトラッキングを無効化し、固定閾値を使用
-            float fixedThreshold = 0.01f; // 固定の信号検出閾値
-            
-            if (!hasSignal && signalLevel > fixedThreshold)
+            // Simple signal detection with adjustable threshold
+            if (!hasSignal && signalLevel > signalThreshold)
             {
                 hasSignal = true;
-                LogDebug($"Signal ON: level={signalLevel:F4}, threshold={fixedThreshold:F4}", LogLevel.Debug, "signal");
+                LogDebug($"Signal ON: level={signalLevel:F4}, threshold={signalThreshold:F4}", LogLevel.Debug, "signal");
             }
-            else if (hasSignal && signalLevel < fixedThreshold * 0.5f)
+            else if (hasSignal && signalLevel < signalThreshold * 0.5f)
             {
                 hasSignal = false;
-                LogDebug($"Signal OFF: level={signalLevel:F4}, threshold={fixedThreshold * 0.5f:F4}", LogLevel.Debug, "signal");
+                LogDebug($"Signal OFF: level={signalLevel:F4}, threshold={signalThreshold * 0.5f:F4}", LogLevel.Debug, "signal");
             }
             
             if (hasSignal)
@@ -451,37 +422,6 @@ namespace LTC.Timeline
                     if (lastDecodedTimecode == null || !lastDecodedTimecode.Equals(decoder.LastTimecode))
                     {
                         totalDecodedCount++;
-                        
-                        // Track RAW data (before validation)
-                        float rawNewSeconds = TimecodeToSeconds(decoder.LastTimecode);
-                        if (rawLastTimecodeSeconds > 0)
-                        {
-                            float rawTimeDiff = rawNewSeconds - rawLastTimecodeSeconds;
-                            float rawJitter = Mathf.Abs(rawTimeDiff - (1.0f / 30.0f)); // Assuming 30fps nominal
-                            
-                            // Add to raw jitter history with user-defined size
-                            if (rawJitterHistory.Count >= jitterHistorySize)
-                                rawJitterHistory.Dequeue();
-                            rawJitterHistory.Enqueue(rawJitter);
-                            
-                            // Track raw jumps using user-defined threshold
-                            if (enableJitterDetection && Mathf.Abs(rawTimeDiff) > jitterThreshold)
-                            {
-                                rawJumpCount++;
-                                if (Mathf.Abs(rawTimeDiff) > rawMaxJump)
-                                    rawMaxJump = Mathf.Abs(rawTimeDiff);
-                            }
-                            
-                            // Update raw average jitter
-                            if (rawJitterHistory.Count > 0)
-                            {
-                                float rawSum = 0;
-                                foreach (float j in rawJitterHistory)
-                                    rawSum += j;
-                                rawAverageJitter = rawSum / rawJitterHistory.Count;
-                            }
-                        }
-                        rawLastTimecodeSeconds = rawNewSeconds;
                         
                         // Apply timecode validation
                         if (ValidateTimecode(decoder.LastTimecode, lastDecodedTimecode))
@@ -568,30 +508,19 @@ namespace LTC.Timeline
         
         public void ResetJitterStatistics()
         {
-            // Reset filtered data
+            // Reset jitter tracking data
             jitterHistory.Clear();
             lastTimecodeSeconds = 0f;
             maxJump = 0f;
             averageJitter = 0f;
             jumpCount = 0;
-            
-            // Reset raw data
-            rawJitterHistory.Clear();
-            rawLastTimecodeSeconds = 0f;
-            rawMaxJump = 0f;
-            rawAverageJitter = 0f;
-            rawJumpCount = 0;
             rejectedCount = 0;
             totalDecodedCount = 0;
             
             // Reset denoising state
             consecutiveValidFrames = 0;
             lastAcceptedTimecode = null;
-            stableJumpCounter = 0;
             potentialJumpTarget = null;
-            jumpTargetTime = 0f;
-            if (timecodeBuffer != null)
-                timecodeBuffer.Clear();
             
             LogDebug("All jitter statistics and denoising state reset");
         }
@@ -603,28 +532,6 @@ namespace LTC.Timeline
             
             // Check category-specific settings
             if (!ShouldLogCategory(category)) return;
-            
-            // Throttle similar messages
-            string messageKey = $"{category}:{message.Substring(0, Mathf.Min(30, message.Length))}";
-            if (lastLogTimes.ContainsKey(messageKey))
-            {
-                float timeSinceLastLog = Time.time - lastLogTimes[messageKey];
-                if (timeSinceLastLog < logThrottleInterval)
-                {
-                    // Suppress this log
-                    if (!suppressedLogCounts.ContainsKey(messageKey))
-                        suppressedLogCounts[messageKey] = 0;
-                    suppressedLogCounts[messageKey]++;
-                    return;
-                }
-                else if (suppressedLogCounts.ContainsKey(messageKey) && suppressedLogCounts[messageKey] > 0)
-                {
-                    // Add suppression count to message
-                    message = $"{message} (suppressed {suppressedLogCounts[messageKey]} similar messages)";
-                    suppressedLogCounts[messageKey] = 0;
-                }
-            }
-            lastLogTimes[messageKey] = Time.time;
             
             // Store in internal buffer (always, for Inspector display)
             string logEntry = $"[{Time.time:F3}] [{level}] {message}";
@@ -722,10 +629,10 @@ namespace LTC.Timeline
             float lastTime = TimecodeToSeconds(lastTC);
             float diff = Mathf.Abs(newTime - lastTime);
             
-            // Only reject extremely unrealistic jumps (over 1 hour)
-            if (diff > 3600.0f)
+            // Reject jumps larger than maxAllowedJitter
+            if (diff > maxAllowedJitter)
             {
-                LogDebug($"Timecode rejected: Unrealistic jump {diff:F3}s (>1 hour) from {lastTC} to {newTC}", LogLevel.Error, "jump");
+                LogDebug($"Timecode rejected: Unrealistic jump {diff:F3}s (>{maxAllowedJitter}s) from {lastTC} to {newTC}", LogLevel.Error, "jump");
                 return false;
             }
             
@@ -763,7 +670,6 @@ namespace LTC.Timeline
                     consecutiveValidFrames = minConsecutiveValidFrames; // Keep stable state
                     lastAcceptedTimecode = newTC;  // Update last accepted timecode
                     potentialJumpTarget = null;     // Clear any jump tracking
-                    stableJumpCounter = 0;          // Reset counter
                     return true;
                 }
                 else
@@ -774,7 +680,6 @@ namespace LTC.Timeline
                     {
                         // Clear any jump tracking
                         potentialJumpTarget = null;
-                        stableJumpCounter = 0;
                     }
                     
                     // Normal continuous playback - always accept
