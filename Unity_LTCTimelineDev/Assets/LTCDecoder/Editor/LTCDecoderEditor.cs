@@ -237,11 +237,11 @@ namespace LTC.Timeline
         {
             EditorGUILayout.LabelField("Timecode Display", EditorStyles.boldLabel);
             
-            // 内部TC（DSPクロック）
+            // 出力TC（デコード結果）
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             GUI.backgroundColor = new Color(0.9f, 1.0f, 0.9f);
             
-            EditorGUILayout.LabelField("Internal TC (DSP Clock)", statusStyle);
+            EditorGUILayout.LabelField("Output TC", statusStyle);
             
             Color originalColor = GUI.color;
             GUI.color = GetStateColor(component.State);
@@ -275,8 +275,8 @@ namespace LTC.Timeline
             if (Mathf.Abs(component.TimeDifference) > 0.001f)
             {
                 string diffText = component.TimeDifference > 0 
-                    ? $"Internal: +{component.TimeDifference:F3}s" 
-                    : $"Internal: {component.TimeDifference:F3}s";
+                    ? $"Output: +{component.TimeDifference:F3}s" 
+                    : $"Output: {component.TimeDifference:F3}s";
                 
                 if (!string.IsNullOrEmpty(statusInfo))
                     statusInfo += " | ";
@@ -466,7 +466,7 @@ namespace LTC.Timeline
                 DrawNoiseGraph(ltcNoise, currentIndex, displaySamples, graphLeft, graphTop, graphWidth, graphHeight, 
                     new Color(1f, 0.3f, 0.3f, 0.8f), true);
                 
-                // Internal TCノイズ（緑）
+                // Output TCノイズ（緑）
                 DrawNoiseGraph(internalNoise, currentIndex, displaySamples, graphLeft, graphTop, graphWidth, graphHeight, 
                     new Color(0.3f, 1f, 0.3f, 0.8f), false);
             }
@@ -480,7 +480,7 @@ namespace LTC.Timeline
             EditorGUILayout.LabelField("━ LTC Noise", GUILayout.Width(80));
             
             GUI.color = new Color(0.3f, 1f, 0.3f);
-            EditorGUILayout.LabelField("━ Internal TC Noise", GUILayout.Width(120));
+            EditorGUILayout.LabelField("━ Output TC Noise", GUILayout.Width(120));
             
             GUI.color = originalColor;
             GUILayout.FlexibleSpace();

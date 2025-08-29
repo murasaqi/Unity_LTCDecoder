@@ -5,7 +5,7 @@ using LTC.Timeline;
 
 /// <summary>
 /// LTC信号とUnity Timelineを同期するシンプルなコンポーネント
-/// LTCDecoderのInternal TCに追従してTimelineを制御
+/// LTCDecoderのOutput TC（デコード結果）に追従してTimelineを制御
 /// </summary>
 [AddComponentMenu("Audio/LTC Timeline Sync")]
 [RequireComponent(typeof(PlayableDirector))]
@@ -107,7 +107,7 @@ public class LTCTimelineSync : MonoBehaviour
             return;
         }
         
-        // Internal TCを取得（これが最終的な同期対象）
+        // Output TCを取得（これが最終的な同期対象）
         string ltcTimecode = ltcDecoder.CurrentTimecode;
         if (string.IsNullOrEmpty(ltcTimecode))
         {

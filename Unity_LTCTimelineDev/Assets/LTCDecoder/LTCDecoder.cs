@@ -8,7 +8,7 @@ namespace LTC.Timeline
 {
     /// <summary>
     /// DSPクロックベースのLTCデコーダー
-    /// 内部クロックで自走し、デコードされたLTCと同期を取る
+    /// 出力タイムコード（Output TC）を生成し、デコードされたLTCと同期を取る
     /// </summary>
     [AddComponentMenu("Audio/LTC Decoder")]
     public class LTCDecoder : MonoBehaviour
@@ -93,7 +93,7 @@ namespace LTC.Timeline
         // ノイズ解析用データ (グラフ表示用)
         private const int NoiseHistorySize = 100;  // 100サンプル分の履歴
         private float[] ltcNoiseHistory;           // LTC側のノイズ度合い (0-1)
-        private float[] internalNoiseHistory;      // Internal TC側のノイズ度合い (0-1)
+        private float[] internalNoiseHistory;      // Output TC側のノイズ度合い (0-1)
         private int noiseHistoryIndex = 0;
         private float lastLtcTime = 0f;
         private float lastInternalTime = 0f;
@@ -166,11 +166,11 @@ namespace LTC.Timeline
         #region DSP Clock Management
         
         /// <summary>
-        /// 内部クロックを更新
+        /// 出力タイムコード（Output TC）を更新
         /// </summary>
         private void UpdateInternalClock()
         {
-            // LTC信号が停止している場合は内部クロックも更新しない
+            // LTC信号が停止している場合は出力タイムコードも更新しない
             // これにより、最後に受信したタイムコードの値を保持
             if (!isRunning) 
             {
@@ -193,7 +193,7 @@ namespace LTC.Timeline
                 return;
             }
             
-            // 内部タイムコードを更新
+            // 出力タイムコードを更新
             internalTcTime += deltaTime;
             dspTimeBase = currentDsp;
             
@@ -211,7 +211,7 @@ namespace LTC.Timeline
                 timeDifference = (float)(internalTcTime - (latest.tcSeconds + age));
             }
             
-            // Internal TCのノイズ度合いを記録（変化の滑らかさ）
+            // Output TCのノイズ度合いを記録（変化の滑らかさ）
             float currentInternalTime = (float)internalTcTime;
             float internalNoise = 0f;
             if (lastInternalTime > 0)
@@ -357,8 +357,8 @@ namespace LTC.Timeline
                 if (currentState != SyncState.NoSignal)
                 {
                     currentState = SyncState.NoSignal;
-                    isRunning = false;  // 信号がない場合は内部クロックも停止
-                    LogDebug("Signal lost - internal clock paused");
+                    isRunning = false;  // 信号がない場合は出力タイムコードも停止
+                    LogDebug("Signal lost - output TC paused");
                 }
                 return;
             }
@@ -538,11 +538,11 @@ namespace LTC.Timeline
             consecutiveStops++;
             if (consecutiveStops > 2)
             {
-                // LTC信号が停止したので、内部クロックも停止
+                // LTC信号が停止したので、出力タイムコードも停止
                 isRunning = false;
                 currentState = SyncState.NoSignal;  // Lockedではなく、NoSignal状態へ
                 hasSignal = false;
-                LogDebug("TC stopped - internal clock paused, waiting for signal");
+                LogDebug("TC stopped - output TC paused, waiting for signal");
             }
         }
         
