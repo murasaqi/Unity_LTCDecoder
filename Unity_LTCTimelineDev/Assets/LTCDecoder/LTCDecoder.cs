@@ -120,6 +120,9 @@ namespace LTC.Timeline
         
         // イベント管理用
         private bool wasReceivingLTC = false;      // 前フレームでLTC受信していたか
+        private bool isDecodingLTC = false;        // 現在LTCをデコード中か
+        private float lastDecodedTime = 0f;        // 最後にデコード成功した時刻
+        private const float decodeTimeoutSeconds = 0.5f; // デコードタイムアウト（秒）
         
         // デバッガー参照（オプショナル）
         private LTC.Debug.LTCEventDebugger debugger;
@@ -184,6 +187,9 @@ namespace LTC.Timeline
         
         private void Update()
         {
+            // デコードタイムアウトチェック
+            CheckDecodeTimeout();
+            
             // DSPクロック更新
             UpdateInternalClock();
         }
@@ -191,6 +197,41 @@ namespace LTC.Timeline
         #endregion
         
         #region DSP Clock Management
+        
+        /// <summary>
+        /// デコードタイムアウトをチェック
+        /// </summary>
+        private void CheckDecodeTimeout()
+        {
+            // デコード中でタイムアウトしたかチェック
+            if (isDecodingLTC)
+            {
+                float timeSinceLastDecode = Time.realtimeSinceStartup - lastDecodedTime;
+                if (timeSinceLastDecode > decodeTimeoutSeconds)
+                {
+                    // デコードがタイムアウト = LTC停止
+                    isDecodingLTC = false;
+                    hasSignal = false;
+                    isRunning = false;
+                    currentState = SyncState.NoSignal;
+                    
+                    LogDebug($"LTC decoding stopped - timeout after {timeSinceLastDecode:F2}s");
+                    
+                    // LTC Stoppedイベントを発火
+                    var eventData = new LTCEventData(
+                        currentTimecode,
+                        (float)internalTcTime,
+                        false,
+                        0f
+                    );
+                    OnLTCStopped?.Invoke(eventData);
+                    
+                    // デバッグメッセージ
+                    debugger?.AddDebugMessage($"LTC Decoding Stopped at {currentTimecode} (Timeout)", 
+                        LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.yellow);
+                }
+            }
+        }
         
         /// <summary>
         /// 出力タイムコード（Output TC）を更新
@@ -271,32 +312,8 @@ namespace LTC.Timeline
                 signalLevel
             );
             
-            // 状態変化の検出と瞬間イベント
-            if (hasSignal && !wasReceivingLTC)
-            {
-                // LTC受信開始
-                OnLTCStarted?.Invoke(eventData);
-                wasReceivingLTC = true;
-                LogDebug("LTC Started - Event fired");
-                
-                // デバッグメッセージ追加
-                debugger?.AddDebugMessage($"LTC Started at {currentTimecode}", 
-                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.green);
-            }
-            else if (!hasSignal && wasReceivingLTC)
-            {
-                // LTC受信停止
-                OnLTCStopped?.Invoke(eventData);
-                wasReceivingLTC = false;
-                LogDebug("LTC Stopped - Event fired");
-                
-                // デバッグメッセージ追加
-                debugger?.AddDebugMessage($"LTC Stopped at {currentTimecode}", 
-                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.yellow);
-                
-                // タイムコードイベントをリセット（再度発火可能にする）
-                ResetTimecodeEvents();
-            }
+            // Started/StoppedイベントはProcessDecodedLTCとCheckDecodeTimeoutで発火
+            // ここでは継続状態イベントのみ処理
             
             // 継続状態イベント
             if (hasSignal)
@@ -307,6 +324,15 @@ namespace LTC.Timeline
             else
             {
                 OnLTCNoSignal?.Invoke(eventData);
+            }
+            
+            // wasReceivingLTCの更新（互換性のため残す）
+            wasReceivingLTC = hasSignal;
+            
+            // タイムコードイベントのリセット処理
+            if (!hasSignal && isDecodingLTC)
+            {
+                ResetTimecodeEvents();
             }
         }
         
@@ -462,19 +488,8 @@ namespace LTC.Timeline
             
             if (!audioSignalPresent)
             {
-                // 音声信号なし - 連続カウントを増やす
-                consecutiveStops++;
-                
-                if (consecutiveStops > 3)  // 3フレーム連続で信号なし
-                {
-                    if (hasSignal || isRunning)  // まだ動作中の場合のみ更新
-                    {
-                        hasSignal = false;
-                        isRunning = false;
-                        currentState = SyncState.NoSignal;
-                        LogDebug("Signal lost - LTC stopped after consecutive loss");
-                    }
-                }
+                // 音声信号なし - デコードタイムアウトで処理されるため、ここでは何もしない
+                // CheckDecodeTimeout()で適切なタイミングでStoppedイベントが発火される
                 return;
             }
             
@@ -509,12 +524,27 @@ namespace LTC.Timeline
             
             // LTCデコード成功 = 有効な信号あり
             consecutiveStops = 0;  // 停止カウントをリセット
+            hasSignal = true;
+            lastDecodedTime = Time.realtimeSinceStartup; // デコード成功時刻を記録
             
-            // hasSignalがfalseの場合、信号復帰として扱う
-            if (!hasSignal)
+            // デコード開始/再開の検出
+            if (!isDecodingLTC)
             {
-                hasSignal = true;
-                LogDebug($"LTC signal detected - {tcString}");
+                isDecodingLTC = true;
+                LogDebug($"LTC decoding started/resumed - {tcString}");
+                
+                // LTC Startedイベントを発火
+                var eventData = new LTCEventData(
+                    tcString,
+                    (float)TimecodeToSeconds(tc),
+                    true,
+                    signalLevel
+                );
+                OnLTCStarted?.Invoke(eventData);
+                
+                // デバッグメッセージ
+                debugger?.AddDebugMessage($"LTC Decoding Started at {tcString}", 
+                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.green);
             }
             
             var sample = new LTCSample
