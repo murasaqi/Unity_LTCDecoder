@@ -132,7 +132,8 @@ namespace LTC.Editor
             rect.sizeDelta = new Vector2(400, -20);
             
             Image bg = panel.AddComponent<Image>();
-            bg.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+            // 背景色を少し暗くして、白文字が見やすくなるように調整
+            bg.color = new Color(0.05f, 0.05f, 0.05f, 0.95f);
             
             VerticalLayoutGroup vlg = panel.AddComponent<VerticalLayoutGroup>();
             vlg.padding = new RectOffset(10, 10, 10, 10);
