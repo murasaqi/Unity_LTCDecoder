@@ -121,6 +121,9 @@ namespace LTC.Timeline
         // イベント管理用
         private bool wasReceivingLTC = false;      // 前フレームでLTC受信していたか
         
+        // デバッガー参照（オプショナル）
+        private LTC.Debug.LTCEventDebugger debugger;
+        
         #endregion
         
         #region Properties
@@ -161,6 +164,9 @@ namespace LTC.Timeline
                 ltcNoiseHistory[i] = 0f;
                 internalNoiseHistory[i] = 0f;
             }
+            
+            // デバッガーを取得（オプショナル）
+            debugger = GetComponent<LTC.Debug.LTCEventDebugger>();
         }
         
         private void OnEnable()
@@ -277,6 +283,10 @@ namespace LTC.Timeline
                 OnLTCStarted?.Invoke(eventData);
                 wasReceivingLTC = true;
                 LogDebug("LTC Started - Event fired");
+                
+                // デバッグメッセージ追加
+                debugger?.AddDebugMessage($"LTC Started at {currentTimecode}", 
+                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.green);
             }
             else if (!hasSignal && wasReceivingLTC)
             {
@@ -284,6 +294,10 @@ namespace LTC.Timeline
                 OnLTCStopped?.Invoke(eventData);
                 wasReceivingLTC = false;
                 LogDebug("LTC Stopped - Event fired");
+                
+                // デバッグメッセージ追加
+                debugger?.AddDebugMessage($"LTC Stopped at {currentTimecode}", 
+                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.yellow);
                 
                 // タイムコードイベントをリセット（再度発火可能にする）
                 ResetTimecodeEvents();
@@ -313,6 +327,10 @@ namespace LTC.Timeline
                     tcEvent.onTimecodeReached?.Invoke(eventData);
                     tcEvent.triggered = true;
                     LogDebug($"Timecode Event '{tcEvent.eventName}' triggered at {eventData.currentTimecode}");
+                    
+                    // デバッグメッセージ追加
+                    debugger?.AddDebugMessage($"Timecode Event '{tcEvent.eventName}' triggered at {eventData.currentTimecode}", 
+                        LTC.Debug.DebugMessage.TIMECODE_EVENT, UnityEngine.Color.cyan);
                 }
             }
         }
@@ -646,10 +664,17 @@ namespace LTC.Timeline
         /// </summary>
         private void HandleJump(LTCSample target)
         {
+            // ジャンプ前のタイムコードを保存
+            string oldTC = currentTimecode;
+            
             SyncToLTC(target);
             currentState = SyncState.Locked;
             consecutiveStops = 0;
             LogDebug($"Jump detected - synced to {target.timecode}");
+            
+            // デバッグメッセージ追加
+            debugger?.AddDebugMessage($"Jump detected: {oldTC} → {target.timecode}", 
+                LTC.Debug.DebugMessage.WARNING, UnityEngine.Color.yellow);
         }
         
         /// <summary>

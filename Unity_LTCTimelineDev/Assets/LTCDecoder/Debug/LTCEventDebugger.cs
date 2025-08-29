@@ -9,128 +9,42 @@ using LTC.Timeline;
 namespace LTC.Debug
 {
     /// <summary>
-    /// LTCイベントデバッガー - イベントの監視とデバッグ機能を提供
+    /// LTCイベントデバッグユーティリティ
+    /// イベントのログ記録、フィルタリング、エクスポート機能を提供
     /// </summary>
     [RequireComponent(typeof(LTCDecoder))]
     public class LTCEventDebugger : MonoBehaviour
     {
-        #region 定数とEnum
-        
-        /// <summary>
-        /// イベントタイプ
-        /// </summary>
-        public enum EventType
-        {
-            LTCStarted,
-            LTCStopped,
-            LTCReceiving,
-            LTCNoSignal,
-            TimecodeEvent
-        }
-        
-        /// <summary>
-        /// イベント履歴エントリ
-        /// </summary>
-        [Serializable]
-        public class EventHistoryEntry
-        {
-            public EventType eventType;
-            public string eventName;
-            public string timecode;
-            public DateTime timestamp;
-            public float signalLevel;
-            public string additionalInfo;
-            
-            public EventHistoryEntry(EventType type, string name, string tc, float signal, string info = "")
-            {
-                eventType = type;
-                eventName = name;
-                timecode = tc;
-                timestamp = DateTime.Now;
-                signalLevel = signal;
-                additionalInfo = info;
-            }
-            
-            public string ToCSV()
-            {
-                return $"{timestamp:yyyy-MM-dd HH:mm:ss.fff},{eventType},{eventName},{timecode},{signalLevel:F2},{additionalInfo}";
-            }
-        }
-        
-        /// <summary>
-        /// イベント統計
-        /// </summary>
-        [Serializable]
-        public class EventStatistics
-        {
-            public int totalCount;
-            public DateTime lastFired;
-            public string lastTimecode;
-            public float averageSignalLevel;
-            private List<float> signalLevels = new List<float>();
-            
-            public void AddOccurrence(string tc, float signal)
-            {
-                totalCount++;
-                lastFired = DateTime.Now;
-                lastTimecode = tc;
-                signalLevels.Add(signal);
-                if (signalLevels.Count > 100) signalLevels.RemoveAt(0);
-                averageSignalLevel = signalLevels.Count > 0 ? signalLevels.Average() : 0f;
-            }
-            
-            public void Reset()
-            {
-                totalCount = 0;
-                lastFired = DateTime.MinValue;
-                lastTimecode = "00:00:00:00";
-                averageSignalLevel = 0f;
-                signalLevels.Clear();
-            }
-        }
-        
-        #endregion
-        
         #region フィールド
         
         [Header("デバッグ設定")]
         [SerializeField] private bool enableDebugger = true;
-        [SerializeField] private int maxHistorySize = 50;
+        [SerializeField] private int maxHistorySize = 100;
         [SerializeField] private bool logToConsole = false;
-        
-        [Header("シミュレーション")]
-        [SerializeField] private bool simulationMode = false;
-        [SerializeField] private string simulatedTimecode = "00:00:00:00";
-        [SerializeField] private float simulatedSignalLevel = 1.0f;
         
         // コンポーネント参照
         private LTCDecoder ltcDecoder;
         
-        // イベント履歴
-        private List<EventHistoryEntry> eventHistory = new List<EventHistoryEntry>();
+        // メッセージ履歴
+        private Queue<DebugMessage> messageHistory = new Queue<DebugMessage>();
         
         // イベント統計
-        private Dictionary<EventType, EventStatistics> eventStats = new Dictionary<EventType, EventStatistics>();
-        private Dictionary<string, EventStatistics> timecodeEventStats = new Dictionary<string, EventStatistics>();
+        private Dictionary<string, int> eventStatistics = new Dictionary<string, int>();
         
-        // 状態
-        private bool isReceivingLTC = false;
-        private float lastUpdateTime = 0f;
-        private const float UPDATE_INTERVAL = 0.1f; // 100ms間隔で更新
+        // パフォーマンス計測
+        private Dictionary<string, float> performanceTimers = new Dictionary<string, float>();
         
-        // イベントコールバック（UIや他のコンポーネントから購読可能）
-        public Action<EventHistoryEntry> OnEventOccurred;
-        public Action OnHistoryCleared;
+        // イベント
+        public event Action<DebugMessage> OnMessageAdded;
+        public event Action OnHistoryCleared;
         
         #endregion
         
         #region プロパティ
         
-        public List<EventHistoryEntry> EventHistory => new List<EventHistoryEntry>(eventHistory);
-        public Dictionary<EventType, EventStatistics> EventStats => new Dictionary<EventType, EventStatistics>(eventStats);
-        public Dictionary<string, EventStatistics> TimecodeEventStats => new Dictionary<string, EventStatistics>(timecodeEventStats);
-        public bool IsReceivingLTC => isReceivingLTC;
-        public bool SimulationMode => simulationMode;
+        public bool IsEnabled => enableDebugger;
+        public int MessageCount => messageHistory.Count;
+        public IReadOnlyList<DebugMessage> Messages => messageHistory.ToList();
         
         #endregion
         
@@ -145,22 +59,17 @@ namespace LTC.Debug
                 enabled = false;
                 return;
             }
-            
-            InitializeStatistics();
         }
         
         void OnEnable()
         {
             if (!enableDebugger) return;
             
-            // イベントを購読
+            // LTCイベントを購読
             ltcDecoder.OnLTCStarted.AddListener(HandleLTCStarted);
             ltcDecoder.OnLTCStopped.AddListener(HandleLTCStopped);
             ltcDecoder.OnLTCReceiving.AddListener(HandleLTCReceiving);
             ltcDecoder.OnLTCNoSignal.AddListener(HandleLTCNoSignal);
-            
-            // タイムコードイベントを購読
-            SubscribeToTimecodeEvents();
         }
         
         void OnDisable()
@@ -175,127 +84,36 @@ namespace LTC.Debug
             }
         }
         
-        void Update()
+        #endregion
+        
+        #region パブリックメソッド - メッセージ管理
+        
+        /// <summary>
+        /// デバッグメッセージを追加
+        /// </summary>
+        public void AddDebugMessage(string message, string category = null, Color? color = null)
         {
             if (!enableDebugger) return;
             
-            // シミュレーションモードの更新
-            if (simulationMode && Time.time - lastUpdateTime > UPDATE_INTERVAL)
-            {
-                lastUpdateTime = Time.time;
-                UpdateSimulation();
-            }
-        }
-        
-        #endregion
-        
-        #region イベントハンドラー
-        
-        private void HandleLTCStarted(LTCEventData data)
-        {
-            isReceivingLTC = true;
-            RecordEvent(EventType.LTCStarted, "LTC Started", data);
+            category = category ?? DebugMessage.INFO;
             
-            if (logToConsole)
-                UnityEngine.Debug.Log($"[LTC Debug] Started - TC: {data.currentTimecode}, Signal: {data.signalLevel:F2}");
-        }
-        
-        private void HandleLTCStopped(LTCEventData data)
-        {
-            isReceivingLTC = false;
-            RecordEvent(EventType.LTCStopped, "LTC Stopped", data);
-            
-            if (logToConsole)
-                UnityEngine.Debug.Log($"[LTC Debug] Stopped - Last TC: {data.currentTimecode}");
-        }
-        
-        private void HandleLTCReceiving(LTCEventData data)
-        {
-            // 頻度が高いので間引く
-            if (Time.time - lastUpdateTime < UPDATE_INTERVAL) return;
-            lastUpdateTime = Time.time;
-            
-            RecordEvent(EventType.LTCReceiving, "LTC Receiving", data, false); // 履歴に記録しない
-            
-            if (logToConsole && UnityEngine.Random.value < 0.01f) // 1%の確率でログ
-                UnityEngine.Debug.Log($"[LTC Debug] Receiving - TC: {data.currentTimecode}");
-        }
-        
-        private void HandleLTCNoSignal(LTCEventData data)
-        {
-            // 頻度が高いので間引く
-            if (Time.time - lastUpdateTime < UPDATE_INTERVAL) return;
-            lastUpdateTime = Time.time;
-            
-            RecordEvent(EventType.LTCNoSignal, "No Signal", data, false); // 履歴に記録しない
-        }
-        
-        private void HandleTimecodeEvent(string eventName, LTCEventData data)
-        {
-            var entry = RecordEvent(EventType.TimecodeEvent, eventName, data);
-            entry.additionalInfo = $"Target TC Event: {eventName}";
-            
-            if (logToConsole)
-                UnityEngine.Debug.Log($"[LTC Debug] Timecode Event '{eventName}' triggered at {data.currentTimecode}");
-        }
-        
-        #endregion
-        
-        #region パブリックメソッド
-        
-        /// <summary>
-        /// イベントを手動でトリガー
-        /// </summary>
-        public void TriggerEvent(EventType eventType, string eventName = null)
-        {
-            var data = new LTCEventData(
-                simulationMode ? simulatedTimecode : ltcDecoder.CurrentTimecode,
-                0f,
-                simulationMode ? true : ltcDecoder.HasSignal,
-                simulationMode ? simulatedSignalLevel : ltcDecoder.SignalLevel
+            var debugMsg = new DebugMessage(
+                message,
+                category,
+                ltcDecoder.CurrentTimecode,
+                ltcDecoder.SignalLevel,
+                color
             );
             
-            switch (eventType)
-            {
-                case EventType.LTCStarted:
-                    HandleLTCStarted(data);
-                    break;
-                case EventType.LTCStopped:
-                    HandleLTCStopped(data);
-                    break;
-                case EventType.LTCReceiving:
-                    HandleLTCReceiving(data);
-                    break;
-                case EventType.LTCNoSignal:
-                    HandleLTCNoSignal(data);
-                    break;
-                case EventType.TimecodeEvent:
-                    HandleTimecodeEvent(eventName ?? "Manual Trigger", data);
-                    break;
-            }
+            AddMessageInternal(debugMsg);
         }
         
         /// <summary>
-        /// 特定のタイムコードをシミュレート
+        /// フォーマット付きデバッグメッセージを追加
         /// </summary>
-        public void SimulateTimecode(string timecode)
+        public void AddDebugMessageFormat(string format, string category, params object[] args)
         {
-            simulatedTimecode = timecode;
-            
-            if (simulationMode)
-            {
-                var data = new LTCEventData(timecode, 0f, true, simulatedSignalLevel);
-                
-                // タイムコードイベントをチェック
-                var tcEvents = ltcDecoder.GetTimecodeEvents();
-                foreach (var tcEvent in tcEvents)
-                {
-                    if (tcEvent.IsMatch(timecode, ltcDecoder.FrameRate()))
-                    {
-                        HandleTimecodeEvent(tcEvent.eventName, data);
-                    }
-                }
-            }
+            AddDebugMessage(string.Format(format, args), category);
         }
         
         /// <summary>
@@ -303,7 +121,7 @@ namespace LTC.Debug
         /// </summary>
         public void ClearHistory()
         {
-            eventHistory.Clear();
+            messageHistory.Clear();
             OnHistoryCleared?.Invoke();
             
             if (logToConsole)
@@ -315,40 +133,144 @@ namespace LTC.Debug
         /// </summary>
         public void ResetStatistics()
         {
-            foreach (var stat in eventStats.Values)
-            {
-                stat.Reset();
-            }
-            
-            foreach (var stat in timecodeEventStats.Values)
-            {
-                stat.Reset();
-            }
+            eventStatistics.Clear();
             
             if (logToConsole)
                 UnityEngine.Debug.Log("[LTC Debug] Statistics reset");
         }
         
+        #endregion
+        
+        #region パブリックメソッド - フィルタリング
+        
         /// <summary>
-        /// ログをCSV形式でエクスポート
+        /// カテゴリでフィルタリング
         /// </summary>
-        public string ExportLogsAsCSV()
+        public List<DebugMessage> GetFilteredMessages(string category)
+        {
+            return messageHistory.Where(m => m.category == category).ToList();
+        }
+        
+        /// <summary>
+        /// 複数カテゴリでフィルタリング
+        /// </summary>
+        public List<DebugMessage> GetFilteredMessages(params string[] categories)
+        {
+            var categorySet = new HashSet<string>(categories);
+            return messageHistory.Where(m => categorySet.Contains(m.category)).ToList();
+        }
+        
+        /// <summary>
+        /// 時間範囲でフィルタリング
+        /// </summary>
+        public List<DebugMessage> GetMessagesInTimeRange(string startTC, string endTC)
+        {
+            var startTime = TimecodeToSeconds(startTC);
+            var endTime = TimecodeToSeconds(endTC);
+            
+            return messageHistory.Where(m =>
+            {
+                var msgTime = TimecodeToSeconds(m.timecode);
+                return msgTime >= startTime && msgTime <= endTime;
+            }).ToList();
+        }
+        
+        /// <summary>
+        /// キーワード検索
+        /// </summary>
+        public List<DebugMessage> SearchMessages(string keyword)
+        {
+            var lowerKeyword = keyword.ToLower();
+            return messageHistory.Where(m => 
+                m.message.ToLower().Contains(lowerKeyword) ||
+                m.category.ToLower().Contains(lowerKeyword)
+            ).ToList();
+        }
+        
+        #endregion
+        
+        #region パブリックメソッド - 統計
+        
+        /// <summary>
+        /// イベント統計を取得
+        /// </summary>
+        public Dictionary<string, int> GetEventStatistics()
+        {
+            return new Dictionary<string, int>(eventStatistics);
+        }
+        
+        /// <summary>
+        /// カテゴリ別統計を取得
+        /// </summary>
+        public Dictionary<string, int> GetCategoryStatistics()
+        {
+            return messageHistory
+                .GroupBy(m => m.category)
+                .ToDictionary(g => g.Key, g => g.Count());
+        }
+        
+        #endregion
+        
+        #region パブリックメソッド - パフォーマンス計測
+        
+        /// <summary>
+        /// パフォーマンス計測開始
+        /// </summary>
+        public void StartPerformanceMeasure(string label)
+        {
+            performanceTimers[label] = Time.realtimeSinceStartup;
+        }
+        
+        /// <summary>
+        /// パフォーマンス計測終了
+        /// </summary>
+        public void EndPerformanceMeasure(string label)
+        {
+            if (performanceTimers.ContainsKey(label))
+            {
+                float duration = Time.realtimeSinceStartup - performanceTimers[label];
+                AddDebugMessage(
+                    $"Performance [{label}]: {duration * 1000:F2}ms",
+                    DebugMessage.PERFORMANCE,
+                    Color.magenta
+                );
+                performanceTimers.Remove(label);
+            }
+        }
+        
+        #endregion
+        
+        #region パブリックメソッド - エクスポート
+        
+        /// <summary>
+        /// CSV形式でエクスポート
+        /// </summary>
+        public string ExportAsCSV()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Timestamp,EventType,EventName,Timecode,SignalLevel,AdditionalInfo");
+            sb.AppendLine("Timestamp,Category,Message,Timecode,SignalLevel");
             
-            foreach (var entry in eventHistory)
+            foreach (var msg in messageHistory)
             {
-                sb.AppendLine(entry.ToCSV());
+                sb.AppendLine(msg.ToCSV());
             }
             
             return sb.ToString();
         }
         
         /// <summary>
-        /// ログをファイルに保存
+        /// JSON形式でエクスポート
         /// </summary>
-        public void SaveLogsToFile(string filepath = null)
+        public string ExportAsJSON()
+        {
+            var messages = messageHistory.Select(m => m.ToJSON()).ToList();
+            return "[\n" + string.Join(",\n", messages) + "\n]";
+        }
+        
+        /// <summary>
+        /// ファイルに保存
+        /// </summary>
+        public void SaveDebugLog(string filepath = null)
         {
             if (string.IsNullOrEmpty(filepath))
             {
@@ -357,153 +279,132 @@ namespace LTC.Debug
             
             try
             {
-                File.WriteAllText(filepath, ExportLogsAsCSV());
-                UnityEngine.Debug.Log($"[LTC Debug] Logs saved to: {filepath}");
+                File.WriteAllText(filepath, ExportAsCSV());
+                UnityEngine.Debug.Log($"[LTC Debug] Log saved to: {filepath}");
             }
             catch (Exception e)
             {
-                UnityEngine.Debug.LogError($"[LTC Debug] Failed to save logs: {e.Message}");
+                UnityEngine.Debug.LogError($"[LTC Debug] Failed to save log: {e.Message}");
             }
         }
         
         /// <summary>
-        /// 特定イベントの統計を取得
+        /// クリップボードにコピー
         /// </summary>
-        public EventStatistics GetEventStatistics(EventType eventType)
+        public void CopyToClipboard()
         {
-            return eventStats.ContainsKey(eventType) ? eventStats[eventType] : null;
+            GUIUtility.systemCopyBuffer = ExportAsCSV();
+            AddDebugMessage("Debug log copied to clipboard", DebugMessage.INFO);
         }
         
-        /// <summary>
-        /// タイムコードイベントの統計を取得
-        /// </summary>
-        public EventStatistics GetTimecodeEventStatistics(string eventName)
+        #endregion
+        
+        #region イベントハンドラー
+        
+        private void HandleLTCStarted(LTCEventData data)
         {
-            return timecodeEventStats.ContainsKey(eventName) ? timecodeEventStats[eventName] : null;
+            AddDebugMessage(
+                $"LTC Started at {data.currentTimecode}",
+                DebugMessage.EVENT,
+                Color.green
+            );
+            UpdateStatistics("LTC Started");
+        }
+        
+        private void HandleLTCStopped(LTCEventData data)
+        {
+            AddDebugMessage(
+                $"LTC Stopped at {data.currentTimecode}",
+                DebugMessage.EVENT,
+                Color.yellow
+            );
+            UpdateStatistics("LTC Stopped");
+        }
+        
+        private void HandleLTCReceiving(LTCEventData data)
+        {
+            // 頻度が高いので通常はログしない
+            // 必要に応じて有効化
+            if (UnityEngine.Random.value < 0.001f) // 0.1%の確率でサンプリング
+            {
+                AddDebugMessage(
+                    $"Receiving: {data.currentTimecode} (Signal: {data.signalLevel:P0})",
+                    DebugMessage.DEBUG,
+                    Color.gray
+                );
+            }
+        }
+        
+        private void HandleLTCNoSignal(LTCEventData data)
+        {
+            // 連続したNoSignalは最初の一回だけログ
+            var lastMsg = messageHistory.LastOrDefault();
+            if (lastMsg == null || !lastMsg.message.StartsWith("No Signal"))
+            {
+                AddDebugMessage(
+                    "No Signal detected",
+                    DebugMessage.WARNING,
+                    Color.yellow
+                );
+                UpdateStatistics("No Signal");
+            }
         }
         
         #endregion
         
         #region プライベートメソッド
         
-        private void InitializeStatistics()
+        private void AddMessageInternal(DebugMessage message)
         {
-            // 基本イベントの統計を初期化
-            foreach (EventType eventType in Enum.GetValues(typeof(EventType)))
-            {
-                if (eventType != EventType.TimecodeEvent)
-                {
-                    eventStats[eventType] = new EventStatistics();
-                }
-            }
-        }
-        
-        private void SubscribeToTimecodeEvents()
-        {
-            var tcEvents = ltcDecoder.GetTimecodeEvents();
-            if (tcEvents == null) return;
-            
-            foreach (var tcEvent in tcEvents)
-            {
-                if (!timecodeEventStats.ContainsKey(tcEvent.eventName))
-                {
-                    timecodeEventStats[tcEvent.eventName] = new EventStatistics();
-                }
-                
-                // イベントに購読
-                tcEvent.onTimecodeReached.AddListener((data) => HandleTimecodeEvent(tcEvent.eventName, data));
-            }
-        }
-        
-        private EventHistoryEntry RecordEvent(EventType type, string name, LTCEventData data, bool addToHistory = true)
-        {
-            var entry = new EventHistoryEntry(type, name, data.currentTimecode, data.signalLevel);
-            
             // 履歴に追加
-            if (addToHistory)
+            messageHistory.Enqueue(message);
+            
+            // 最大サイズを超えたら古いものを削除
+            while (messageHistory.Count > maxHistorySize)
             {
-                eventHistory.Add(entry);
-                
-                // 最大サイズを超えたら古いものを削除
-                while (eventHistory.Count > maxHistorySize)
-                {
-                    eventHistory.RemoveAt(0);
-                }
+                messageHistory.Dequeue();
             }
             
-            // 統計を更新
-            if (type != EventType.TimecodeEvent)
+            // コンソールログ
+            if (logToConsole)
             {
-                if (eventStats.ContainsKey(type))
-                {
-                    eventStats[type].AddOccurrence(data.currentTimecode, data.signalLevel);
-                }
-            }
-            else
-            {
-                if (timecodeEventStats.ContainsKey(name))
-                {
-                    timecodeEventStats[name].AddOccurrence(data.currentTimecode, data.signalLevel);
-                }
+                UnityEngine.Debug.Log(message.GetFormattedMessage());
             }
             
-            // コールバック呼び出し
-            OnEventOccurred?.Invoke(entry);
-            
-            return entry;
+            // イベント発火
+            OnMessageAdded?.Invoke(message);
         }
         
-        private void UpdateSimulation()
+        private void UpdateStatistics(string eventName)
         {
-            if (!simulationMode) return;
-            
-            // シミュレーションモードでタイムコードを進める
-            var parts = simulatedTimecode.Split(':');
-            if (parts.Length == 4)
+            if (!eventStatistics.ContainsKey(eventName))
             {
-                if (int.TryParse(parts[3], out int frames))
+                eventStatistics[eventName] = 0;
+            }
+            eventStatistics[eventName]++;
+        }
+        
+        private float TimecodeToSeconds(string timecode)
+        {
+            try
+            {
+                var parts = timecode.Split(':');
+                if (parts.Length == 4)
                 {
-                    frames++;
-                    if (frames >= ltcDecoder.FrameRate())
-                    {
-                        frames = 0;
-                        if (int.TryParse(parts[2], out int seconds))
-                        {
-                            seconds++;
-                            if (seconds >= 60)
-                            {
-                                seconds = 0;
-                                // 分も更新...（省略）
-                            }
-                            parts[2] = seconds.ToString("D2");
-                        }
-                    }
-                    parts[3] = frames.ToString("D2");
-                    simulatedTimecode = string.Join(":", parts);
+                    int hours = int.Parse(parts[0]);
+                    int minutes = int.Parse(parts[1]);
+                    int seconds = int.Parse(parts[2]);
+                    int frames = int.Parse(parts[3]);
+                    
+                    float frameRate = 30f; // デフォルト値
+                    return hours * 3600f + minutes * 60f + seconds + frames / frameRate;
                 }
             }
+            catch { }
+            
+            return 0f;
         }
         
         #endregion
-    }
-    
-    // LTCDecoderに追加するための拡張メソッド
-    public static class LTCDecoderExtensions
-    {
-        public static List<TimecodeEvent> GetTimecodeEvents(this LTCDecoder decoder)
-        {
-            // リフレクションを使用してprivateフィールドにアクセス
-            var field = typeof(LTCDecoder).GetField("timecodeEvents", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            return field?.GetValue(decoder) as List<TimecodeEvent>;
-        }
-        
-        public static float FrameRate(this LTCDecoder decoder)
-        {
-            var field = typeof(LTCDecoder).GetField("frameRate",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            object value = field?.GetValue(decoder);
-            return value != null ? (float)value : 30f;
-        }
     }
 }
