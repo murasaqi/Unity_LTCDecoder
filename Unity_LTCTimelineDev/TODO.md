@@ -3,7 +3,7 @@
 ## 📋 現在のタスク
 
 ### 🔥 進行中 (In Progress)
-- [ ] CLAUDE.mdの開発指針を最上部に移動
+（なし）
 
 ### ⏳ 待機中 (Pending)
 - [ ] Package化して、開発しているUnityプロジェクトとPackageを分離管理
@@ -15,6 +15,9 @@
 - [x] タイムコード検証ロジックの修正
 - [x] ログシステムのパフォーマンス最適化
 - [x] Inspector UIの強化
+- [x] LTC Event Debuggerシステムの再設計と実装
+- [x] LTC Debug UIの文字視認性改善
+- [x] CLAUDE.mdの開発指針を最上部に移動（既に配置済み）
 
 ---
 
@@ -59,6 +62,13 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-29
+- LTC Event Debuggerシステムの完全再設計
+- LTCEventDebuggerとLTCDecoderUIに役割分離
+- UnityEvent対応のデバッグメッセージ機能追加
+- LTC Debug UIの文字視認性改善（背景色調整）
+- CLAUDE.md確認（開発指針は既に最上部に配置済み）
 
 ### 2024-08-28
 - TODO.mdファイル作成
