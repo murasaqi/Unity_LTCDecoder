@@ -153,8 +153,13 @@ namespace LTC.Timeline
             
             EditorGUILayout.Space(10);
             
+            // イベント設定
+            DrawEventSettings();
+            
+            EditorGUILayout.Space(10);
+            
             // 詳細設定
-            DrawAdvancedSettings();
+            DrawAdvancedSettings()
             
             serializedObject.ApplyModifiedProperties();
             
@@ -625,6 +630,188 @@ namespace LTC.Timeline
             }
             
             return sum / count;
+        }
+        
+        private void DrawEventSettings()
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            
+            // イベントセクションのタイトル
+            EditorGUILayout.LabelField("Events", EditorStyles.boldLabel);
+            EditorGUILayout.Space(5);
+            
+            // 状態変化イベント
+            EditorGUILayout.LabelField("State Change Events", EditorStyles.miniBoldLabel);
+            EditorGUI.indentLevel++;
+            
+            // OnLTCStarted
+            var onLTCStarted = serializedObject.FindProperty("OnLTCStarted");
+            if (onLTCStarted != null)
+            {
+                EditorGUILayout.PropertyField(onLTCStarted, new GUIContent("On LTC Started", "LTC受信開始時に発火"));
+            }
+            
+            // OnLTCStopped
+            var onLTCStopped = serializedObject.FindProperty("OnLTCStopped");
+            if (onLTCStopped != null)
+            {
+                EditorGUILayout.PropertyField(onLTCStopped, new GUIContent("On LTC Stopped", "LTC受信停止時に発火"));
+            }
+            
+            EditorGUI.indentLevel--;
+            EditorGUILayout.Space(5);
+            
+            // 継続状態イベント
+            EditorGUILayout.LabelField("Continuous Events", EditorStyles.miniBoldLabel);
+            EditorGUI.indentLevel++;
+            
+            // OnLTCReceiving
+            var onLTCReceiving = serializedObject.FindProperty("OnLTCReceiving");
+            if (onLTCReceiving != null)
+            {
+                EditorGUILayout.PropertyField(onLTCReceiving, new GUIContent("On LTC Receiving", "LTC受信中、毎フレーム発火"));
+            }
+            
+            // OnLTCNoSignal
+            var onLTCNoSignal = serializedObject.FindProperty("OnLTCNoSignal");
+            if (onLTCNoSignal != null)
+            {
+                EditorGUILayout.PropertyField(onLTCNoSignal, new GUIContent("On LTC No Signal", "LTC未受信中、毎フレーム発火"));
+            }
+            
+            EditorGUI.indentLevel--;
+            EditorGUILayout.Space(5);
+            
+            // タイムコードイベント
+            EditorGUILayout.LabelField("Timecode Events", EditorStyles.miniBoldLabel);
+            
+            var timecodeEvents = serializedObject.FindProperty("timecodeEvents");
+            if (timecodeEvents != null)
+            {
+                EditorGUI.indentLevel++;
+                
+                // リストのサイズ表示
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField($"Events Count: {timecodeEvents.arraySize}", GUILayout.Width(100));
+                
+                GUILayout.FlexibleSpace();
+                
+                // イベント追加ボタン
+                if (GUILayout.Button("Add Event", GUILayout.Width(80)))
+                {
+                    timecodeEvents.InsertArrayElementAtIndex(timecodeEvents.arraySize);
+                    var newElement = timecodeEvents.GetArrayElementAtIndex(timecodeEvents.arraySize - 1);
+                    
+                    // デフォルト値を設定
+                    var eventNameProp = newElement.FindPropertyRelative("eventName");
+                    if (eventNameProp != null) eventNameProp.stringValue = $"Event {timecodeEvents.arraySize}";
+                    
+                    var targetTcProp = newElement.FindPropertyRelative("targetTimecode");
+                    if (targetTcProp != null) targetTcProp.stringValue = "00:00:00:00";
+                    
+                    var oneShotProp = newElement.FindPropertyRelative("oneShot");
+                    if (oneShotProp != null) oneShotProp.boolValue = true;
+                    
+                    var enabledProp = newElement.FindPropertyRelative("enabled");
+                    if (enabledProp != null) enabledProp.boolValue = true;
+                }
+                
+                // 全削除ボタン
+                if (GUILayout.Button("Clear All", GUILayout.Width(80)))
+                {
+                    if (EditorUtility.DisplayDialog("Clear All Events", "すべてのタイムコードイベントを削除しますか？", "Yes", "No"))
+                    {
+                        timecodeEvents.ClearArray();
+                    }
+                }
+                
+                EditorGUILayout.EndHorizontal();
+                
+                // 各イベントの表示
+                for (int i = 0; i < timecodeEvents.arraySize; i++)
+                {
+                    var element = timecodeEvents.GetArrayElementAtIndex(i);
+                    
+                    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                    EditorGUILayout.BeginHorizontal();
+                    
+                    // イベント名
+                    var eventNameProp = element.FindPropertyRelative("eventName");
+                    var eventName = eventNameProp != null ? eventNameProp.stringValue : $"Event {i + 1}";
+                    
+                    // フォールドアウト
+                    element.isExpanded = EditorGUILayout.Foldout(element.isExpanded, eventName, true);
+                    
+                    GUILayout.FlexibleSpace();
+                    
+                    // 削除ボタン
+                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                    {
+                        timecodeEvents.DeleteArrayElementAtIndex(i);
+                        break;
+                    }
+                    
+                    EditorGUILayout.EndHorizontal();
+                    
+                    // 展開時の詳細表示
+                    if (element.isExpanded)
+                    {
+                        EditorGUI.indentLevel++;
+                        
+                        // イベント名
+                        if (eventNameProp != null)
+                        {
+                            EditorGUILayout.PropertyField(eventNameProp, new GUIContent("Name"));
+                        }
+                        
+                        // ターゲットタイムコード
+                        var targetTcProp = element.FindPropertyRelative("targetTimecode");
+                        if (targetTcProp != null)
+                        {
+                            EditorGUILayout.PropertyField(targetTcProp, new GUIContent("Target TC"));
+                        }
+                        
+                        // 許容誤差
+                        var toleranceProp = element.FindPropertyRelative("toleranceFrames");
+                        if (toleranceProp != null)
+                        {
+                            EditorGUILayout.PropertyField(toleranceProp, new GUIContent("Tolerance (frames)"));
+                        }
+                        
+                        // 設定
+                        EditorGUILayout.BeginHorizontal();
+                        
+                        var oneShotProp = element.FindPropertyRelative("oneShot");
+                        if (oneShotProp != null)
+                        {
+                            EditorGUILayout.PropertyField(oneShotProp, new GUIContent("One Shot"), GUILayout.Width(150));
+                        }
+                        
+                        var enabledProp = element.FindPropertyRelative("enabled");
+                        if (enabledProp != null)
+                        {
+                            EditorGUILayout.PropertyField(enabledProp, new GUIContent("Enabled"), GUILayout.Width(150));
+                        }
+                        
+                        EditorGUILayout.EndHorizontal();
+                        
+                        // イベント
+                        var onTimecodeReached = element.FindPropertyRelative("onTimecodeReached");
+                        if (onTimecodeReached != null)
+                        {
+                            EditorGUILayout.PropertyField(onTimecodeReached, new GUIContent("Actions"));
+                        }
+                        
+                        EditorGUI.indentLevel--;
+                    }
+                    
+                    EditorGUILayout.EndVertical();
+                }
+                
+                EditorGUI.indentLevel--;
+            }
+            
+            EditorGUILayout.EndVertical();
         }
         
         private void DrawAdvancedSettings()
