@@ -301,14 +301,18 @@ namespace LTC.Timeline
             
             EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.EndVertical();
+            
             EditorGUILayout.Space(5);
             
-            // Debug Info (折りたたみ、デフォルト非表示)
+            // Debug Info (別セクションとして表示)
             showDebugInfo = EditorGUILayout.Foldout(showDebugInfo, "Debug Info", true);
             
             if (showDebugInfo)
             {
-                // Decoded LTC (インデントレベルを増やさない)
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                
+                // Decoded LTC
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 GUI.backgroundColor = new Color(1.0f, 0.95f, 0.9f);
                 
@@ -355,9 +359,9 @@ namespace LTC.Timeline
                 // Noise比較グラフ（Debug Info内に追加）
                 EditorGUILayout.Space(5);
                 DrawNoiseComparisonGraph();
+                
+                EditorGUILayout.EndVertical();
             }
-            
-            EditorGUILayout.EndVertical();
         }
         
         // DrawStatusSection と DrawTimecodeDisplay は削除（DrawStatusAndTimecodeSectionに統合）
