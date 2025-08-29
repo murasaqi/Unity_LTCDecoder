@@ -877,9 +877,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   selectedDevice: "\u30E9\u30A4\u30F3 (AUDIO4c D2)"
-  sampleRate: 48000
+  sampleRate: 44100
   bufferSize: 2048
-  bufferQueueSize: 15
+  bufferQueueSize: 30
   syncThreshold: 0.1
   jumpThreshold: 1
   stopThreshold: 0.001
@@ -891,7 +891,7 @@ MonoBehaviour:
   hasSignal: 0
   signalLevel: 0
   timeDifference: 0
-  frameRate: 30
+  frameRate: 29.97
   dropFrame: 0
   enableDebugLogging: 0
 --- !u!1 &1713316561

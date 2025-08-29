@@ -90,6 +90,16 @@ namespace LTC.Timeline
         private string lastDecodedTc = "";
         private double lastSyncTime = 0;
         
+        // ノイズ解析用データ (グラフ表示用)
+        private const int NoiseHistorySize = 100;  // 100サンプル分の履歴
+        private float[] ltcNoiseHistory;           // LTC側のノイズ度合い (0-1)
+        private float[] internalNoiseHistory;      // Internal TC側のノイズ度合い (0-1)
+        private int noiseHistoryIndex = 0;
+        private float lastLtcTime = 0f;
+        private float lastInternalTime = 0f;
+        private float lastNoiseUpdateTime = 0f;    // 最後のノイズ更新時刻
+        private const float NoiseUpdateInterval = 0.1f;  // 100ms間隔で更新
+        
         #endregion
         
         #region Properties
@@ -105,6 +115,13 @@ namespace LTC.Timeline
         public string[] AvailableDevices => Microphone.devices;
         public bool DropFrame => dropFrame;
         
+        // ノイズ解析データアクセス
+        public float[] LTCNoiseHistory => ltcNoiseHistory;
+        public float[] InternalNoiseHistory => internalNoiseHistory;
+        public int NoiseHistoryCurrentIndex => noiseHistoryIndex;
+        public int NoiseHistoryMaxSize => NoiseHistorySize;
+        public float NoiseHistorySampleInterval => NoiseUpdateInterval;  // サンプル間隔（秒）
+        
         #endregion
         
         #region Unity Lifecycle
@@ -114,6 +131,15 @@ namespace LTC.Timeline
             decoder = new TimecodeDecoder();
             ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
             audioBuffer = new float[bufferSize];
+            
+            // ノイズ履歴バッファの初期化
+            ltcNoiseHistory = new float[NoiseHistorySize];
+            internalNoiseHistory = new float[NoiseHistorySize];
+            for (int i = 0; i < NoiseHistorySize; i++)
+            {
+                ltcNoiseHistory[i] = 0f;
+                internalNoiseHistory[i] = 0f;
+            }
         }
         
         private void OnEnable()
@@ -144,7 +170,17 @@ namespace LTC.Timeline
         /// </summary>
         private void UpdateInternalClock()
         {
-            if (!isRunning) return;
+            // LTC信号が停止している場合は内部クロックも更新しない
+            // これにより、最後に受信したタイムコードの値を保持
+            if (!isRunning) 
+            {
+                // NoSignal状態の場合、hasSignalもfalseにする
+                if (currentState == SyncState.NoSignal)
+                {
+                    hasSignal = false;
+                }
+                return;
+            }
             
             double currentDsp = AudioSettings.dspTime;
             if (currentDsp <= 0) return;
@@ -152,6 +188,7 @@ namespace LTC.Timeline
             double deltaTime = currentDsp - dspTimeBase;
             if (deltaTime < 0 || deltaTime > 1.0)
             {
+                // 異常な時間差の場合はリセット
                 dspTimeBase = currentDsp;
                 return;
             }
@@ -163,12 +200,36 @@ namespace LTC.Timeline
             // タイムコード文字列に変換
             currentTimecode = SecondsToTimecode(internalTcTime);
             
+            // 信号がある状態にする
+            hasSignal = true;
+            
             // デコードされたTCとの差分を計算
             if (ltcBuffer.Count > 0)
             {
                 var latest = ltcBuffer.Last();
                 double age = currentDsp - latest.dspTime;
                 timeDifference = (float)(internalTcTime - (latest.tcSeconds + age));
+            }
+            
+            // Internal TCのノイズ度合いを記録（変化の滑らかさ）
+            float currentInternalTime = (float)internalTcTime;
+            float internalNoise = 0f;
+            if (lastInternalTime > 0)
+            {
+                float expectedDelta = (float)deltaTime;
+                float actualDelta = currentInternalTime - lastInternalTime;
+                float deviation = Mathf.Abs(actualDelta - expectedDelta);
+                // 0.001秒（1ms）の誤差を基準にノイズ度合いを計算
+                internalNoise = Mathf.Clamp01(deviation / 0.001f);
+            }
+            lastInternalTime = currentInternalTime;
+            
+            // ノイズ履歴に追加（時間ベースで更新）
+            float currentTime = Time.time;
+            if (currentTime - lastNoiseUpdateTime >= NoiseUpdateInterval)
+            {
+                internalNoiseHistory[noiseHistoryIndex] = internalNoise;
+                // ProcessDecodedLTCで同じインデックスを更新するため、ここではインデックスを進めない
             }
         }
         
@@ -296,7 +357,8 @@ namespace LTC.Timeline
                 if (currentState != SyncState.NoSignal)
                 {
                     currentState = SyncState.NoSignal;
-                    LogDebug("Signal lost");
+                    isRunning = false;  // 信号がない場合は内部クロックも停止
+                    LogDebug("Signal lost - internal clock paused");
                 }
                 return;
             }
@@ -334,6 +396,30 @@ namespace LTC.Timeline
                 timecode = tcString,
                 tcSeconds = TimecodeToSeconds(tc)
             };
+            
+            // LTCのノイズ度合いを計算（フレーム間の時間差のばらつき）
+            float ltcNoise = 0f;
+            float currentLtcTime = (float)sample.tcSeconds;
+            if (lastLtcTime > 0)
+            {
+                float actualDelta = currentLtcTime - lastLtcTime;
+                // 期待される差分（1フレーム分の時間）
+                float expectedDelta = 1.0f / frameRate;
+                float deviation = Mathf.Abs(actualDelta - expectedDelta);
+                // 0.01秒（10ms）の誤差を基準にノイズ度合いを計算
+                ltcNoise = Mathf.Clamp01(deviation / 0.01f);
+            }
+            lastLtcTime = currentLtcTime;
+            
+            // ノイズ履歴に追加（時間ベースで更新）
+            float currentTime = Time.time;
+            if (currentTime - lastNoiseUpdateTime >= NoiseUpdateInterval)
+            {
+                ltcNoiseHistory[noiseHistoryIndex] = ltcNoise;
+                // インデックスを進める
+                noiseHistoryIndex = (noiseHistoryIndex + 1) % NoiseHistorySize;
+                lastNoiseUpdateTime = currentTime;
+            }
             
             // バッファに追加
             ltcBuffer.Enqueue(sample);
@@ -452,9 +538,11 @@ namespace LTC.Timeline
             consecutiveStops++;
             if (consecutiveStops > 2)
             {
+                // LTC信号が停止したので、内部クロックも停止
                 isRunning = false;
-                currentState = SyncState.Locked;
-                LogDebug("TC stopped - pausing internal clock");
+                currentState = SyncState.NoSignal;  // Lockedではなく、NoSignal状態へ
+                hasSignal = false;
+                LogDebug("TC stopped - internal clock paused, waiting for signal");
             }
         }
         
