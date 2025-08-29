@@ -148,21 +148,29 @@ namespace LTC.Timeline
             
             EditorGUILayout.EndHorizontal();
             
-            // Signal状態
+            // Signal状態 (固定高さ)
+            EditorGUILayout.BeginHorizontal(GUILayout.Height(18));
             if (component.IsRecording)
             {
-                EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("Signal:", GUILayout.Width(70));
                 GUI.color = component.HasSignal ? Color.green : Color.yellow;
-                EditorGUILayout.LabelField(component.HasSignal ? "● Detected" : "● No Signal");
+                EditorGUILayout.LabelField(component.HasSignal ? "● Detected" : "● No Signal", GUILayout.Width(80));
                 GUI.color = originalColor;
                 
                 if (component.HasSignal)
                 {
                     EditorGUILayout.LabelField($"Level: {(component.SignalLevel * 100):F1}%");
                 }
-                EditorGUILayout.EndHorizontal();
+                else
+                {
+                    EditorGUILayout.LabelField(""); // 空白で幅を維持
+                }
             }
+            else
+            {
+                EditorGUILayout.LabelField(""); // Recording停止時も高さを維持
+            }
+            EditorGUILayout.EndHorizontal();
             
             EditorGUILayout.EndVertical();
         }
@@ -195,25 +203,42 @@ namespace LTC.Timeline
             GUI.backgroundColor = Color.white;
             EditorGUILayout.EndVertical();
             
-            // Drop Frame表示
+            // Status Info (固定高さ)
+            EditorGUILayout.BeginVertical(GUILayout.Height(40));
+            
+            // Drop Frame と Time Difference を1行にまとめて表示
+            string statusInfo = "";
+            
             if (component.DropFrame)
             {
-                EditorGUILayout.HelpBox("Drop Frame Mode", MessageType.Info);
+                statusInfo = "Drop Frame Mode";
             }
             
-            // 時間差
             if (Mathf.Abs(component.TimeDifference) > 0.001f)
             {
                 string diffText = component.TimeDifference > 0 
-                    ? $"Internal is {component.TimeDifference:F3}s ahead" 
-                    : $"Internal is {-component.TimeDifference:F3}s behind";
-                    
+                    ? $"Internal: +{component.TimeDifference:F3}s" 
+                    : $"Internal: {component.TimeDifference:F3}s";
+                
+                if (!string.IsNullOrEmpty(statusInfo))
+                    statusInfo += " | ";
+                statusInfo += diffText;
+            }
+            
+            if (!string.IsNullOrEmpty(statusInfo))
+            {
                 MessageType msgType = Mathf.Abs(component.TimeDifference) > 0.1f 
                     ? MessageType.Warning 
                     : MessageType.Info;
-                    
-                EditorGUILayout.HelpBox(diffText, msgType);
+                EditorGUILayout.HelpBox(statusInfo, msgType);
             }
+            else
+            {
+                // 空の場合でも高さを維持
+                GUILayout.FlexibleSpace();
+            }
+            
+            EditorGUILayout.EndVertical();
         }
         
         private void DrawSyncStatus()
@@ -234,12 +259,11 @@ namespace LTC.Timeline
             GUI.color = originalColor;
             EditorGUILayout.EndHorizontal();
             
-            // 状態説明
+            // 状態説明 (固定高さ)
+            EditorGUILayout.BeginVertical(GUILayout.Height(30));
             string description = GetStateDescription(component.State);
-            if (!string.IsNullOrEmpty(description))
-            {
-                EditorGUILayout.HelpBox(description, MessageType.None);
-            }
+            EditorGUILayout.HelpBox(description, MessageType.None);
+            EditorGUILayout.EndVertical();
             
             // アクションボタン
             EditorGUILayout.BeginHorizontal();
@@ -351,7 +375,7 @@ namespace LTC.Timeline
                 case LTCDecoder.SyncState.Drifting:
                     return "Drift detected. Applying correction...";
                 default:
-                    return "";
+                    return "Unknown state";
             }
         }
     }
