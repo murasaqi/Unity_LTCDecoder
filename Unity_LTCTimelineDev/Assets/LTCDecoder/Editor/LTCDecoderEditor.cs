@@ -12,6 +12,7 @@ namespace LTC.Timeline
         private int selectedDeviceIndex = -1;
         private string[] deviceOptions;
         private bool showAdvancedSettings = false;
+        private bool advancedEditMode = false;  // Advanced Settings編集モード
         private bool showNoiseAnalysis = false;  // ノイズ解析グラフの表示状態（デフォルト非表示）
         private bool showDebugInfo = false;  // Debug Info折りたたみ状態
         private float graphTimeWindow = 5.0f; // グラフの表示時間範囲（秒）
@@ -43,6 +44,7 @@ namespace LTC.Timeline
             showDebugInfo = EditorPrefs.GetBool("LTCDecoder.ShowDebugInfo", false);
             graphTimeWindow = EditorPrefs.GetFloat("LTCDecoder.GraphTimeWindow", 5.0f);
             showAdvancedSettings = EditorPrefs.GetBool("LTCDecoder.ShowAdvancedSettings", false);
+            advancedEditMode = EditorPrefs.GetBool("LTCDecoder.AdvancedEditMode", false);
         }
         
         private void OnDisable()
@@ -52,6 +54,7 @@ namespace LTC.Timeline
             EditorPrefs.SetBool("LTCDecoder.ShowDebugInfo", showDebugInfo);
             EditorPrefs.SetFloat("LTCDecoder.GraphTimeWindow", graphTimeWindow);
             EditorPrefs.SetBool("LTCDecoder.ShowAdvancedSettings", showAdvancedSettings);
+            EditorPrefs.SetBool("LTCDecoder.AdvancedEditMode", advancedEditMode);
         }
         
         private void RefreshDeviceList()
@@ -927,6 +930,19 @@ namespace LTC.Timeline
             {
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 
+                // 編集モードToggle
+                advancedEditMode = EditorGUILayout.Toggle("Enable Editing", advancedEditMode);
+                
+                if (!advancedEditMode)
+                {
+                    EditorGUILayout.HelpBox("Advanced settings are locked. Enable editing to modify.", MessageType.Info);
+                }
+                
+                EditorGUILayout.Space(5);
+                
+                // 編集モードに応じて有効/無効を切り替え
+                GUI.enabled = advancedEditMode;
+                
                 // Sync Settings
                 EditorGUILayout.LabelField("Sync Parameters", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("bufferQueueSize"), 
@@ -960,6 +976,9 @@ namespace LTC.Timeline
                 EditorGUILayout.LabelField("Logging Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("enableDebugLogging"),
                     new GUIContent("Enable Console Output", "Output detailed information to Unity console"));
+                
+                // GUI.enabledを元に戻す
+                GUI.enabled = true;
                 
                 EditorGUILayout.EndVertical();
             }
