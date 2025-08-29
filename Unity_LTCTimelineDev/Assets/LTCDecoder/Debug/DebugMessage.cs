@@ -4,6 +4,35 @@ using UnityEngine;
 namespace LTC.Debug
 {
     /// <summary>
+    /// セッション統計データ
+    /// </summary>
+    [Serializable]
+    public struct SessionStatistics
+    {
+        public DateTime startTime;
+        public DateTime endTime;
+        public TimeSpan duration;
+        public int totalEvents;
+        public float averageSignalLevel;
+        public int dropoutCount;
+        public int timecodeJumpCount;
+        public float longestDropout;
+        public bool isActive;
+    }
+    
+    /// <summary>
+    /// 信号品質レポート
+    /// </summary>
+    [Serializable]
+    public struct SignalQualityReport
+    {
+        public float averageLevel;
+        public float dropoutRate;
+        public float stability;
+        public float qualityScore;
+    }
+    
+    /// <summary>
     /// デバッグメッセージのデータ構造
     /// </summary>
     [Serializable]

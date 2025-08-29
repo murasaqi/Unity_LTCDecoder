@@ -34,6 +34,23 @@ namespace LTC.Debug
         // パフォーマンス計測
         private Dictionary<string, float> performanceTimers = new Dictionary<string, float>();
         
+        // セッション管理
+        private DateTime sessionStartTime;
+        private DateTime sessionEndTime;
+        private bool isSessionActive = false;
+        
+        // 信号品質統計
+        private float totalSignalLevel = 0f;
+        private int signalSampleCount = 0;
+        private int dropoutCount = 0;
+        private int timecodeJumpCount = 0;
+        private string lastTimecode = "00:00:00:00";
+        private DateTime lastSignalTime;
+        private float longestDropout = 0f;
+        
+        // 異常検知
+        private List<string> anomalies = new List<string>();
+        
         // イベント
         public event Action<DebugMessage> OnMessageAdded;
         public event Action OnHistoryCleared;
@@ -250,6 +267,83 @@ namespace LTC.Debug
                 .ToDictionary(g => g.Key, g => g.Count());
         }
         
+        /// <summary>
+        /// セッション統計を取得
+        /// </summary>
+        public SessionStatistics GetSessionStatistics()
+        {
+            var stats = new SessionStatistics();
+            stats.startTime = sessionStartTime;
+            stats.endTime = isSessionActive ? DateTime.Now : sessionEndTime;
+            stats.duration = stats.endTime - stats.startTime;
+            stats.totalEvents = eventStatistics.Values.Sum();
+            stats.averageSignalLevel = signalSampleCount > 0 ? totalSignalLevel / signalSampleCount : 0f;
+            stats.dropoutCount = dropoutCount;
+            stats.timecodeJumpCount = timecodeJumpCount;
+            stats.longestDropout = longestDropout;
+            stats.isActive = isSessionActive;
+            return stats;
+        }
+        
+        /// <summary>
+        /// 信号品質レポートを取得
+        /// </summary>
+        public SignalQualityReport GetSignalQualityReport()
+        {
+            var report = new SignalQualityReport();
+            report.averageLevel = signalSampleCount > 0 ? totalSignalLevel / signalSampleCount : 0f;
+            report.dropoutRate = GetSessionDuration() > 0 ? dropoutCount / GetSessionDuration() : 0f;
+            report.stability = CalculateStability();
+            report.qualityScore = CalculateQualityScore();
+            return report;
+        }
+        
+        /// <summary>
+        /// 異常検知レポートを取得
+        /// </summary>
+        public List<string> GetAnomalyReport()
+        {
+            return new List<string>(anomalies);
+        }
+        
+        #endregion
+        
+        #region パブリックメソッド - セッション管理
+        
+        /// <summary>
+        /// セッション開始
+        /// </summary>
+        public void StartSession()
+        {
+            sessionStartTime = DateTime.Now;
+            isSessionActive = true;
+            ResetStatistics();
+            AddDebugMessage("Debug session started", DebugMessage.INFO, Color.cyan);
+        }
+        
+        /// <summary>
+        /// セッション終了
+        /// </summary>
+        public void EndSession()
+        {
+            if (!isSessionActive) return;
+            
+            sessionEndTime = DateTime.Now;
+            isSessionActive = false;
+            
+            var duration = sessionEndTime - sessionStartTime;
+            AddDebugMessage($"Debug session ended. Duration: {duration:hh\\:mm\\:ss}", DebugMessage.INFO, Color.cyan);
+        }
+        
+        /// <summary>
+        /// セッション継続時間を取得
+        /// </summary>
+        public float GetSessionDuration()
+        {
+            if (!isSessionActive) return 0f;
+            return (float)(DateTime.Now - sessionStartTime).TotalSeconds;
+        }
+        
         #endregion
         
         #region パブリックメソッド - パフォーマンス計測
@@ -344,12 +438,23 @@ namespace LTC.Debug
         
         private void HandleLTCStarted(LTCEventData data)
         {
+            if (!isSessionActive) StartSession();
+            
             AddDebugMessage(
                 $"LTC Started at {data.currentTimecode}",
                 DebugMessage.EVENT,
                 Color.green
             );
             UpdateStatistics("LTC Started");
+            
+            // 信号復帰時の処理
+            if (lastSignalTime != default(DateTime))
+            {
+                var dropoutDuration = (float)(DateTime.Now - lastSignalTime).TotalSeconds;
+                if (dropoutDuration > longestDropout)
+                    longestDropout = dropoutDuration;
+            }
+            lastSignalTime = DateTime.Now;
         }
         
         private void HandleLTCStopped(LTCEventData data)
@@ -360,10 +465,29 @@ namespace LTC.Debug
                 Color.yellow
             );
             UpdateStatistics("LTC Stopped");
+            dropoutCount++;
+            lastSignalTime = DateTime.Now;
         }
         
         private void HandleLTCReceiving(LTCEventData data)
         {
+            // 統計収集
+            totalSignalLevel += data.signalLevel;
+            signalSampleCount++;
+            
+            // タイムコードジャンプ検出
+            if (IsTimecodeJump(lastTimecode, data.currentTimecode))
+            {
+                timecodeJumpCount++;
+                anomalies.Add($"Timecode jump detected: {lastTimecode} -> {data.currentTimecode}");
+                AddDebugMessage(
+                    $"⚠ Timecode Jump: {lastTimecode} -> {data.currentTimecode}",
+                    DebugMessage.WARNING,
+                    new Color(1f, 0.5f, 0f) // オレンジ色
+                );
+            }
+            lastTimecode = data.currentTimecode;
+            
             // 頻度が高いので通常はログしない
             // 必要に応じて有効化
             if (UnityEngine.Random.value < 0.001f) // 0.1%の確率でサンプリング
@@ -388,6 +512,7 @@ namespace LTC.Debug
                     Color.yellow
                 );
                 UpdateStatistics("No Signal");
+                dropoutCount++;
             }
         }
         
@@ -444,6 +569,40 @@ namespace LTC.Debug
             catch { }
             
             return 0f;
+        }
+        
+        private bool IsTimecodeJump(string prev, string current)
+        {
+            if (string.IsNullOrEmpty(prev) || string.IsNullOrEmpty(current))
+                return false;
+            
+            var prevTime = TimecodeToSeconds(prev);
+            var currentTime = TimecodeToSeconds(current);
+            var diff = Math.Abs(currentTime - prevTime);
+            
+            // 0.1秒以上の差があればジャンプとみなす
+            return diff > 0.1f && diff < 3600f; // 1時間以上の差は無視（ループバック）
+        }
+        
+        private float CalculateStability()
+        {
+            if (GetSessionDuration() <= 0) return 0f;
+            
+            var dropoutRate = dropoutCount / GetSessionDuration();
+            var jumpRate = timecodeJumpCount / GetSessionDuration();
+            
+            // 安定性スコア（0-1）
+            var stability = 1f - Math.Min(1f, (dropoutRate + jumpRate * 2f) / 10f);
+            return Math.Max(0f, stability);
+        }
+        
+        private float CalculateQualityScore()
+        {
+            var avgSignal = signalSampleCount > 0 ? totalSignalLevel / signalSampleCount : 0f;
+            var stability = CalculateStability();
+            
+            // 品質スコア（0-100）
+            return (avgSignal * 0.5f + stability * 0.5f) * 100f;
         }
         
         #endregion

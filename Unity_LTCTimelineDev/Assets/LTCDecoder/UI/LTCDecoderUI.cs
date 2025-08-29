@@ -38,6 +38,11 @@ namespace LTC.UI
         [SerializeField] private Button copyButton;
         [SerializeField] private Dropdown filterDropdown;
         
+        [Header("Statistics Display")]
+        [SerializeField] private Text sessionInfoText;
+        [SerializeField] private Text signalQualityText;
+        [SerializeField] private Text anomalyCountText;
+        
         #endregion
         
         #region フィールド
@@ -45,6 +50,7 @@ namespace LTC.UI
         [Header("Settings")]
         [SerializeField] private float updateInterval = 0.1f;
         [SerializeField] private bool autoScroll = true;
+        [SerializeField] private bool showStatistics = true;
         
         // 色設定
         [Header("Colors")]
@@ -231,6 +237,12 @@ namespace LTC.UI
                 }
                 eventCountText.text = $"Events: {totalEvents}";
             }
+            
+            // 統計表示更新
+            if (showStatistics && debugger != null)
+            {
+                UpdateStatisticsDisplay();
+            }
         }
         
         private void UpdateIndicators()
@@ -310,6 +322,106 @@ namespace LTC.UI
         
         #endregion
         
+        #region パブリックメソッド - 直接ログ
+        
+        /// <summary>
+        /// メッセージを直接ログに追加（Unity Event用）
+        /// </summary>
+        public void AddLogMessage(string message)
+        {
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.INFO,
+                decoder?.CurrentTimecode ?? "00:00:00:00",
+                decoder?.SignalLevel ?? 0f,
+                Color.white
+            );
+            
+            // UIに直接追加
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// LTCイベントからメッセージを追加（Unity Event用）
+        /// </summary>
+        public void AddLogMessageFromEvent(LTCEventData eventData)
+        {
+            string message = $"TC: {eventData.currentTimecode} (Signal: {eventData.signalLevel:P0})";
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.EVENT,
+                eventData.currentTimecode,
+                eventData.signalLevel,
+                Color.green
+            );
+            
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// 情報メッセージを追加
+        /// </summary>
+        public void AddInfoMessage(string message)
+        {
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.INFO,
+                decoder?.CurrentTimecode ?? "00:00:00:00",
+                decoder?.SignalLevel ?? 0f,
+                Color.white
+            );
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// 警告メッセージを追加
+        /// </summary>
+        public void AddWarningMessage(string message)
+        {
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.WARNING,
+                decoder?.CurrentTimecode ?? "00:00:00:00",
+                decoder?.SignalLevel ?? 0f,
+                Color.yellow
+            );
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// エラーメッセージを追加
+        /// </summary>
+        public void AddErrorMessage(string message)
+        {
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.ERROR,
+                decoder?.CurrentTimecode ?? "00:00:00:00",
+                decoder?.SignalLevel ?? 0f,
+                Color.red
+            );
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// LTCStartedイベント用（Unity Event用）
+        /// </summary>
+        public void OnLTCStartedLog(LTCEventData data)
+        {
+            AddLogMessageFromEvent(data);
+            AddInfoMessage($"LTC Started at {data.currentTimecode}");
+        }
+        
+        /// <summary>
+        /// LTCStoppedイベント用（Unity Event用）
+        /// </summary>
+        public void OnLTCStoppedLog(LTCEventData data)
+        {
+            AddWarningMessage($"LTC Stopped at {data.currentTimecode}");
+        }
+        
+        #endregion
+        
         #region イベントハンドラー
         
         private void OnLTCStarted(LTCEventData data)
@@ -332,6 +444,9 @@ namespace LTC.UI
         {
             debugger?.ClearHistory();
             debugger?.ResetStatistics();
+            
+            // 直接追加されたメッセージもクリア
+            OnHistoryCleared();
         }
         
         private void OnExportButtonClicked()
@@ -382,6 +497,53 @@ namespace LTC.UI
             if (indicator != null)
             {
                 indicator.color = color;
+            }
+        }
+        
+        private void UpdateStatisticsDisplay()
+        {
+            if (debugger == null) return;
+            
+            // セッション情報
+            if (sessionInfoText != null)
+            {
+                var sessionStats = debugger.GetSessionStatistics();
+                if (sessionStats.isActive)
+                {
+                    sessionInfoText.text = $"Session: {sessionStats.duration:hh\\:mm\\:ss} | Events: {sessionStats.totalEvents}";
+                }
+                else
+                {
+                    sessionInfoText.text = "Session: Inactive";
+                }
+            }
+            
+            // 信号品質
+            if (signalQualityText != null)
+            {
+                var qualityReport = debugger.GetSignalQualityReport();
+                signalQualityText.text = $"Quality: {qualityReport.qualityScore:F0}% | Stability: {qualityReport.stability:P0}";
+                
+                // 品質に応じて色を変更
+                if (qualityReport.qualityScore > 80)
+                    signalQualityText.color = activeColor;
+                else if (qualityReport.qualityScore > 50)
+                    signalQualityText.color = warningColor;
+                else
+                    signalQualityText.color = errorColor;
+            }
+            
+            // 異常カウント
+            if (anomalyCountText != null)
+            {
+                var anomalies = debugger.GetAnomalyReport();
+                var sessionStats = debugger.GetSessionStatistics();
+                anomalyCountText.text = $"Anomalies: {anomalies.Count} | Dropouts: {sessionStats.dropoutCount}";
+                
+                if (anomalies.Count > 0)
+                    anomalyCountText.color = warningColor;
+                else
+                    anomalyCountText.color = Color.white;
             }
         }
         
