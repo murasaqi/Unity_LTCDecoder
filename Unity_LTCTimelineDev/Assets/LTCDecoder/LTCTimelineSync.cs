@@ -1,9 +1,12 @@
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.Playables;
 using LTC.Timeline;
 
+/// <summary>
+/// LTC信号とUnity Timelineを同期するシンプルなコンポーネント
+/// LTCDecoderのInternal TCに追従してTimelineを制御
+/// </summary>
 [AddComponentMenu("Audio/LTC Timeline Sync")]
 [RequireComponent(typeof(PlayableDirector))]
 public class LTCTimelineSync : MonoBehaviour
@@ -12,34 +15,32 @@ public class LTCTimelineSync : MonoBehaviour
     [SerializeField] private LTCDecoder ltcDecoder;
     
     [Header("Sync Settings")]
+    [Tooltip("時間差がこの値を超えたらTimelineをジャンプさせる（秒）")]
     [SerializeField] private float syncThreshold = 0.1f;
-    [SerializeField] private float smoothingFactor = 0.3f;
-    [SerializeField] private bool enableSync = true;
+    
+    [Tooltip("LTC信号がない時にTimelineを停止する")]
     [SerializeField] private bool pauseWhenNoSignal = true;
     
-    [Header("Frame Rate Settings")]
-    [SerializeField] private float frameRate = 30f;
-    [SerializeField] private bool autoDetectFrameRate = true;
+    [Tooltip("同期を有効にする")]
+    [SerializeField] private bool enableSync = true;
     
     [Header("Status")]
-    [SerializeField] private bool isSynced = false;
+    [SerializeField] private bool isPlaying = false;
     [SerializeField] private float currentTimeDifference = 0f;
-    [SerializeField] private string lastSyncedTimecode = "00:00:00:00";
-    [SerializeField] private int consecutiveSyncFrames = 0;
     [SerializeField] private float timelineTime = 0f;
     [SerializeField] private float ltcTime = 0f;
+    [SerializeField] private string currentLTC = "00:00:00:00";
     
-    [Header("Logging")]
-    [SerializeField] private bool enableLogging = false;
-    [SerializeField] private bool logToConsole = false;
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugLog = false;
     
+    // Private fields
     private PlayableDirector playableDirector;
-    private Coroutine syncCoroutine;
-    private Timecode lastTimecode;
-    private float lastLTCUpdateTime;
-    private const int SYNC_STABILITY_FRAMES = 3;
+    private float lastSyncTime = 0f;
+    private bool wasPlaying = false;
     
-    public bool IsSynced => isSynced;
+    // Properties
+    public bool IsPlaying => isPlaying;
     public float TimeDifference => currentTimeDifference;
     public bool EnableSync 
     { 
@@ -47,295 +48,250 @@ public class LTCTimelineSync : MonoBehaviour
         set => enableSync = value; 
     }
     
+    #region Unity Lifecycle
+    
     private void Awake()
     {
         playableDirector = GetComponent<PlayableDirector>();
         
+        // LTCDecoderが未設定の場合は自動検索
         if (ltcDecoder == null)
         {
             ltcDecoder = FindFirstObjectByType<LTCDecoder>();
             if (ltcDecoder == null)
             {
-                LogError("LTC Decoder Component not found. Please assign it manually.");
+                Debug.LogError("[LTC Sync] LTC Decoder not found. Please assign it manually.");
             }
         }
     }
     
     private void OnEnable()
     {
-        if (ltcDecoder != null && playableDirector != null)
+        // 初期状態の設定
+        if (playableDirector != null)
         {
-            StartSync();
+            playableDirector.timeUpdateMode = DirectorUpdateMode.GameTime;
         }
     }
     
-    private void OnDisable()
+    private void Update()
     {
-        StopSync();
-    }
-    
-    public void SetLTCDecoder(LTCDecoder decoder)
-    {
-        bool wasRunning = syncCoroutine != null;
-        
-        if (wasRunning)
+        // 同期処理
+        if (enableSync && ltcDecoder != null && playableDirector != null)
         {
-            StopSync();
-        }
-        
-        ltcDecoder = decoder;
-        
-        if (wasRunning && ltcDecoder != null)
-        {
-            StartSync();
+            ProcessSync();
         }
     }
     
-    public void StartSync()
-    {
-        if (syncCoroutine != null)
-        {
-            StopCoroutine(syncCoroutine);
-        }
-        
-        syncCoroutine = StartCoroutine(SyncTimeline());
-        LogInfo("Started LTC Timeline synchronization");
-    }
+    #endregion
     
-    public void StopSync()
-    {
-        if (syncCoroutine != null)
-        {
-            StopCoroutine(syncCoroutine);
-            syncCoroutine = null;
-        }
-        
-        isSynced = false;
-        consecutiveSyncFrames = 0;
-        LogInfo("Stopped LTC Timeline synchronization");
-    }
+    #region Sync Logic
     
-    private IEnumerator SyncTimeline()
+    /// <summary>
+    /// メインの同期処理
+    /// </summary>
+    private void ProcessSync()
     {
-        while (enabled && ltcDecoder != null && playableDirector != null)
+        // LTC信号の状態を確認
+        bool hasSignal = ltcDecoder.HasSignal && ltcDecoder.IsRecording;
+        
+        if (!hasSignal)
         {
-            if (!enableSync)
-            {
-                yield return new WaitForSeconds(0.1f);
-                continue;
-            }
-            
-            if (ltcDecoder.HasSignal && ltcDecoder.IsRecording)
-            {
-                ProcessLTCSync();
-            }
-            else if (pauseWhenNoSignal && playableDirector.state == PlayState.Playing)
+            // 信号なし → Timeline停止
+            if (pauseWhenNoSignal && playableDirector.state == PlayState.Playing)
             {
                 playableDirector.Pause();
-                isSynced = false;
-                consecutiveSyncFrames = 0;
-                LogInfo("No LTC signal detected, pausing timeline");
+                isPlaying = false;
+                LogDebug("No LTC signal - Timeline paused");
             }
-            
-            yield return new WaitForSeconds(1f / 60f);
+            return;
         }
-    }
-    
-    private void ProcessLTCSync()
-    {
-        string currentLTCTimecode = ltcDecoder.CurrentTimecode;
         
-        if (string.IsNullOrEmpty(currentLTCTimecode) || currentLTCTimecode == "00:00:00:00")
+        // Internal TCを取得（これが最終的な同期対象）
+        string ltcTimecode = ltcDecoder.CurrentTimecode;
+        if (string.IsNullOrEmpty(ltcTimecode))
         {
             return;
         }
         
-        Timecode currentTimecode = ParseTimecode(currentLTCTimecode);
+        currentLTC = ltcTimecode;
         
-        if (currentTimecode == null)
+        // タイムコードを秒に変換
+        ltcTime = ParseTimecodeToSeconds(ltcTimecode);
+        if (ltcTime < 0)
         {
             return;
         }
         
-        if (autoDetectFrameRate)
+        // Timeline側の現在時刻
+        timelineTime = (float)playableDirector.time;
+        
+        // 時間差を計算
+        currentTimeDifference = Mathf.Abs(ltcTime - timelineTime);
+        
+        // 閾値を超えたらジャンプ
+        if (currentTimeDifference > syncThreshold)
         {
-            DetectFrameRate(currentTimecode);
+            playableDirector.time = ltcTime;
+            playableDirector.Evaluate();
+            lastSyncTime = Time.time;
+            LogDebug($"Timeline jumped to LTC: {ltcTimecode} ({ltcTime:F3}s), diff was {currentTimeDifference:F3}s");
         }
         
-        float ltcTimeInSeconds = TimecodeToSeconds(currentTimecode);
-        ltcTime = ltcTimeInSeconds;
-        
-        if (playableDirector.playableAsset != null)
+        // 再生状態の管理
+        if (playableDirector.state != PlayState.Playing)
         {
-            timelineTime = (float)playableDirector.time;
-            float timeDifference = Mathf.Abs(ltcTimeInSeconds - timelineTime);
-            currentTimeDifference = timeDifference;
-            
-            if (timeDifference > syncThreshold)
-            {
-                float targetTime = ltcTimeInSeconds;
-                
-                if (isSynced && smoothingFactor > 0)
-                {
-                    targetTime = Mathf.Lerp(timelineTime, ltcTimeInSeconds, smoothingFactor);
-                }
-                
-                playableDirector.time = targetTime;
-                
-                if (playableDirector.state != PlayState.Playing)
-                {
-                    playableDirector.Play();
-                }
-                
-                LogInfo($"Syncing Timeline: LTC={currentLTCTimecode}, Timeline={timelineTime:F3}s, Difference={timeDifference:F3}s");
-                
-                consecutiveSyncFrames = 0;
-                isSynced = false;
-            }
-            else
-            {
-                consecutiveSyncFrames++;
-                
-                if (consecutiveSyncFrames >= SYNC_STABILITY_FRAMES)
-                {
-                    if (!isSynced)
-                    {
-                        LogInfo($"Timeline in sync with LTC (difference: {timeDifference:F3}s)");
-                    }
-                    isSynced = true;
-                }
-                
-                if (playableDirector.state != PlayState.Playing)
-                {
-                    playableDirector.Play();
-                }
-            }
-            
-            lastSyncedTimecode = currentLTCTimecode;
-            lastTimecode = currentTimecode;
-            lastLTCUpdateTime = Time.time;
-        }
-    }
-    
-    private void DetectFrameRate(Timecode timecode)
-    {
-        if (timecode.DropFrame)
-        {
-            frameRate = 29.97f;
+            playableDirector.Play();
+            isPlaying = true;
+            wasPlaying = true;
+            LogDebug($"Timeline started at {ltcTimecode}");
         }
         else
         {
-            if (lastTimecode != null)
-            {
-                float deltaTime = Time.time - lastLTCUpdateTime;
-                if (deltaTime > 0 && deltaTime < 1f)
-                {
-                    int frameDiff = timecode.Frame - lastTimecode.Frame;
-                    if (frameDiff < 0) frameDiff += 30;
-                    
-                    if (frameDiff > 0)
-                    {
-                        float estimatedFps = frameDiff / deltaTime;
-                        frameRate = Mathf.Lerp(frameRate, estimatedFps, 0.1f);
-                        frameRate = Mathf.Round(frameRate * 100f) / 100f;
-                    }
-                }
-            }
+            isPlaying = true;
         }
     }
     
-    private float TimecodeToSeconds(Timecode timecode)
-    {
-        float fps = frameRate;
-        
-        if (timecode.DropFrame)
-        {
-            fps = 29.97f;
-        }
-        
-        float totalSeconds = timecode.Hour * 3600f +
-                           timecode.Minute * 60f +
-                           timecode.Second +
-                           (timecode.Frame / fps);
-        
-        return totalSeconds;
-    }
-    
-    private Timecode ParseTimecode(string timecodeString)
+    /// <summary>
+    /// タイムコード文字列を秒に変換
+    /// </summary>
+    private float ParseTimecodeToSeconds(string timecodeString)
     {
         if (string.IsNullOrEmpty(timecodeString))
-            return null;
+            return -1f;
         
         string[] parts = timecodeString.Split(':');
         if (parts.Length != 4)
-            return null;
+            return -1f;
         
-        if (int.TryParse(parts[0], out int hour) &&
-            int.TryParse(parts[1], out int minute) &&
-            int.TryParse(parts[2], out int second) &&
-            int.TryParse(parts[3], out int frame))
+        if (int.TryParse(parts[0], out int hours) &&
+            int.TryParse(parts[1], out int minutes) &&
+            int.TryParse(parts[2], out int seconds) &&
+            int.TryParse(parts[3], out int frames))
         {
-            var timecode = new Timecode();
-            timecode.Hour = hour;
-            timecode.Minute = minute;
-            timecode.Second = second;
-            timecode.Frame = frame;
-            return timecode;
+            // フレームレートは LTCDecoder側の設定を使用（通常30fps）
+            float frameRate = 30f;
+            if (ltcDecoder != null)
+            {
+                // LTCDecoderからフレームレート情報を取得できる場合はそれを使用
+                // ※現在の実装では30fps固定
+                frameRate = 30f;
+            }
+            
+            float totalSeconds = hours * 3600f + 
+                               minutes * 60f + 
+                               seconds + 
+                               (frames / frameRate);
+            
+            return totalSeconds;
         }
         
-        return null;
+        return -1f;
     }
     
+    #endregion
+    
+    #region Public Methods
+    
+    /// <summary>
+    /// LTCDecoderを設定
+    /// </summary>
+    public void SetLTCDecoder(LTCDecoder decoder)
+    {
+        ltcDecoder = decoder;
+        LogDebug($"LTC Decoder set: {decoder != null}");
+    }
+    
+    /// <summary>
+    /// 同期をリセット
+    /// </summary>
     public void ResetSync()
     {
         if (playableDirector != null)
         {
             playableDirector.time = 0;
             playableDirector.Evaluate();
+            playableDirector.Stop();
         }
         
-        isSynced = false;
-        consecutiveSyncFrames = 0;
+        isPlaying = false;
         currentTimeDifference = 0f;
-        lastSyncedTimecode = "00:00:00:00";
+        timelineTime = 0f;
+        ltcTime = 0f;
+        currentLTC = "00:00:00:00";
         
-        LogInfo("Timeline sync reset");
+        LogDebug("Timeline sync reset");
     }
     
+    /// <summary>
+    /// 指定タイムコードにシーク
+    /// </summary>
     public void SeekToTimecode(string timecodeString)
     {
-        var timecode = ParseTimecode(timecodeString);
-        if (timecode != null && playableDirector != null)
+        float targetTime = ParseTimecodeToSeconds(timecodeString);
+        if (targetTime >= 0 && playableDirector != null)
         {
-            float targetTime = TimecodeToSeconds(timecode);
             playableDirector.time = targetTime;
             playableDirector.Evaluate();
-            
-            LogInfo($"Timeline seeked to {timecodeString} ({targetTime:F3}s)");
+            LogDebug($"Timeline seeked to {timecodeString} ({targetTime:F3}s)");
+        }
+    }
+    
+    /// <summary>
+    /// 手動で再生開始
+    /// </summary>
+    public void Play()
+    {
+        if (playableDirector != null)
+        {
+            playableDirector.Play();
+            isPlaying = true;
+        }
+    }
+    
+    /// <summary>
+    /// 手動で一時停止
+    /// </summary>
+    public void Pause()
+    {
+        if (playableDirector != null)
+        {
+            playableDirector.Pause();
+            isPlaying = false;
+        }
+    }
+    
+    /// <summary>
+    /// 手動で停止
+    /// </summary>
+    public void Stop()
+    {
+        if (playableDirector != null)
+        {
+            playableDirector.Stop();
+            isPlaying = false;
+        }
+    }
+    
+    #endregion
+    
+    #region Debug
+    
+    private void LogDebug(string message)
+    {
+        if (enableDebugLog)
+        {
+            Debug.Log($"[LTC Sync] {message}");
         }
     }
     
     #if UNITY_EDITOR
     private void OnValidate()
     {
+        // 値の範囲チェック
         syncThreshold = Mathf.Max(0.001f, syncThreshold);
-        smoothingFactor = Mathf.Clamp01(smoothingFactor);
-        frameRate = Mathf.Clamp(frameRate, 1f, 120f);
     }
     #endif
     
-    private void LogInfo(string message)
-    {
-        if (!enableLogging) return;
-        if (logToConsole)
-        {
-            Debug.Log($"[LTC Sync] {message}");
-        }
-    }
-    
-    private void LogError(string message)
-    {
-        // Always log errors even if logging is disabled
-        Debug.LogError($"[LTC Sync] {message}");
-    }
+    #endregion
 }
