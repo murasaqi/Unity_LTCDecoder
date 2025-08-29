@@ -12,7 +12,8 @@ namespace LTC.Timeline
         private int selectedDeviceIndex = -1;
         private string[] deviceOptions;
         private bool showAdvancedSettings = false;
-        private bool showNoiseAnalysis = true;  // ノイズ解析グラフの表示状態
+        private bool showNoiseAnalysis = false;  // ノイズ解析グラフの表示状態（デフォルト非表示）
+        private bool showDebugInfo = false;  // Debug Info折りたたみ状態
         private float graphTimeWindow = 5.0f; // グラフの表示時間範囲（秒）
         
         // スタイル
@@ -38,7 +39,8 @@ namespace LTC.Timeline
             RefreshDeviceList();
             
             // 設定の復元
-            showNoiseAnalysis = EditorPrefs.GetBool("LTCDecoder.ShowNoiseAnalysis", true);
+            showNoiseAnalysis = EditorPrefs.GetBool("LTCDecoder.ShowNoiseAnalysis", false);
+            showDebugInfo = EditorPrefs.GetBool("LTCDecoder.ShowDebugInfo", false);
             graphTimeWindow = EditorPrefs.GetFloat("LTCDecoder.GraphTimeWindow", 5.0f);
             showAdvancedSettings = EditorPrefs.GetBool("LTCDecoder.ShowAdvancedSettings", false);
         }
@@ -47,6 +49,7 @@ namespace LTC.Timeline
         {
             // 設定の保存
             EditorPrefs.SetBool("LTCDecoder.ShowNoiseAnalysis", showNoiseAnalysis);
+            EditorPrefs.SetBool("LTCDecoder.ShowDebugInfo", showDebugInfo);
             EditorPrefs.SetFloat("LTCDecoder.GraphTimeWindow", graphTimeWindow);
             EditorPrefs.SetBool("LTCDecoder.ShowAdvancedSettings", showAdvancedSettings);
         }
@@ -133,55 +136,59 @@ namespace LTC.Timeline
             EditorGUILayout.LabelField("LTC Decoder - DSP Clock Based", titleStyle);
             EditorGUILayout.Space(5);
             
-            // デバイス選択
-            DrawDeviceSelection();
+            // 1. 基本設定セクション
+            DrawBasicSettings();
             
             EditorGUILayout.Space(10);
             
-            // タイムコード表示
-            DrawTimecodeDisplay();
+            // 2. ステータス & タイムコード表示セクション（統合）
+            DrawStatusAndTimecodeSection();
             
             EditorGUILayout.Space(10);
             
-            // 同期状態
-            DrawSyncStatus();
-            
-            EditorGUILayout.Space(10);
-            
-            // ノイズ解析グラフ
-            DrawNoiseAnalysisGraph();
-            
-            EditorGUILayout.Space(10);
-            
-            // イベント設定
+            // 3. イベント設定セクション
             DrawEventSettings();
             
             EditorGUILayout.Space(10);
             
-            // 詳細設定
-            DrawAdvancedSettings()
+            // 4. 詳細設定セクション
+            DrawAdvancedSettings();
             
             serializedObject.ApplyModifiedProperties();
             
-            // リアルタイム更新（レート制限付き、グラフ表示時のみ）
-            if (Application.isPlaying && component.IsRecording && showNoiseAnalysis)
+            // リアルタイム更新（レート制限付き）
+            if (Application.isPlaying && component.IsRecording)
             {
-                float currentTime = (float)EditorApplication.timeSinceStartup;
-                if (currentTime - lastRepaintTime > RepaintInterval)
+                // グラフまたはDebug Infoが表示されている時のみ高頻度更新
+                if (showNoiseAnalysis || showDebugInfo)
                 {
-                    lastRepaintTime = currentTime;
-                    Repaint();
+                    float currentTime = (float)EditorApplication.timeSinceStartup;
+                    if (currentTime - lastRepaintTime > RepaintInterval)
+                    {
+                        lastRepaintTime = currentTime;
+                        Repaint();
+                    }
+                }
+                else
+                {
+                    // Output TCのみの場合は低頻度更新
+                    float currentTime = (float)EditorApplication.timeSinceStartup;
+                    if (currentTime - lastRepaintTime > 0.5f) // 500ms間隔
+                    {
+                        lastRepaintTime = currentTime;
+                        Repaint();
+                    }
                 }
             }
         }
         
-        private void DrawDeviceSelection()
+        private void DrawBasicSettings()
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Audio Device", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Audio Input Settings", EditorStyles.boldLabel);
             
+            // デバイス選択
             EditorGUILayout.BeginHorizontal();
-            
             EditorGUI.BeginChangeCheck();
             int newIndex = EditorGUILayout.Popup("Select Device", selectedDeviceIndex, deviceOptions);
             if (EditorGUI.EndChangeCheck() && newIndex >= 0 && newIndex < deviceOptions.Length)
@@ -197,25 +204,38 @@ namespace LTC.Timeline
             {
                 RefreshDeviceList();
             }
-            
             EditorGUILayout.EndHorizontal();
             
-            // Recording状態
+            // Frame Rate (移動)
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("frameRate"),
+                new GUIContent("Frame Rate (fps)", "LTC signal frame rate (24/25/29.97/30)"));
+            
+            // Audio Settings (移動)
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
+                new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("bufferSize"),
+                new GUIContent("Buffer Size", "Audio processing buffer size in samples"));
+            
+            EditorGUILayout.EndVertical();
+        }
+        
+        private void DrawStatusAndTimecodeSection()
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("LTC Status & Output", EditorStyles.boldLabel);
+            
+            // Recording & Signal 状態
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Recording:", GUILayout.Width(70));
             
             Color originalColor = GUI.color;
             GUI.color = component.IsRecording ? Color.green : Color.red;
-            EditorGUILayout.LabelField(component.IsRecording ? "● Active" : "● Stopped");
+            EditorGUILayout.LabelField(component.IsRecording ? "● Active" : "● Stopped", GUILayout.Width(80));
             GUI.color = originalColor;
             
-            EditorGUILayout.EndHorizontal();
-            
-            // Signal状態 (固定高さ)
-            EditorGUILayout.BeginHorizontal(GUILayout.Height(18));
             if (component.IsRecording)
             {
-                EditorGUILayout.LabelField("Signal:", GUILayout.Width(70));
+                EditorGUILayout.LabelField("Signal:", GUILayout.Width(50));
                 GUI.color = component.HasSignal ? Color.green : Color.yellow;
                 EditorGUILayout.LabelField(component.HasSignal ? "● Detected" : "● No Signal", GUILayout.Width(80));
                 GUI.color = originalColor;
@@ -224,111 +244,49 @@ namespace LTC.Timeline
                 {
                     EditorGUILayout.LabelField($"Level: {(component.SignalLevel * 100):F1}%");
                 }
-                else
-                {
-                    EditorGUILayout.LabelField(""); // 空白で幅を維持
-                }
             }
-            else
-            {
-                EditorGUILayout.LabelField(""); // Recording停止時も高さを維持
-            }
+            
+            GUILayout.FlexibleSpace();
+            
+            // Unity FPS表示
+            DrawFPSDisplay();
+            
             EditorGUILayout.EndHorizontal();
             
-            EditorGUILayout.EndVertical();
-        }
-        
-        private void DrawTimecodeDisplay()
-        {
-            EditorGUILayout.LabelField("Timecode Display", EditorStyles.boldLabel);
+            // Sync State
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Sync State:", GUILayout.Width(70));
+            GUI.color = GetStateColor(component.State);
+            EditorGUILayout.LabelField(GetStateText(component.State), EditorStyles.boldLabel, GUILayout.Width(100));
+            GUI.color = originalColor;
             
-            // 出力TC（デコード結果）
+            // 状態説明
+            EditorGUILayout.LabelField(GetStateDescription(component.State), EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.Space(5);
+            
+            // Output TC（メイン表示、左詰め）
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             GUI.backgroundColor = new Color(0.9f, 1.0f, 0.9f);
             
-            EditorGUILayout.LabelField("Output TC", statusStyle);
+            // ラベルとTCの両方を左詰め
+            var leftStyle = new GUIStyle(statusStyle);
+            leftStyle.alignment = TextAnchor.MiddleLeft;
+            leftStyle.padding.left = 10;
+            EditorGUILayout.LabelField("Output TC", leftStyle);
             
-            Color originalColor = GUI.color;
             GUI.color = GetStateColor(component.State);
-            EditorGUILayout.LabelField(component.CurrentTimecode, timecodeStyle, GUILayout.Height(30));
+            var tcLeftStyle = new GUIStyle(timecodeStyle);
+            tcLeftStyle.alignment = TextAnchor.MiddleLeft;
+            tcLeftStyle.padding.left = 10;
+            EditorGUILayout.LabelField(component.CurrentTimecode, tcLeftStyle, GUILayout.Height(30));
             GUI.color = originalColor;
             
             GUI.backgroundColor = Color.white;
             EditorGUILayout.EndVertical();
             
-            // デコードされたTC
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            GUI.backgroundColor = new Color(1.0f, 0.95f, 0.9f);
-            
-            EditorGUILayout.LabelField("Decoded LTC", statusStyle);
-            EditorGUILayout.LabelField(component.DecodedTimecode, timecodeStyle, GUILayout.Height(30));
-            
-            GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndVertical();
-            
-            // Status Info (固定高さ)
-            EditorGUILayout.BeginVertical(GUILayout.Height(40));
-            
-            // Drop Frame と Time Difference を1行にまとめて表示
-            string statusInfo = "";
-            
-            if (component.DropFrame)
-            {
-                statusInfo = "Drop Frame Mode";
-            }
-            
-            if (Mathf.Abs(component.TimeDifference) > 0.001f)
-            {
-                string diffText = component.TimeDifference > 0 
-                    ? $"Output: +{component.TimeDifference:F3}s" 
-                    : $"Output: {component.TimeDifference:F3}s";
-                
-                if (!string.IsNullOrEmpty(statusInfo))
-                    statusInfo += " | ";
-                statusInfo += diffText;
-            }
-            
-            if (!string.IsNullOrEmpty(statusInfo))
-            {
-                MessageType msgType = Mathf.Abs(component.TimeDifference) > 0.1f 
-                    ? MessageType.Warning 
-                    : MessageType.Info;
-                EditorGUILayout.HelpBox(statusInfo, msgType);
-            }
-            else
-            {
-                // 空の場合でも高さを維持
-                GUILayout.FlexibleSpace();
-            }
-            
-            EditorGUILayout.EndVertical();
-        }
-        
-        private void DrawSyncStatus()
-        {
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Sync Status", EditorStyles.boldLabel);
-            
-            // 状態表示
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("State:", GUILayout.Width(50));
-            
-            Color originalColor = GUI.color;
-            GUI.color = GetStateColor(component.State);
-            
-            string stateText = GetStateText(component.State);
-            EditorGUILayout.LabelField(stateText, EditorStyles.boldLabel);
-            
-            GUI.color = originalColor;
-            EditorGUILayout.EndHorizontal();
-            
-            // 状態説明 (固定高さ)
-            EditorGUILayout.BeginVertical(GUILayout.Height(30));
-            string description = GetStateDescription(component.State);
-            EditorGUILayout.HelpBox(description, MessageType.None);
-            EditorGUILayout.EndVertical();
-            
-            // アクションボタン
+            // アクションボタン（Output TCの下に移動）
             EditorGUILayout.BeginHorizontal();
             
             if (GUILayout.Button("Reset"))
@@ -343,7 +301,149 @@ namespace LTC.Timeline
             
             EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.Space(5);
+            
+            // Debug Info (折りたたみ、デフォルト非表示)
+            showDebugInfo = EditorGUILayout.Foldout(showDebugInfo, "Debug Info", true);
+            
+            if (showDebugInfo)
+            {
+                // Decoded LTC (インデントレベルを増やさない)
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                GUI.backgroundColor = new Color(1.0f, 0.95f, 0.9f);
+                
+                var decodedLabelStyle = new GUIStyle(statusStyle);
+                decodedLabelStyle.alignment = TextAnchor.MiddleLeft;
+                decodedLabelStyle.padding.left = 10;
+                EditorGUILayout.LabelField("Decoded LTC", decodedLabelStyle);
+                
+                var decodedTCStyle = new GUIStyle(timecodeStyle);
+                decodedTCStyle.alignment = TextAnchor.MiddleLeft;
+                decodedTCStyle.padding.left = 10;
+                EditorGUILayout.LabelField(component.DecodedTimecode, decodedTCStyle, GUILayout.Height(30));
+                
+                GUI.backgroundColor = Color.white;
+                EditorGUILayout.EndVertical();
+                
+                // Time Difference & Drop Frame
+                if (component.DropFrame || Mathf.Abs(component.TimeDifference) > 0.001f)
+                {
+                    string statusInfo = "";
+                    
+                    if (component.DropFrame)
+                    {
+                        statusInfo = "Drop Frame Mode";
+                    }
+                    
+                    if (Mathf.Abs(component.TimeDifference) > 0.001f)
+                    {
+                        string diffText = component.TimeDifference > 0 
+                            ? $"Output: +{component.TimeDifference:F3}s" 
+                            : $"Output: {component.TimeDifference:F3}s";
+                        
+                        if (!string.IsNullOrEmpty(statusInfo))
+                            statusInfo += " | ";
+                        statusInfo += diffText;
+                    }
+                    
+                    MessageType msgType = Mathf.Abs(component.TimeDifference) > 0.1f 
+                        ? MessageType.Warning 
+                        : MessageType.Info;
+                    EditorGUILayout.HelpBox(statusInfo, msgType);
+                }
+                
+                // Noise比較グラフ（Debug Info内に追加）
+                EditorGUILayout.Space(5);
+                DrawNoiseComparisonGraph();
+            }
+            
             EditorGUILayout.EndVertical();
+        }
+        
+        // DrawStatusSection と DrawTimecodeDisplay は削除（DrawStatusAndTimecodeSectionに統合）
+        
+        private void DrawNoiseComparisonGraph()
+        {
+            if (!Application.isPlaying || !component.IsRecording)
+            {
+                EditorGUILayout.HelpBox("Noise data available during playback", MessageType.Info);
+                return;
+            }
+            
+            EditorGUILayout.LabelField("Noise Comparison", EditorStyles.miniBoldLabel);
+            
+            // グラフ描画エリア
+            Rect graphRect = GUILayoutUtility.GetRect(350, 100);
+            GUI.Box(graphRect, GUIContent.none);
+            
+            // データ取得
+            float[] ltcNoise = component.LTCNoiseHistory;
+            float[] outputNoise = component.InternalNoiseHistory;
+            int currentIndex = component.NoiseHistoryCurrentIndex;
+            int historySize = component.NoiseHistoryMaxSize;
+            
+            if (ltcNoise == null || outputNoise == null || historySize <= 0)
+            {
+                return;
+            }
+            
+            // グラフ描画
+            Handles.BeginGUI();
+            
+            // LTC Noise (赤)
+            DrawNoiseGraphLine(graphRect, ltcNoise, currentIndex, historySize, new Color(1f, 0.3f, 0.3f, 0.8f));
+            
+            // Output Noise (緑)
+            DrawNoiseGraphLine(graphRect, outputNoise, currentIndex, historySize, new Color(0.3f, 1f, 0.3f, 0.8f));
+            
+            Handles.EndGUI();
+            
+            // 凡例
+            EditorGUILayout.BeginHorizontal();
+            GUI.color = new Color(1f, 0.3f, 0.3f);
+            EditorGUILayout.LabelField("■ LTC Noise", GUILayout.Width(100));
+            GUI.color = new Color(0.3f, 1f, 0.3f);
+            EditorGUILayout.LabelField("■ Output (Filtered)", GUILayout.Width(120));
+            GUI.color = Color.white;
+            
+            // 平均ノイズ値
+            float avgLTC = CalculateAverageNoise(ltcNoise, currentIndex, 30);
+            float avgOutput = CalculateAverageNoise(outputNoise, currentIndex, 30);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.LabelField($"Avg: {avgLTC:F3}s / {avgOutput:F3}s", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+        }
+        
+        private void DrawNoiseGraphLine(Rect rect, float[] data, int currentIndex, int dataSize, Color color)
+        {
+            if (data == null || dataSize <= 0) return;
+            
+            // 間引きサンプリング
+            const int samplePoints = 50;
+            int step = Mathf.Max(1, dataSize / samplePoints);
+            
+            Vector3[] points = new Vector3[samplePoints];
+            int pointCount = 0;
+            
+            for (int i = 0; i < dataSize && pointCount < samplePoints; i += step)
+            {
+                int index = (currentIndex - dataSize + i + 1 + data.Length) % data.Length;
+                if (index < 0 || index >= data.Length) continue;
+                
+                float value = data[index];
+                float x = rect.x + (i / (float)dataSize) * rect.width;
+                float y = rect.y + rect.height - (Mathf.Clamp01(value * 10f) * rect.height);
+                points[pointCount] = new Vector3(x, y, 0);
+                pointCount++;
+            }
+            
+            if (pointCount > 1)
+            {
+                Handles.color = color;
+                var linePoints = new Vector3[pointCount];
+                System.Array.Copy(points, 0, linePoints, 0, pointCount);
+                Handles.DrawPolyLine(linePoints);
+            }
         }
         
         private void DrawNoiseAnalysisGraph()
@@ -564,7 +664,10 @@ namespace LTC.Timeline
             if (pointCount > 1)
             {
                 Handles.color = color;
-                Handles.DrawPolyLine(graphPointsCache[0..pointCount]);
+                // Create a sub-array for the polyline (Unity compatibility)
+                var linePoints = new Vector3[pointCount];
+                System.Array.Copy(graphPointsCache, 0, linePoints, 0, pointCount);
+                Handles.DrawPolyLine(linePoints);
             }
         }
         
@@ -908,15 +1011,15 @@ namespace LTC.Timeline
             switch (state)
             {
                 case LTCDecoder.SyncState.NoSignal:
-                    return "No LTC signal detected. Check audio input.";
+                    return "No signal";
                 case LTCDecoder.SyncState.Syncing:
-                    return "Collecting LTC samples for analysis...";
+                    return "Syncing...";
                 case LTCDecoder.SyncState.Locked:
-                    return "Synchronized with LTC. Internal clock is running.";
+                    return "Synchronized";
                 case LTCDecoder.SyncState.Drifting:
-                    return "Drift detected. Applying correction...";
+                    return "Drift correction";
                 default:
-                    return "Unknown state";
+                    return "Unknown";
             }
         }
     }
