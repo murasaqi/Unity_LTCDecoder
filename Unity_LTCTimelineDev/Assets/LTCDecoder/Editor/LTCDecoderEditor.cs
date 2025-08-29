@@ -206,15 +206,9 @@ namespace LTC.Timeline
             }
             EditorGUILayout.EndHorizontal();
             
-            // Frame Rate (移動)
+            // Frame Rate のみをここに残す（Audio Settingsから重複削除）
             EditorGUILayout.PropertyField(serializedObject.FindProperty("frameRate"),
                 new GUIContent("Frame Rate (fps)", "LTC signal frame rate (24/25/29.97/30)"));
-            
-            // Audio Settings (移動)
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
-                new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("bufferSize"),
-                new GUIContent("Buffer Size", "Audio processing buffer size in samples"));
             
             EditorGUILayout.EndVertical();
         }
@@ -951,26 +945,19 @@ namespace LTC.Timeline
                 
                 EditorGUILayout.Space(5);
                 
-                // Frame Rate
-                EditorGUILayout.LabelField("LTC Format", EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("frameRate"),
-                    new GUIContent("LTC Signal Frame Rate (fps)", "Frame rate of incoming LTC signal (24/25/29.97/30 fps)"));
-                
-                EditorGUILayout.Space(5);
-                
-                // Audio Settings
-                EditorGUILayout.LabelField("Audio Settings", EditorStyles.boldLabel);
+                // Audio Processing（Audio Settingsと重複していたので、ここにまとめる）
+                EditorGUILayout.LabelField("Audio Processing", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
-                    new GUIContent("Audio Sample Rate (Hz)", "Sample rate for audio input"));
+                    new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("bufferSize"),
-                    new GUIContent("Audio Buffer Size (samples)", "Size of audio processing buffer"));
+                    new GUIContent("Buffer Size (samples)", "Audio processing buffer size"));
                 
                 EditorGUILayout.Space(5);
                 
-                // Debug
-                EditorGUILayout.LabelField("Debug", EditorStyles.boldLabel);
+                // Logging Settings（"Debug"の連続を避ける）
+                EditorGUILayout.LabelField("Logging Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("enableDebugLogging"),
-                    new GUIContent("Enable Debug Logging", "Output detailed debug information to console"));
+                    new GUIContent("Enable Console Output", "Output detailed information to Unity console"));
                 
                 EditorGUILayout.EndVertical();
             }
