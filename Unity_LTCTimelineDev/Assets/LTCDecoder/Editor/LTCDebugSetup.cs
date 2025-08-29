@@ -454,7 +454,7 @@ namespace LTC.Editor
             prefab.SetActive(false);
             
             RectTransform rect = prefab.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(0, 18);
+            rect.sizeDelta = new Vector2(400, 18);  // 幅を400に設定（メッセージは長いため）
             
             Text text = prefab.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -462,6 +462,7 @@ namespace LTC.Editor
             text.color = Color.white;
             text.alignment = TextAnchor.MiddleLeft;
             text.text = "[00:00:00] [Info] Sample message";
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;  // 長いテキストは折り返し
             
             SetPrivateField(decoderUI, "messagePrefab", prefab);
         }
@@ -510,7 +511,7 @@ namespace LTC.Editor
             textObj.transform.SetParent(parent);
             
             RectTransform rect = textObj.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(0, fontSize + 4);
+            rect.sizeDelta = new Vector2(200, fontSize + 4);  // 幅を200に設定
             
             Text textComp = textObj.AddComponent<Text>();
             textComp.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -518,6 +519,7 @@ namespace LTC.Editor
             textComp.color = Color.white;
             textComp.alignment = anchor;
             textComp.text = text;
+            textComp.horizontalOverflow = HorizontalWrapMode.Overflow;  // テキストがはみ出ても表示
         }
         
         private static void CreateIndicator(Transform parent, string name, string text, Color color)
