@@ -52,6 +52,11 @@ namespace LTC.Timeline
         [SerializeField] private string decodedTimecode = "00:00:00:00";
         [SerializeField] private bool hasSignal = false;
         [SerializeField] private float signalLevel = 0f;
+        
+        // 自動ゲイン調整（AGC）用
+        private float signalLevelMax = 0.1f;  // 動的な最大値
+        private const float AGC_DECAY = 0.995f;  // 減衰率
+        private const float AGC_MIN_THRESHOLD = 0.01f;  // 最小閾値
         [SerializeField] private float timeDifference = 0f;
         
         [Header("Frame Rate")]
@@ -563,8 +568,18 @@ namespace LTC.Timeline
                     maxAmplitude = absValue;
             }
             
-            signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
-            bool audioSignalPresent = signalLevel > signalThreshold;
+            // 自動ゲイン調整（AGC）
+            // 最大値を徐々に減衰させながら、新しいピークで更新
+            signalLevelMax = Mathf.Max(signalLevelMax * AGC_DECAY, maxAmplitude);
+            
+            // 正規化されたレベル（0-1の範囲）
+            float normalizedLevel = maxAmplitude / Mathf.Max(signalLevelMax, AGC_MIN_THRESHOLD);
+            
+            // スムーズング適用
+            signalLevel = Mathf.Lerp(signalLevel, Mathf.Clamp01(normalizedLevel), 0.5f);
+            
+            // 音声信号の有無判定（生の振幅で判定）
+            bool audioSignalPresent = maxAmplitude > signalThreshold;
             
             if (!audioSignalPresent)
             {

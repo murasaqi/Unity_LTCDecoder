@@ -178,6 +178,15 @@ namespace LTC.Editor
             
             HorizontalLayoutGroup hlg = signalContainer.AddComponent<HorizontalLayoutGroup>();
             hlg.spacing = 10;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = true;
+            
+            // LayoutElementで幅を制限
+            LayoutElement signalLayout = signalContainer.AddComponent<LayoutElement>();
+            signalLayout.preferredHeight = 20;
+            signalLayout.flexibleWidth = 1;
             
             CreateTextElement(signalContainer.transform, "SignalLabel", "SignalLevelLabel", "Signal:", 12, TextAnchor.MiddleLeft);
             
@@ -185,7 +194,12 @@ namespace LTC.Editor
             GameObject barContainer = new GameObject("SignalLevelBar");
             barContainer.transform.SetParent(signalContainer.transform);
             RectTransform barRect = barContainer.AddComponent<RectTransform>();
-            barRect.sizeDelta = new Vector2(200, 10);
+            barRect.sizeDelta = new Vector2(150, 10);
+            
+            // LayoutElementで固定幅を設定
+            LayoutElement barLayout = barContainer.AddComponent<LayoutElement>();
+            barLayout.preferredWidth = 150;
+            barLayout.preferredHeight = 10;
             
             Image barBg = barContainer.AddComponent<Image>();
             barBg.color = new Color(0.2f, 0.2f, 0.2f, 1);
@@ -194,16 +208,19 @@ namespace LTC.Editor
             barFill.transform.SetParent(barContainer.transform);
             RectTransform fillRect = barFill.AddComponent<RectTransform>();
             fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = new Vector2(0, 1);
+            fillRect.anchorMax = Vector2.one;  // 全体を埋める
             fillRect.pivot = new Vector2(0, 0.5f);
             fillRect.anchoredPosition = Vector2.zero;
-            fillRect.sizeDelta = new Vector2(0, 0);
+            fillRect.sizeDelta = Vector2.zero;
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
             
             Image fillImage = barFill.AddComponent<Image>();
             fillImage.color = Color.green;
             fillImage.type = Image.Type.Filled;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
             fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fillImage.fillAmount = 0f;  // 初期値は0
             
             CreateTextElement(signalContainer.transform, "SignalText", "SignalLevelText", "0%", 12, TextAnchor.MiddleLeft);
             

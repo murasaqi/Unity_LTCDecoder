@@ -247,9 +247,7 @@ namespace LTC.Timeline
                 }
             }
             
-            GUILayout.FlexibleSpace();
-            
-            // Unity FPS表示
+            // Unity FPS表示（FlexibleSpaceを削除して右端のはみ出しを防ぐ）
             DrawFPSDisplay();
             
             EditorGUILayout.EndHorizontal();
