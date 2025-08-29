@@ -930,8 +930,8 @@ namespace LTC.Timeline
             {
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 
-                // 編集モードToggle
-                advancedEditMode = EditorGUILayout.Toggle("Enable Editing", advancedEditMode);
+                // 編集モードToggle（チェックボックスを左側に配置）
+                advancedEditMode = EditorGUILayout.ToggleLeft("Enable Editing", advancedEditMode);
                 
                 if (!advancedEditMode)
                 {
