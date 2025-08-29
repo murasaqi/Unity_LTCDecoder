@@ -197,15 +197,10 @@ namespace LTC.Timeline
         /// </summary>
         private void UpdateInternalClock()
         {
-            // LTC信号が停止している場合は出力タイムコードも更新しない
-            // これにより、最後に受信したタイムコードの値を保持
+            // isRunningのみをチェック（hasSignalはここで変更しない）
+            // isRunningは内部クロックが動作中かどうかを示す
             if (!isRunning) 
             {
-                // NoSignal状態の場合、hasSignalもfalseにする
-                if (currentState == SyncState.NoSignal)
-                {
-                    hasSignal = false;
-                }
                 return;
             }
             
@@ -227,8 +222,8 @@ namespace LTC.Timeline
             // タイムコード文字列に変換
             currentTimecode = SecondsToTimecode(internalTcTime);
             
-            // 信号がある状態にする
-            hasSignal = true;
+            // hasSignalはProcessDecodedLTCとProcessAudioBufferで管理される
+            // ここでは設定しない
             
             // デコードされたTCとの差分を計算
             if (ltcBuffer.Count > 0)
@@ -463,18 +458,27 @@ namespace LTC.Timeline
             }
             
             signalLevel = Mathf.Lerp(signalLevel, maxAmplitude, 0.5f);
-            hasSignal = signalLevel > signalThreshold;
+            bool audioSignalPresent = signalLevel > signalThreshold;
             
-            if (!hasSignal)
+            if (!audioSignalPresent)
             {
-                if (currentState != SyncState.NoSignal)
+                // 音声信号なし - 連続カウントを増やす
+                consecutiveStops++;
+                
+                if (consecutiveStops > 3)  // 3フレーム連続で信号なし
                 {
-                    currentState = SyncState.NoSignal;
-                    isRunning = false;  // 信号がない場合は出力タイムコードも停止
-                    LogDebug("Signal lost - output TC paused");
+                    if (hasSignal || isRunning)  // まだ動作中の場合のみ更新
+                    {
+                        hasSignal = false;
+                        isRunning = false;
+                        currentState = SyncState.NoSignal;
+                        LogDebug("Signal lost - LTC stopped after consecutive loss");
+                    }
                 }
                 return;
             }
+            
+            // 音声信号があるが、まだhasSignalはLTCデコード成功まで待つ
             
             // LTCデコード
             var span = new ReadOnlySpan<float>(audioBuffer, 0, length);
@@ -502,6 +506,16 @@ namespace LTC.Timeline
         {
             decodedTimecode = tcString;
             dropFrame = tc.DropFrame;
+            
+            // LTCデコード成功 = 有効な信号あり
+            consecutiveStops = 0;  // 停止カウントをリセット
+            
+            // hasSignalがfalseの場合、信号復帰として扱う
+            if (!hasSignal)
+            {
+                hasSignal = true;
+                LogDebug($"LTC signal detected - {tcString}");
+            }
             
             var sample = new LTCSample
             {
@@ -652,10 +666,10 @@ namespace LTC.Timeline
             if (consecutiveStops > 2)
             {
                 // LTC信号が停止したので、出力タイムコードも停止
-                isRunning = false;
-                currentState = SyncState.NoSignal;  // Lockedではなく、NoSignal状態へ
-                hasSignal = false;
-                LogDebug("TC stopped - output TC paused, waiting for signal");
+                // HandleStopはDetectStopから呼ばれるが、実際の信号喪失は
+                // ProcessAudioBufferで処理されるため、ここでは処理しない
+                // （二重処理を避ける）
+                LogDebug("TC stopped detected in buffer analysis");
             }
         }
         
