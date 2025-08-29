@@ -115,6 +115,47 @@ namespace LTC.Debug
         {
             AddDebugMessage(string.Format(format, args), category);
         }
+
+        /// <summary>
+        /// UnityEvent用シンプルメソッド - 文字列のみ
+        /// </summary>
+        public void AddDebugMessageSimple(string message)
+        {
+            AddDebugMessage(message, DebugMessage.INFO);
+        }
+        
+        /// <summary>
+        /// UnityEvent用 - イベントカテゴリ
+        /// </summary>
+        public void AddEventMessage(string message)
+        {
+            AddDebugMessage(message, DebugMessage.EVENT, Color.green);
+        }
+        
+        /// <summary>
+        /// UnityEvent用 - 警告カテゴリ
+        /// </summary>
+        public void AddWarningMessage(string message)
+        {
+            AddDebugMessage(message, DebugMessage.WARNING, Color.yellow);
+        }
+        
+        /// <summary>
+        /// UnityEvent用 - エラーカテゴリ
+        /// </summary>
+        public void AddErrorMessage(string message)
+        {
+            AddDebugMessage(message, DebugMessage.ERROR, Color.red);
+        }
+        
+        /// <summary>
+        /// UnityEvent用 - LTCEventDataを使用
+        /// </summary>
+        public void AddDebugMessageFromEvent(LTCEventData eventData)
+        {
+            string message = $"Event at {eventData.currentTimecode} (Signal: {eventData.signalLevel:P0})";
+            AddDebugMessage(message, DebugMessage.EVENT);
+        }
         
         /// <summary>
         /// イベント履歴をクリア
