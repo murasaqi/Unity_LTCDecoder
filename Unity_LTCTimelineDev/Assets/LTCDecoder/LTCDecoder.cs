@@ -77,6 +77,8 @@ namespace LTC.Timeline
         
         [Header("Timecode Events")]
         [SerializeField] private List<TimecodeEvent> timecodeEvents = new List<TimecodeEvent>();
+        [Tooltip("タイムコード巻き戻し時にイベントをリセット")]
+        [SerializeField] private bool resetOnRewind = true;
         
         #endregion
         
@@ -123,6 +125,8 @@ namespace LTC.Timeline
         private bool isDecodingLTC = false;        // 現在LTCをデコード中か
         private float lastDecodedTime = 0f;        // 最後にデコード成功した時刻
         private const float decodeTimeoutSeconds = 0.5f; // デコードタイムアウト（秒）
+        private string lastCheckedTimecode = "00:00:00:00"; // 最後にチェックしたタイムコード（巻き戻し検知用）
+        private bool wasDecodingLTC = false;       // 前フレームでデコード中だったか
         
         // デバッガー参照（オプショナル）
         private LTC.Debug.LTCEventDebugger debugger;
@@ -329,11 +333,16 @@ namespace LTC.Timeline
             // wasReceivingLTCの更新（互換性のため残す）
             wasReceivingLTC = hasSignal;
             
-            // タイムコードイベントのリセット処理
-            if (!hasSignal && isDecodingLTC)
+            // タイムコードイベントのリセット処理（LTC停止時）
+            if (!isDecodingLTC && wasDecodingLTC)
             {
                 ResetTimecodeEvents();
+                lastCheckedTimecode = "00:00:00:00";  // リセット
+                LogDebug("All timecode events reset due to LTC stop");
             }
+            
+            // デコード状態の更新
+            wasDecodingLTC = isDecodingLTC;
         }
         
         /// <summary>
@@ -341,6 +350,14 @@ namespace LTC.Timeline
         /// </summary>
         private void CheckTimecodeEvents(LTCEventData eventData)
         {
+            // タイムコード巻き戻し検知
+            if (resetOnRewind && IsTimecodeRewind(lastCheckedTimecode, eventData.currentTimecode))
+            {
+                ResetPassedTimecodeEvents(eventData.currentTimecode);
+                LogDebug($"Timecode rewind detected: {lastCheckedTimecode} -> {eventData.currentTimecode}");
+            }
+            
+            // イベントチェック
             foreach (var tcEvent in timecodeEvents)
             {
                 if (tcEvent.IsMatch(eventData.currentTimecode, frameRate))
@@ -354,6 +371,9 @@ namespace LTC.Timeline
                         LTC.Debug.DebugMessage.TIMECODE_EVENT, UnityEngine.Color.cyan);
                 }
             }
+            
+            // 最後にチェックしたタイムコードを更新
+            lastCheckedTimecode = eventData.currentTimecode;
         }
         
         /// <summary>
@@ -365,6 +385,66 @@ namespace LTC.Timeline
             {
                 tcEvent.Reset();
             }
+        }
+        
+        /// <summary>
+        /// 巻き戻し時に該当するイベントをリセット
+        /// </summary>
+        private void ResetPassedTimecodeEvents(string currentTC)
+        {
+            float currentSeconds = TimecodeToSeconds(currentTC);
+            
+            foreach (var tcEvent in timecodeEvents)
+            {
+                if (tcEvent.triggered)
+                {
+                    float eventSeconds = TimecodeToSeconds(tcEvent.targetTimecode);
+                    
+                    // 現在のタイムコードより後のイベントをリセット
+                    if (eventSeconds > currentSeconds)
+                    {
+                        tcEvent.Reset();
+                        LogDebug($"Timecode Event '{tcEvent.eventName}' reset due to rewind");
+                        
+                        // デバッグメッセージ
+                        debugger?.AddDebugMessage($"Event '{tcEvent.eventName}' reset (rewind detected)", 
+                            LTC.Debug.DebugMessage.INFO, UnityEngine.Color.yellow);
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// タイムコードが巻き戻されたかチェック
+        /// </summary>
+        private bool IsTimecodeRewind(string previousTC, string currentTC)
+        {
+            float prevSeconds = TimecodeToSeconds(previousTC);
+            float currSeconds = TimecodeToSeconds(currentTC);
+            
+            // 1秒以上戻った場合を巻き戻しとみなす（小さな誤差は無視）
+            return (prevSeconds - currSeconds) > 1.0f;
+        }
+        
+        /// <summary>
+        /// タイムコード文字列を秒に変換
+        /// </summary>
+        private float TimecodeToSeconds(string timecode)
+        {
+            if (string.IsNullOrEmpty(timecode)) return 0f;
+            
+            string[] parts = timecode.Split(':');
+            if (parts.Length != 4) return 0f;
+            
+            if (float.TryParse(parts[0], out float hours) &&
+                float.TryParse(parts[1], out float minutes) &&
+                float.TryParse(parts[2], out float seconds) &&
+                float.TryParse(parts[3], out float frames))
+            {
+                return hours * 3600f + minutes * 60f + seconds + (frames / frameRate);
+            }
+            
+            return 0f;
         }
         
         #endregion
