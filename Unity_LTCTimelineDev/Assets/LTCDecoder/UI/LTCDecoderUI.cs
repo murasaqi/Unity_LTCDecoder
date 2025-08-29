@@ -279,6 +279,7 @@ namespace LTC.UI
             
             // 新しいメッセージオブジェクトを作成
             GameObject msgObj = Instantiate(messagePrefab, debugMessageContainer);
+            msgObj.SetActive(true);  // プレハブがDisableなので、明示的にEnableにする
             messageObjects.Add(msgObj);
             
             // テキスト設定
