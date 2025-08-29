@@ -26,6 +26,7 @@ namespace LTC.Editor
         private bool showEventHistory = true;
         private bool showStatistics = true;
         private bool showTimecodeEvents = true;
+        private bool stylesInitialized = false;
         
         // スタイル
         private GUIStyle headerStyle;
@@ -46,8 +47,6 @@ namespace LTC.Editor
             simulationModeProp = serializedObject.FindProperty("simulationMode");
             simulatedTimecodeProp = serializedObject.FindProperty("simulatedTimecode");
             simulatedSignalLevelProp = serializedObject.FindProperty("simulatedSignalLevel");
-            
-            InitializeStyles();
         }
         
         private void InitializeStyles()
@@ -64,7 +63,7 @@ namespace LTC.Editor
                 wordWrap = true
             };
             
-            buttonStyle = new GUIStyle(GUI.skin.button)
+            buttonStyle = new GUIStyle(EditorStyles.miniButton)
             {
                 fixedHeight = 25
             };
@@ -81,6 +80,13 @@ namespace LTC.Editor
         
         public override void OnInspectorGUI()
         {
+            // スタイルを初回のみ初期化
+            if (!stylesInitialized)
+            {
+                InitializeStyles();
+                stylesInitialized = true;
+            }
+            
             serializedObject.Update();
             
             // ヘッダー
