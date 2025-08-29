@@ -767,7 +767,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!320 &982331615
 PlayableDirector:
   m_ObjectHideFlags: 0
@@ -819,19 +819,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ltcDecoder: {fileID: 1594228302}
   syncThreshold: 0.1
-  smoothingFactor: 0.3
-  enableSync: 1
   pauseWhenNoSignal: 1
-  frameRate: 30
-  autoDetectFrameRate: 1
-  isSynced: 0
+  enableSync: 1
+  isPlaying: 0
   currentTimeDifference: 0
-  lastSyncedTimecode: 00:00:00:00
-  consecutiveSyncFrames: 0
   timelineTime: 0
   ltcTime: 0
-  enableLogging: 0
-  logToConsole: 0
+  currentLTC: 00:00:00:00
+  enableDebugLog: 0
 --- !u!1 &1594228300
 GameObject:
   m_ObjectHideFlags: 0
@@ -894,6 +889,19 @@ MonoBehaviour:
   frameRate: 29.97
   dropFrame: 0
   enableDebugLogging: 0
+  OnLTCStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLTCStopped:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLTCReceiving:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLTCNoSignal:
+    m_PersistentCalls:
+      m_Calls: []
+  timecodeEvents: []
 --- !u!1 &1713316561
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace LTC.Timeline
 {
     [CustomEditor(typeof(LTCDecoder))]
-    public class LTCDecoderEditor : Editor
+    public class LTCDecoderEditor : UnityEditor.Editor
     {
         private LTCDecoder component;
         private int selectedDeviceIndex = -1;

@@ -353,14 +353,14 @@ namespace LTC.Timeline
             
             if (!Microphone.devices.Contains(selectedDevice))
             {
-                Debug.LogWarning($"Device '{selectedDevice}' not found");
+                UnityEngine.Debug.LogWarning($"Device '{selectedDevice}' not found");
                 return;
             }
             
             microphoneClip = Microphone.Start(selectedDevice, true, 1, sampleRate);
             if (microphoneClip == null)
             {
-                Debug.LogError($"Failed to start recording from {selectedDevice}");
+                UnityEngine.Debug.LogError($"Failed to start recording from {selectedDevice}");
                 return;
             }
             
@@ -751,7 +751,7 @@ namespace LTC.Timeline
         {
             if (enableDebugLogging)
             {
-                Debug.Log($"[LTCDecoder] {message}");
+                UnityEngine.Debug.Log($"[LTCDecoder] {message}");
             }
         }
         
