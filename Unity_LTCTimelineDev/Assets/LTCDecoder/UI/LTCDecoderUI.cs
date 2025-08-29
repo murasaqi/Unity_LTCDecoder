@@ -54,6 +54,11 @@ namespace LTC.UI
         [SerializeField] private Color errorColor = Color.red;
         
         // コンポーネント参照
+        [Header("Target Components")]
+        [SerializeField] private LTCDecoder targetDecoder;
+        [SerializeField] private LTCEventDebugger targetDebugger;
+        
+        // 実際に使用する参照
         private LTCDecoder decoder;
         private LTCEventDebugger debugger;
         
@@ -70,13 +75,13 @@ namespace LTC.UI
         
         void Start()
         {
-            // コンポーネント検索
-            decoder = FindObjectOfType<LTCDecoder>();
-            debugger = decoder?.GetComponent<LTCEventDebugger>();
+            // コンポーネント参照の設定（Inspectorで設定されていれば優先、なければ自動検索）
+            decoder = targetDecoder ? targetDecoder : FindObjectOfType<LTCDecoder>();
+            debugger = targetDebugger ? targetDebugger : decoder?.GetComponent<LTCEventDebugger>();
             
             if (decoder == null)
             {
-                UnityEngine.Debug.LogError("LTCDecoderUI: LTCDecoder not found!");
+                UnityEngine.Debug.LogError("LTCDecoderUI: LTCDecoder not found! Please assign in Inspector or ensure one exists in the scene.");
                 enabled = false;
                 return;
             }

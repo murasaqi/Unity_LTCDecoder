@@ -308,7 +308,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74ab7e1dfb78f1b499f9e02ee1e73cfe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectedDevice: 
+  selectedDevice: "\u30E9\u30A4\u30F3 (AUDIO4c D2)"
   sampleRate: 44100
   bufferSize: 2048
   bufferQueueSize: 15
@@ -328,16 +328,52 @@ MonoBehaviour:
   enableDebugLogging: 0
   OnLTCStarted:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 149808865}
+        m_TargetAssemblyTypeName: LTC.Debug.LTCEventDebugger, Assembly-CSharp
+        m_MethodName: AddDebugMessageSimple
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: On LTC Started
+          m_BoolArgument: 0
+        m_CallState: 2
   OnLTCStopped:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 149808865}
+        m_TargetAssemblyTypeName: LTC.Debug.LTCEventDebugger, Assembly-CSharp
+        m_MethodName: AddDebugMessageSimple
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: On LTC Stopped
+          m_BoolArgument: 0
+        m_CallState: 2
   OnLTCReceiving:
     m_PersistentCalls:
       m_Calls: []
   OnLTCNoSignal:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 149808865}
+        m_TargetAssemblyTypeName: LTC.Debug.LTCEventDebugger, Assembly-CSharp
+        m_MethodName: AddDebugMessageSimple
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: No Signal
+          m_BoolArgument: 0
+        m_CallState: 2
   timecodeEvents:
   - eventName: 10 Second Mark
     targetTimecode: 00:00:10:00
@@ -346,7 +382,19 @@ MonoBehaviour:
     enabled: 1
     onTimecodeReached:
       m_PersistentCalls:
-        m_Calls: []
+        m_Calls:
+        - m_Target: {fileID: 149808865}
+          m_TargetAssemblyTypeName: LTC.Debug.LTCEventDebugger, Assembly-CSharp
+          m_MethodName: AddEventMessage
+          m_Mode: 5
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 10 Second Mark
+            m_BoolArgument: 0
+          m_CallState: 2
     triggered: 0
   - eventName: 30 Second Mark
     targetTimecode: 00:00:30:00
@@ -355,7 +403,19 @@ MonoBehaviour:
     enabled: 1
     onTimecodeReached:
       m_PersistentCalls:
-        m_Calls: []
+        m_Calls:
+        - m_Target: {fileID: 149808865}
+          m_TargetAssemblyTypeName: LTC.Debug.LTCEventDebugger, Assembly-CSharp
+          m_MethodName: AddEventMessage
+          m_Mode: 5
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 30 Second Mark
+            m_BoolArgument: 0
+          m_CallState: 2
     triggered: 0
 --- !u!4 &149808867
 Transform:
