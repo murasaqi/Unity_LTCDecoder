@@ -43,6 +43,18 @@ namespace LTC.UI
         [SerializeField] private Text signalQualityText;
         [SerializeField] private Text anomalyCountText;
         
+        [Header("Event Log Messages")]
+        [Tooltip("LTC開始時のメッセージ ({timecode}=TC, {signal}=信号レベル)")]
+        [SerializeField] private string ltcStartedMessage = "LTC信号受信開始";
+        [Tooltip("LTC停止時のメッセージ")]
+        [SerializeField] private string ltcStoppedMessage = "LTC信号停止 at {timecode}";
+        [Tooltip("LTC受信中のメッセージ")]
+        [SerializeField] private string ltcReceivingMessage = "受信中: {timecode}";
+        [Tooltip("信号なし時のメッセージ")]
+        [SerializeField] private string ltcNoSignalMessage = "⚠ 信号喪失";
+        [Tooltip("タイムコードイベント時のメッセージ ({eventName}=イベント名)")]
+        [SerializeField] private string timecodeEventMessageFormat = "イベント '{eventName}' 発火: {timecode}";
+        
         #endregion
         
         #region フィールド
@@ -404,20 +416,69 @@ namespace LTC.UI
         }
         
         /// <summary>
-        /// LTCStartedイベント用（Unity Event用）
+        /// LTC開始イベント用（カスタマイズ可能なメッセージ）
         /// </summary>
-        public void OnLTCStartedLog(LTCEventData data)
+        public void LogLTCStarted(LTCEventData data)
         {
-            AddLogMessageFromEvent(data);
-            AddInfoMessage($"LTC Started at {data.currentTimecode}");
+            string message = FormatEventMessage(ltcStartedMessage, data);
+            AddInfoMessage(message);
         }
         
         /// <summary>
-        /// LTCStoppedイベント用（Unity Event用）
+        /// LTC停止イベント用（カスタマイズ可能なメッセージ）
         /// </summary>
-        public void OnLTCStoppedLog(LTCEventData data)
+        public void LogLTCStopped(LTCEventData data)
         {
-            AddWarningMessage($"LTC Stopped at {data.currentTimecode}");
+            string message = FormatEventMessage(ltcStoppedMessage, data);
+            AddWarningMessage(message);
+        }
+        
+        /// <summary>
+        /// LTC受信中イベント用（カスタマイズ可能なメッセージ）
+        /// </summary>
+        public void LogLTCReceiving(LTCEventData data)
+        {
+            string message = FormatEventMessage(ltcReceivingMessage, data);
+            AddInfoMessage(message);
+        }
+        
+        /// <summary>
+        /// LTC信号なしイベント用（カスタマイズ可能なメッセージ）
+        /// </summary>
+        public void LogLTCNoSignal(LTCEventData data)
+        {
+            string message = FormatEventMessage(ltcNoSignalMessage, data);
+            AddWarningMessage(message);
+        }
+        
+        /// <summary>
+        /// タイムコードイベント用（イベント名付き）
+        /// </summary>
+        public void LogTimecodeEvent(LTCEventData data, string eventName)
+        {
+            string message = timecodeEventMessageFormat
+                .Replace("{eventName}", eventName)
+                .Replace("{timecode}", data.currentTimecode)
+                .Replace("{signal}", $"{data.signalLevel * 100:F0}");
+            
+            var debugMsg = new DebugMessage(
+                message,
+                DebugMessage.TIMECODE_EVENT,
+                data.currentTimecode,
+                data.signalLevel,
+                Color.cyan
+            );
+            OnDebugMessageAdded(debugMsg);
+        }
+        
+        /// <summary>
+        /// メッセージフォーマット処理
+        /// </summary>
+        private string FormatEventMessage(string format, LTCEventData data)
+        {
+            return format
+                .Replace("{timecode}", data.currentTimecode)
+                .Replace("{signal}", $"{data.signalLevel * 100:F0}");
         }
         
         #endregion
