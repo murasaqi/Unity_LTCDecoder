@@ -79,6 +79,10 @@ namespace LTC.UI
             decoder = targetDecoder ? targetDecoder : FindObjectOfType<LTCDecoder>();
             debugger = targetDebugger ? targetDebugger : decoder?.GetComponent<LTCEventDebugger>();
             
+            // デバッグログ出力
+            UnityEngine.Debug.Log($"[LTCDecoderUI] Start - targetDecoder: {targetDecoder}, targetDebugger: {targetDebugger}");
+            UnityEngine.Debug.Log($"[LTCDecoderUI] decoder: {decoder}, debugger: {debugger}");
+            
             if (decoder == null)
             {
                 UnityEngine.Debug.LogError("LTCDecoderUI: LTCDecoder not found! Please assign in Inspector or ensure one exists in the scene.");
@@ -89,17 +93,23 @@ namespace LTC.UI
             // UI初期化
             InitializeUI();
             
+            // UI要素の確認ログ
+            UnityEngine.Debug.Log($"[LTCDecoderUI] UI References - statusText: {statusText}, currentTimecodeText: {currentTimecodeText}");
+            UnityEngine.Debug.Log($"[LTCDecoderUI] signalLevelBar: {signalLevelBar}, receivingIndicator: {receivingIndicator}");
+            
             // イベント購読
             if (debugger != null)
             {
                 debugger.OnMessageAdded += OnDebugMessageAdded;
                 debugger.OnHistoryCleared += OnHistoryCleared;
+                UnityEngine.Debug.Log("[LTCDecoderUI] Debugger events subscribed");
             }
             
             // LTCイベント購読
             decoder.OnLTCStarted.AddListener(OnLTCStarted);
             decoder.OnLTCStopped.AddListener(OnLTCStopped);
             decoder.OnLTCReceiving.AddListener(OnLTCReceiving);
+            UnityEngine.Debug.Log("[LTCDecoderUI] LTC events subscribed");
         }
         
         void OnDestroy()

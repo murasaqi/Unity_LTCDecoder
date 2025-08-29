@@ -102,6 +102,14 @@ namespace LTC.Editor
             
             // LTCDecoderUIコンポーネント追加と参照設定
             LTCDecoderUI decoderUI = mainPanel.AddComponent<LTCDecoderUI>();
+            
+            // LTCDecoderとLTCEventDebuggerの参照を設定
+            LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
+            LTCEventDebugger debugger = ltcObject.GetComponent<LTCEventDebugger>();
+            SetPrivateField(decoderUI, "targetDecoder", decoder);
+            SetPrivateField(decoderUI, "targetDebugger", debugger);
+            
+            // UI要素の参照を接続
             ConnectUIReferences(decoderUI, statusPanel, indicatorsPanel, messagesPanel, controlsPanel);
             
             // メッセージプレハブ作成
@@ -411,12 +419,15 @@ namespace LTC.Editor
             SetPrivateField(decoderUI, "statusText", GameObject.Find("StatusText")?.GetComponent<Text>());
             SetPrivateField(decoderUI, "currentTimecodeText", GameObject.Find("CurrentTimecodeText")?.GetComponent<Text>());
             SetPrivateField(decoderUI, "decodedTimecodeText", GameObject.Find("DecodedTimecodeText")?.GetComponent<Text>());
-            SetPrivateField(decoderUI, "signalLevelBar", GameObject.Find("SignalLevelBar/Fill")?.GetComponent<Image>());
+            
+            // SignalLevelBarのFillを正しく取得
+            var signalBarFill = GameObject.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
+            SetPrivateField(decoderUI, "signalLevelBar", signalBarFill);
             SetPrivateField(decoderUI, "signalLevelText", GameObject.Find("SignalLevelText")?.GetComponent<Text>());
             
-            // インジケーター
-            SetPrivateField(decoderUI, "receivingIndicator", GameObject.Find("ReceivingIndicator")?.GetComponent<Image>());
-            SetPrivateField(decoderUI, "stoppedIndicator", GameObject.Find("StoppedIndicator")?.GetComponent<Image>());
+            // インジケーター - Dot要素のImageを取得
+            SetPrivateField(decoderUI, "receivingIndicator", GameObject.Find("ReceivingIndicator/Dot")?.GetComponent<Image>());
+            SetPrivateField(decoderUI, "stoppedIndicator", GameObject.Find("StoppedIndicator/Dot")?.GetComponent<Image>());
             SetPrivateField(decoderUI, "eventCountText", GameObject.Find("EventCountText")?.GetComponent<Text>());
             
             // デバッグメッセージ
