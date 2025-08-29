@@ -206,9 +206,13 @@ namespace LTC.Timeline
             }
             EditorGUILayout.EndHorizontal();
             
-            // Frame Rate のみをここに残す（Audio Settingsから重複削除）
+            // Frame Rate
             EditorGUILayout.PropertyField(serializedObject.FindProperty("frameRate"),
                 new GUIContent("Frame Rate (fps)", "LTC signal frame rate (24/25/29.97/30)"));
+            
+            // Sample Rate (Advanced Settingsから移動)
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
+                new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
             
             EditorGUILayout.EndVertical();
         }
@@ -945,10 +949,8 @@ namespace LTC.Timeline
                 
                 EditorGUILayout.Space(5);
                 
-                // Audio Processing（Audio Settingsと重複していたので、ここにまとめる）
+                // Audio Processing
                 EditorGUILayout.LabelField("Audio Processing", EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
-                    new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("bufferSize"),
                     new GUIContent("Buffer Size (samples)", "Audio processing buffer size"));
                 
