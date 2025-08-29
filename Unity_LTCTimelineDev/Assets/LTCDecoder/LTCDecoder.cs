@@ -85,6 +85,22 @@ namespace LTC.Timeline
         [Tooltip("タイムコード巻き戻し時にイベントをリセット")]
         [SerializeField] private bool resetOnRewind = true;
         
+        [Header("Advanced Drift Control")]
+        [Tooltip("このサイズ以下のドリフトは完全に無視（ノイズとみなす）")]
+        [SerializeField, Range(0.01f, 0.1f)] private float driftDeadzoneSmall = 0.03f;
+        
+        [Tooltip("このサイズ以下のドリフトは緩やかに補正")]
+        [SerializeField, Range(0.05f, 0.3f)] private float driftDeadzoneMedium = 0.1f;
+        
+        [Tooltip("このサイズ以上のドリフトは即座に同期")]
+        [SerializeField, Range(0.2f, 1.0f)] private float driftThresholdLarge = 0.3f;
+        
+        [Tooltip("小さなドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [SerializeField, Range(0.001f, 0.1f)] private float driftCorrectionSlow = 0.01f;
+        
+        [Tooltip("通常ドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [SerializeField, Range(0.01f, 0.5f)] private float driftCorrectionNormal = 0.1f;
+        
         #endregion
         
         #region Private Fields
@@ -838,17 +854,38 @@ namespace LTC.Timeline
                 double expectedTc = target.tcSeconds + age;
                 double drift = Math.Abs(internalTcTime - expectedTc);
                 
-                if (drift > syncThreshold)
+                // 段階的なドリフト処理
+                if (drift <= driftDeadzoneSmall)
                 {
-                    currentState = SyncState.Drifting;
-                    // ソフトな補正
-                    double correction = (expectedTc - internalTcTime) * driftCorrection;
+                    // 小さなドリフトは完全無視（ノイズとみなす）
+                    currentState = SyncState.Locked;
+                    // 補正なし
+                }
+                else if (drift <= driftDeadzoneMedium)
+                {
+                    // 中程度のドリフトは非常にゆっくり補正
+                    currentState = SyncState.Locked;
+                    double correction = (expectedTc - internalTcTime) * driftCorrectionSlow;
                     internalTcTime += correction;
-                    LogDebug($"Drift correction: {drift:F3}s");
+                    if (enableDebugLogging)
+                    {
+                        LogDebug($"Small drift correction: {drift:F3}s (correction: {correction:F4}s)");
+                    }
+                }
+                else if (drift <= driftThresholdLarge)
+                {
+                    // 通常のドリフトは段階的に補正（既存のdriftCorrectionまたはdriftCorrectionNormalを使用）
+                    currentState = SyncState.Drifting;
+                    double correction = (expectedTc - internalTcTime) * driftCorrectionNormal;
+                    internalTcTime += correction;
+                    LogDebug($"Normal drift correction: {drift:F3}s (correction: {correction:F4}s)");
                 }
                 else
                 {
+                    // 大きなドリフトは即座に同期
+                    SyncToLTC(target);
                     currentState = SyncState.Locked;
+                    LogDebug($"Large drift - immediate sync: {drift:F3}s");
                 }
             }
             

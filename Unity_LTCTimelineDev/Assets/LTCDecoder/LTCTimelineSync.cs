@@ -4,8 +4,10 @@ using UnityEngine.Playables;
 using LTC.Timeline;
 
 /// <summary>
-/// LTC信号とUnity Timelineを同期するシンプルなコンポーネント
-/// LTCDecoderのOutput TC（デコード結果）に追従してTimelineを制御
+/// LTC信号とUnity Timelineをシンプルに同期するコンポーネント
+/// - LTC開始時：TimelineをOutputTCに合わせて再生開始
+/// - LTC停止時：Timeline停止
+/// - 継続的なドリフト検出時：即座に同期
 /// </summary>
 [AddComponentMenu("Audio/LTC Timeline Sync")]
 [RequireComponent(typeof(PlayableDirector))]
@@ -15,11 +17,11 @@ public class LTCTimelineSync : MonoBehaviour
     [SerializeField] private LTCDecoder ltcDecoder;
     
     [Header("Sync Settings")]
-    [Tooltip("時間差がこの値を超えたらTimelineをジャンプさせる（秒）")]
-    [SerializeField] private float syncThreshold = 0.1f;
+    [Tooltip("時間差がこの値を超えた状態が継続したら同期（秒）")]
+    [SerializeField, Range(0.1f, 2.0f)] private float syncThreshold = 0.5f;
     
-    [Tooltip("LTC信号がない時にTimelineを停止する")]
-    [SerializeField] private bool pauseWhenNoSignal = true;
+    [Tooltip("同期判定に必要な連続観測時間（秒）")]
+    [SerializeField, Range(0.1f, 5.0f)] private float continuousObservationTime = 1.0f;
     
     [Tooltip("同期を有効にする")]
     [SerializeField] private bool enableSync = true;
@@ -36,8 +38,9 @@ public class LTCTimelineSync : MonoBehaviour
     
     // Private fields
     private PlayableDirector playableDirector;
-    private float lastSyncTime = 0f;
-    private bool wasPlaying = false;
+    private float driftStartTime = 0f;
+    private bool isDrifting = false;
+    private bool wasReceivingLTC = false;
     
     // Properties
     public bool IsPlaying => isPlaying;
@@ -88,68 +91,102 @@ public class LTCTimelineSync : MonoBehaviour
     #region Sync Logic
     
     /// <summary>
-    /// メインの同期処理
+    /// メインの同期処理（シンプル版）
     /// </summary>
     private void ProcessSync()
     {
-        // LTC信号の状態を確認
-        bool hasSignal = ltcDecoder.HasSignal && ltcDecoder.IsRecording;
+        // LTCの受信状態を確認
+        bool isReceivingLTC = ltcDecoder.HasSignal && ltcDecoder.IsRecording;
         
-        if (!hasSignal)
+        // LTC開始時の処理
+        if (isReceivingLTC && !wasReceivingLTC)
         {
-            // 信号なし → Timeline停止
-            if (pauseWhenNoSignal && playableDirector.state == PlayState.Playing)
+            // LTC開始 → TimelineをOutputTCに合わせて再生開始
+            string outputTC = ltcDecoder.CurrentTimecode;
+            float targetTime = ParseTimecodeToSeconds(outputTC);
+            
+            if (targetTime >= 0)
             {
-                playableDirector.Pause();
-                isPlaying = false;
-                LogDebug("No LTC signal - Timeline paused");
+                playableDirector.time = targetTime;
+                playableDirector.Play();
+                isPlaying = true;
+                
+                LogDebug($"LTC Started - Timeline synced to {outputTC} ({targetTime:F3}s) and playing");
             }
-            return;
         }
         
-        // Output TCを取得（これが最終的な同期対象）
-        string ltcTimecode = ltcDecoder.CurrentTimecode;
-        if (string.IsNullOrEmpty(ltcTimecode))
+        // LTC停止時の処理
+        else if (!isReceivingLTC && wasReceivingLTC)
         {
-            return;
+            // LTC停止 → Timeline停止
+            playableDirector.Pause();
+            isPlaying = false;
+            isDrifting = false;  // ドリフト状態もリセット
+            
+            LogDebug("LTC Stopped - Timeline paused");
         }
         
-        currentLTC = ltcTimecode;
-        
-        // タイムコードを秒に変換
-        ltcTime = ParseTimecodeToSeconds(ltcTimecode);
-        if (ltcTime < 0)
+        // LTC受信中の継続的な同期チェック
+        else if (isReceivingLTC)
         {
-            return;
+            string outputTC = ltcDecoder.CurrentTimecode;
+            ltcTime = ParseTimecodeToSeconds(outputTC);
+            
+            if (ltcTime >= 0)
+            {
+                timelineTime = (float)playableDirector.time;
+                currentTimeDifference = Mathf.Abs(ltcTime - timelineTime);
+                currentLTC = outputTC;
+                
+                if (currentTimeDifference > syncThreshold)
+                {
+                    // 閾値を超えた差を検出
+                    if (!isDrifting)
+                    {
+                        // ドリフト開始時刻を記録
+                        isDrifting = true;
+                        driftStartTime = Time.time;
+                        LogDebug($"Drift detected: {currentTimeDifference:F3}s - starting observation");
+                    }
+                    else
+                    {
+                        // 連続観測時間をチェック
+                        float driftDuration = Time.time - driftStartTime;
+                        if (driftDuration >= continuousObservationTime)
+                        {
+                            // 指定時間以上ドリフトが継続 → 即座に同期
+                            playableDirector.time = ltcTime;
+                            playableDirector.Evaluate();
+                            
+                            LogDebug($"Drift persisted for {driftDuration:F1}s - Timeline jumped to {outputTC} ({ltcTime:F3}s)");
+                            
+                            // ドリフト状態をリセット
+                            isDrifting = false;
+                        }
+                    }
+                }
+                else
+                {
+                    // 差が閾値以内に収まった
+                    if (isDrifting)
+                    {
+                        LogDebug($"Drift resolved - difference now {currentTimeDifference:F3}s");
+                        isDrifting = false;
+                    }
+                }
+                
+                // Timelineが再生中でない場合は再開
+                if (playableDirector.state != PlayState.Playing)
+                {
+                    playableDirector.Play();
+                    isPlaying = true;
+                    LogDebug($"Timeline resumed at {outputTC}");
+                }
+            }
         }
         
-        // Timeline側の現在時刻
-        timelineTime = (float)playableDirector.time;
-        
-        // 時間差を計算
-        currentTimeDifference = Mathf.Abs(ltcTime - timelineTime);
-        
-        // 閾値を超えたらジャンプ
-        if (currentTimeDifference > syncThreshold)
-        {
-            playableDirector.time = ltcTime;
-            playableDirector.Evaluate();
-            lastSyncTime = Time.time;
-            LogDebug($"Timeline jumped to LTC: {ltcTimecode} ({ltcTime:F3}s), diff was {currentTimeDifference:F3}s");
-        }
-        
-        // 再生状態の管理
-        if (playableDirector.state != PlayState.Playing)
-        {
-            playableDirector.Play();
-            isPlaying = true;
-            wasPlaying = true;
-            LogDebug($"Timeline started at {ltcTimecode}");
-        }
-        else
-        {
-            isPlaying = true;
-        }
+        // 前フレームの状態を記録
+        wasReceivingLTC = isReceivingLTC;
     }
     
     /// <summary>
@@ -173,8 +210,7 @@ public class LTCTimelineSync : MonoBehaviour
             float frameRate = 30f;
             if (ltcDecoder != null)
             {
-                // LTCDecoderからフレームレート情報を取得できる場合はそれを使用
-                // ※現在の実装では30fps固定
+                // 将来的にLTCDecoderからフレームレート情報を取得可能にする
                 frameRate = 30f;
             }
             
@@ -219,6 +255,8 @@ public class LTCTimelineSync : MonoBehaviour
         timelineTime = 0f;
         ltcTime = 0f;
         currentLTC = "00:00:00:00";
+        isDrifting = false;
+        driftStartTime = 0f;
         
         LogDebug("Timeline sync reset");
     }
@@ -289,7 +327,8 @@ public class LTCTimelineSync : MonoBehaviour
     private void OnValidate()
     {
         // 値の範囲チェック
-        syncThreshold = Mathf.Max(0.001f, syncThreshold);
+        syncThreshold = Mathf.Max(0.1f, syncThreshold);
+        continuousObservationTime = Mathf.Max(0.1f, continuousObservationTime);
     }
     #endif
     
