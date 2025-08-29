@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace LTC.Timeline
 {
@@ -60,6 +61,23 @@ namespace LTC.Timeline
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogging = false;
         
+        [Header("Events")]
+        [Space(5)]
+        [Tooltip("LTC受信開始の瞬間に発火")]
+        public LTCUnityEvent OnLTCStarted = new LTCUnityEvent();
+        
+        [Tooltip("LTC受信停止の瞬間に発火")]
+        public LTCUnityEvent OnLTCStopped = new LTCUnityEvent();
+        
+        [Tooltip("LTC受信中、毎フレーム発火")]
+        public LTCUnityEvent OnLTCReceiving = new LTCUnityEvent();
+        
+        [Tooltip("LTC未受信中、毎フレーム発火")]
+        public LTCUnityEvent OnLTCNoSignal = new LTCUnityEvent();
+        
+        [Header("Timecode Events")]
+        [SerializeField] private List<TimecodeEvent> timecodeEvents = new List<TimecodeEvent>();
+        
         #endregion
         
         #region Private Fields
@@ -99,6 +117,9 @@ namespace LTC.Timeline
         private float lastInternalTime = 0f;
         private float lastNoiseUpdateTime = 0f;    // 最後のノイズ更新時刻
         private const float NoiseUpdateInterval = 0.1f;  // 100ms間隔で更新
+        
+        // イベント管理用
+        private bool wasReceivingLTC = false;      // 前フレームでLTC受信していたか
         
         #endregion
         
@@ -230,6 +251,80 @@ namespace LTC.Timeline
             {
                 internalNoiseHistory[noiseHistoryIndex] = internalNoise;
                 // ProcessDecodedLTCで同じインデックスを更新するため、ここではインデックスを進めない
+            }
+            
+            // イベント処理
+            ProcessLTCEvents();
+        }
+        
+        /// <summary>
+        /// LTC関連イベントを処理
+        /// </summary>
+        private void ProcessLTCEvents()
+        {
+            // イベント用データ作成
+            var eventData = new LTCEventData(
+                currentTimecode,
+                (float)internalTcTime,
+                hasSignal,
+                signalLevel
+            );
+            
+            // 状態変化の検出と瞬間イベント
+            if (hasSignal && !wasReceivingLTC)
+            {
+                // LTC受信開始
+                OnLTCStarted?.Invoke(eventData);
+                wasReceivingLTC = true;
+                LogDebug("LTC Started - Event fired");
+            }
+            else if (!hasSignal && wasReceivingLTC)
+            {
+                // LTC受信停止
+                OnLTCStopped?.Invoke(eventData);
+                wasReceivingLTC = false;
+                LogDebug("LTC Stopped - Event fired");
+                
+                // タイムコードイベントをリセット（再度発火可能にする）
+                ResetTimecodeEvents();
+            }
+            
+            // 継続状態イベント
+            if (hasSignal)
+            {
+                OnLTCReceiving?.Invoke(eventData);
+                CheckTimecodeEvents(eventData);  // TC指定イベントチェック
+            }
+            else
+            {
+                OnLTCNoSignal?.Invoke(eventData);
+            }
+        }
+        
+        /// <summary>
+        /// タイムコード指定イベントをチェック
+        /// </summary>
+        private void CheckTimecodeEvents(LTCEventData eventData)
+        {
+            foreach (var tcEvent in timecodeEvents)
+            {
+                if (tcEvent.IsMatch(eventData.currentTimecode, frameRate))
+                {
+                    tcEvent.onTimecodeReached?.Invoke(eventData);
+                    tcEvent.triggered = true;
+                    LogDebug($"Timecode Event '{tcEvent.eventName}' triggered at {eventData.currentTimecode}");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// すべてのタイムコードイベントをリセット
+        /// </summary>
+        private void ResetTimecodeEvents()
+        {
+            foreach (var tcEvent in timecodeEvents)
+            {
+                tcEvent.Reset();
             }
         }
         
@@ -703,6 +798,34 @@ namespace LTC.Timeline
                 currentState = SyncState.Locked;
                 LogDebug($"Manual sync to {timecode}");
             }
+        }
+        
+        /// <summary>
+        /// タイムコードイベントを追加
+        /// </summary>
+        public void AddTimecodeEvent(string eventName, string targetTimecode, UnityAction<LTCEventData> action)
+        {
+            var newEvent = new TimecodeEvent();
+            newEvent.eventName = eventName;
+            newEvent.targetTimecode = targetTimecode;
+            newEvent.onTimecodeReached.AddListener(action);
+            timecodeEvents.Add(newEvent);
+        }
+        
+        /// <summary>
+        /// タイムコードイベントを削除
+        /// </summary>
+        public void RemoveTimecodeEvent(string eventName)
+        {
+            timecodeEvents.RemoveAll(e => e.eventName == eventName);
+        }
+        
+        /// <summary>
+        /// すべてのタイムコードイベントをクリア
+        /// </summary>
+        public void ClearTimecodeEvents()
+        {
+            timecodeEvents.Clear();
         }
         
         #endregion
