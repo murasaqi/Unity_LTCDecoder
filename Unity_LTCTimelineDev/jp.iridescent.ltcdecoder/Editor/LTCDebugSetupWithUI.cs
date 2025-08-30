@@ -69,6 +69,9 @@ namespace jp.iridescent.ltcdecoder.Editor
             if (debugger != null)
             {
                 SerializedObject debuggerSO = new SerializedObject(debugger);
+                // enableDebuggerプロパティを確実に有効化
+                var enableDebuggerProp = debuggerSO.FindProperty("enableDebugger");
+                if (enableDebuggerProp != null) enableDebuggerProp.boolValue = true;
                 var enableLogProp = debuggerSO.FindProperty("enableLogging");
                 if (enableLogProp != null) enableLogProp.boolValue = true;
                 var logConsoleProp = debuggerSO.FindProperty("logToConsole");
@@ -370,9 +373,24 @@ namespace jp.iridescent.ltcdecoder.Editor
             Button exportButton = mainPanel.transform.Find("ExportButton")?.GetComponent<Button>();
             Button copyButton = mainPanel.transform.Find("CopyButton")?.GetComponent<Button>();
             
-            if (clearButton) clearButton.onClick.AddListener(() => controller.ClearDebugMessages());
-            if (exportButton) exportButton.onClick.AddListener(() => Debug.Log(controller.ExportDebugMessages()));
-            if (copyButton) copyButton.onClick.AddListener(() => controller.CopyDebugMessagesToClipboard());
+            if (clearButton) clearButton.onClick.AddListener(() => 
+            {
+                controller.ClearDebugMessages();
+                debugger?.AddDebugMessage("Debug messages cleared", "SYSTEM");
+            });
+            
+            if (exportButton) exportButton.onClick.AddListener(() => 
+            {
+                string messages = controller.ExportDebugMessages();
+                Debug.Log(messages);
+                debugger?.AddDebugMessage($"Exported {controller.activeDebugMessages.Count} messages to console", "EXPORT");
+            });
+            
+            if (copyButton) copyButton.onClick.AddListener(() => 
+            {
+                controller.CopyDebugMessagesToClipboard();
+                debugger?.AddDebugMessage("Debug messages copied to clipboard", "SYSTEM");
+            });
             
             UnityEngine.Debug.Log("[LTC Decoder Setup] LTCUIController configured successfully");
         }

@@ -27,7 +27,7 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField] private int maxDebugMessages = 100;
         
         private Queue<GameObject> debugMessagePool = new Queue<GameObject>();
-        private List<GameObject> activeDebugMessages = new List<GameObject>();
+        public List<GameObject> activeDebugMessages = new List<GameObject>();
         
         /// <summary>
         /// LTCDecoderとLTCEventDebuggerを設定
@@ -41,6 +41,16 @@ namespace jp.iridescent.ltcdecoder
             if (ltcEventDebugger != null)
             {
                 ltcEventDebugger.OnDebugMessage += AddDebugMessage;
+                
+                // 初期化メッセージを追加
+                ltcEventDebugger.AddDebugMessage("LTC UI Controller initialized", "SYSTEM");
+                ltcEventDebugger.AddDebugMessage($"Connected to LTC Decoder", "SYSTEM");
+                
+                // デバッガーの状態を確認
+                if (ltcEventDebugger.IsEnabled)
+                {
+                    ltcEventDebugger.AddDebugMessage("Debug logging is enabled", "INFO");
+                }
             }
         }
         
