@@ -3,14 +3,12 @@ using UnityEditor;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using jp.iridescent.ltcdecoder;
-using System.Reflection;
-using System.Linq;
-using System;
 
 namespace jp.iridescent.ltcdecoder.Editor
 {
     /// <summary>
     /// LTCデバッグUI付きセットアップユーティリティ
+    /// 固定位置レイアウトバージョン
     /// </summary>
     public static class LTCDebugSetupWithUI
     {
@@ -23,7 +21,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             // Debug UI Canvas作成
             GameObject canvas = CreateDebugCanvas();
             
-            // UI要素作成（LayoutGroupベース）
+            // UI要素作成（固定位置レイアウト）
             GameObject mainPanel = CreateCompleteUI(canvas, ltcObject);
             
             // 選択
@@ -110,29 +108,49 @@ namespace jp.iridescent.ltcdecoder.Editor
         }
         
         /// <summary>
-        /// 完全なUI作成（LayoutGroupベース）
+        /// 完全なUI作成（固定位置レイアウト）
         /// </summary>
         private static GameObject CreateCompleteUI(GameObject canvas, GameObject ltcObject)
         {
-            // メインパネル作成
+            // メインパネル作成（380x600）
             GameObject mainPanel = CreateMainPanel(canvas);
             
-            // VerticalLayoutGroupを追加
-            VerticalLayoutGroup mainLayout = mainPanel.AddComponent<VerticalLayoutGroup>();
-            mainLayout.childAlignment = TextAnchor.UpperCenter;
-            mainLayout.childControlHeight = false;
-            mainLayout.childControlWidth = true;
-            mainLayout.childForceExpandHeight = false;
-            mainLayout.childForceExpandWidth = true;
-            mainLayout.spacing = 10;
-            mainLayout.padding = new RectOffset(10, 10, 10, 10);
+            // ヘッダー（位置: 中央上部）
+            CreateTextAtPosition(mainPanel, "HeaderText", "LTC Decoder Debug UI", 
+                new Vector2(190, -30), new Vector2(360, 40), 24, TextAnchor.MiddleCenter, Color.cyan, true);
             
-            // 各セクションを作成
-            CreateHeaderSection(mainPanel);
-            CreateTimecodeSection(mainPanel);
-            CreateStatusSection(mainPanel);
-            CreateControlSection(mainPanel);
-            CreateDebugMessageSection(mainPanel);
+            // Current Timecode
+            CreateTextAtPosition(mainPanel, "CurrentTCLabel", "Current TC:", 
+                new Vector2(70, -80), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
+                new Vector2(180, -80), new Vector2(180, 30), 18, TextAnchor.MiddleLeft, Color.white, true);
+            
+            // Decoded Timecode
+            CreateTextAtPosition(mainPanel, "DecodedTCLabel", "Decoded TC:", 
+                new Vector2(70, -120), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateTextAtPosition(mainPanel, "DecodedTimecodeText", "00:00:00:00", 
+                new Vector2(180, -120), new Vector2(180, 30), 16, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Status
+            CreateTextAtPosition(mainPanel, "StatusLabel", "Status:", 
+                new Vector2(70, -160), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateTextAtPosition(mainPanel, "StatusText", "NO SIGNAL", 
+                new Vector2(160, -160), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
+            
+            // Signal Level
+            CreateTextAtPosition(mainPanel, "SignalLabel", "Signal Level:", 
+                new Vector2(70, -200), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateSignalBar(mainPanel, new Vector2(180, -200));
+            CreateTextAtPosition(mainPanel, "SignalLevelText", "0%", 
+                new Vector2(340, -200), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Control Buttons
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -250), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -250), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -250), new Vector2(80, 35));
+            
+            // Debug Message Area
+            CreateDebugScrollView(mainPanel, new Vector2(10, -300), new Vector2(360, 280));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -162,68 +180,88 @@ namespace jp.iridescent.ltcdecoder.Editor
         }
         
         /// <summary>
-        /// ヘッダーセクション作成
+        /// 固定位置にテキスト作成
         /// </summary>
-        private static void CreateHeaderSection(GameObject parent)
+        private static GameObject CreateTextAtPosition(GameObject parent, string name, string text, 
+            Vector2 position, Vector2 size, int fontSize, TextAnchor alignment, Color color, bool bold)
         {
-            GameObject headerSection = new GameObject("HeaderSection");
-            headerSection.transform.SetParent(parent.transform, false);
+            GameObject textObj = new GameObject(name);
+            textObj.transform.SetParent(parent.transform, false);
             
-            // LayoutElementで高さ設定
-            LayoutElement layoutElement = headerSection.AddComponent<LayoutElement>();
-            layoutElement.minHeight = 40;
-            layoutElement.preferredHeight = 40;
+            RectTransform rect = textObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
             
-            // テキスト
-            Text headerText = headerSection.AddComponent<Text>();
-            headerText.text = "LTC Decoder Debug UI";
-            headerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            headerText.fontSize = 24;
-            headerText.fontStyle = FontStyle.Bold;
-            headerText.color = Color.cyan;
-            headerText.alignment = TextAnchor.MiddleCenter;
+            Text textComp = textObj.AddComponent<Text>();
+            textComp.text = text;
+            textComp.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            textComp.fontSize = fontSize;
+            textComp.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+            textComp.alignment = alignment;
+            textComp.color = color;
+            
+            return textObj;
         }
         
         /// <summary>
-        /// タイムコードセクション作成
+        /// 固定位置にボタン作成
         /// </summary>
-        private static void CreateTimecodeSection(GameObject parent)
+        private static GameObject CreateButtonAtPosition(GameObject parent, string name, string text, 
+            Vector2 position, Vector2 size)
         {
-            GameObject section = CreateHorizontalSection(parent, "TimecodeSection", 30);
+            GameObject buttonObj = new GameObject(name);
+            buttonObj.transform.SetParent(parent.transform, false);
             
-            // Current Timecode
-            CreateLabelValuePair(section, "Current TC:", "CurrentTimecodeText", "00:00:00:00", 120, true);
+            RectTransform rect = buttonObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
             
-            // セパレータ用のスペース
-            CreateSpacer(parent, 5);
+            Image image = buttonObj.AddComponent<Image>();
+            image.color = new Color(0.3f, 0.3f, 0.3f, 1);
             
-            // Decoded Timecode
-            GameObject decodedSection = CreateHorizontalSection(parent, "DecodedSection", 30);
-            CreateLabelValuePair(decodedSection, "Decoded TC:", "DecodedTimecodeText", "00:00:00:00", 120, false);
+            Button button = buttonObj.AddComponent<Button>();
+            
+            // ボタンテキスト
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(buttonObj.transform, false);
+            
+            RectTransform textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            textRect.anchoredPosition = Vector2.zero;
+            
+            Text buttonText = textObj.AddComponent<Text>();
+            buttonText.text = text;
+            buttonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            buttonText.fontSize = 14;
+            buttonText.color = Color.white;
+            buttonText.alignment = TextAnchor.MiddleCenter;
+            
+            return buttonObj;
         }
         
         /// <summary>
-        /// ステータスセクション作成
+        /// シグナルレベルバー作成
         /// </summary>
-        private static void CreateStatusSection(GameObject parent)
+        private static void CreateSignalBar(GameObject parent, Vector2 position)
         {
-            // ステータス行
-            GameObject statusSection = CreateHorizontalSection(parent, "StatusSection", 30);
-            CreateLabelValuePair(statusSection, "Status:", "StatusText", "NO SIGNAL", 80, false);
-            
-            // シグナルレベル行
-            GameObject signalSection = CreateHorizontalSection(parent, "SignalSection", 30);
-            
-            // ラベル
-            GameObject label = CreateLabel(signalSection, "Signal Level:", 100);
-            
-            // シグナルレベルバー背景
+            // バー背景
             GameObject barBg = new GameObject("SignalLevelBar");
-            barBg.transform.SetParent(signalSection.transform, false);
+            barBg.transform.SetParent(parent.transform, false);
             
-            LayoutElement barBgLayout = barBg.AddComponent<LayoutElement>();
-            barBgLayout.preferredWidth = 150;
-            barBgLayout.minHeight = 20;
+            RectTransform bgRect = barBg.AddComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0, 1);
+            bgRect.anchorMax = new Vector2(0, 1);
+            bgRect.pivot = new Vector2(0.5f, 0.5f);
+            bgRect.anchoredPosition = position;
+            bgRect.sizeDelta = new Vector2(150, 20);
             
             Image bgImage = barBg.AddComponent<Image>();
             bgImage.color = new Color(0.2f, 0.2f, 0.2f, 1);
@@ -233,57 +271,31 @@ namespace jp.iridescent.ltcdecoder.Editor
             barFill.transform.SetParent(barBg.transform, false);
             
             RectTransform fillRect = barFill.AddComponent<RectTransform>();
-            fillRect.anchorMin = new Vector2(0, 0);
-            fillRect.anchorMax = new Vector2(0, 1);
+            fillRect.anchorMin = new Vector2(0, 0.5f);
+            fillRect.anchorMax = new Vector2(0, 0.5f);
             fillRect.pivot = new Vector2(0, 0.5f);
-            fillRect.anchoredPosition = Vector2.zero;
-            fillRect.sizeDelta = new Vector2(75, 20); // 初期サイズを設定
+            fillRect.anchoredPosition = new Vector2(-75, 0); // 左端から開始
+            fillRect.sizeDelta = new Vector2(75, 20);
             
             Image fillImage = barFill.AddComponent<Image>();
             fillImage.color = Color.green;
-            
-            // パーセンテージテキスト
-            GameObject percentText = CreateValue(signalSection, "SignalLevelText", "0%", 50, false);
         }
         
         /// <summary>
-        /// コントロールセクション作成
+        /// デバッグスクロールビュー作成
         /// </summary>
-        private static void CreateControlSection(GameObject parent)
+        private static void CreateDebugScrollView(GameObject parent, Vector2 position, Vector2 size)
         {
-            GameObject section = CreateHorizontalSection(parent, "ControlSection", 40);
-            
-            // ボタン間のスペースを均等に配分
-            HorizontalLayoutGroup layout = section.GetComponent<HorizontalLayoutGroup>();
-            layout.spacing = 10;
-            layout.childAlignment = TextAnchor.MiddleCenter;
-            
-            CreateButton(section, "ClearButton", "Clear", 80);
-            CreateButton(section, "ExportButton", "Export", 80);
-            CreateButton(section, "CopyButton", "Copy", 80);
-        }
-        
-        /// <summary>
-        /// デバッグメッセージセクション作成
-        /// </summary>
-        private static void CreateDebugMessageSection(GameObject parent)
-        {
-            // ScrollView作成
+            // ScrollView
             GameObject scrollView = new GameObject("DebugScrollView");
             scrollView.transform.SetParent(parent.transform, false);
             
-            // RectTransformを明示的に設定
-            RectTransform scrollRectTransform = scrollView.GetComponent<RectTransform>();
-            if (scrollRectTransform == null)
-                scrollRectTransform = scrollView.AddComponent<RectTransform>();
-            scrollRectTransform.anchorMin = Vector2.zero;
-            scrollRectTransform.anchorMax = Vector2.one;
-            scrollRectTransform.sizeDelta = Vector2.zero;
-            scrollRectTransform.anchoredPosition = Vector2.zero;
-            
-            LayoutElement scrollLayout = scrollView.AddComponent<LayoutElement>();
-            scrollLayout.flexibleHeight = 1; // 残りの高さを全て使う
-            scrollLayout.minHeight = 200;
+            RectTransform scrollRect = scrollView.AddComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0, 1);
+            scrollRect.anchorMax = new Vector2(0, 1);
+            scrollRect.pivot = new Vector2(0, 1);
+            scrollRect.anchoredPosition = position;
+            scrollRect.sizeDelta = size;
             
             ScrollRect scroll = scrollView.AddComponent<ScrollRect>();
             scroll.horizontal = false;
@@ -312,15 +324,17 @@ namespace jp.iridescent.ltcdecoder.Editor
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
             contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, 0);
             
-            VerticalLayoutGroup contentLayout = content.AddComponent<VerticalLayoutGroup>();
-            contentLayout.childAlignment = TextAnchor.UpperLeft;
-            contentLayout.childControlHeight = false;
-            contentLayout.childControlWidth = true;
-            contentLayout.childForceExpandHeight = false;
-            contentLayout.childForceExpandWidth = true;
-            contentLayout.spacing = 2;
-            contentLayout.padding = new RectOffset(5, 5, 5, 5);
+            // VerticalLayoutGroupは必要最小限に
+            VerticalLayoutGroup layout = content.AddComponent<VerticalLayoutGroup>();
+            layout.childAlignment = TextAnchor.UpperLeft;
+            layout.childControlHeight = false;
+            layout.childControlWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = true;
+            layout.spacing = 2;
+            layout.padding = new RectOffset(5, 5, 5, 5);
             
             ContentSizeFitter fitter = content.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -343,172 +357,24 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.Setup(decoder, debugger);
             
             // UI要素の参照を設定
-            Transform currentTCText = mainPanel.transform.Find("TimecodeSection/CurrentTimecodeText");
-            Transform decodedTCText = mainPanel.transform.Find("DecodedSection/DecodedTimecodeText");
-            Transform statusText = mainPanel.transform.Find("StatusSection/StatusText");
-            Transform signalLevelText = mainPanel.transform.Find("SignalSection/SignalLevelText");
-            Transform signalLevelBar = mainPanel.transform.Find("SignalSection/SignalLevelBar/Fill");
-            Transform debugContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
-            Transform debugScrollView = mainPanel.transform.Find("DebugScrollView");
-            
-            controller.currentTimecodeText = currentTCText?.GetComponent<Text>();
-            controller.decodedTimecodeText = decodedTCText?.GetComponent<Text>();
-            controller.statusText = statusText?.GetComponent<Text>();
-            controller.signalLevelText = signalLevelText?.GetComponent<Text>();
-            controller.signalLevelBar = signalLevelBar?.GetComponent<Image>();
-            controller.debugMessageContainer = debugContainer;
-            controller.debugScrollRect = debugScrollView?.GetComponent<ScrollRect>();
+            controller.currentTimecodeText = mainPanel.transform.Find("CurrentTimecodeText")?.GetComponent<Text>();
+            controller.decodedTimecodeText = mainPanel.transform.Find("DecodedTimecodeText")?.GetComponent<Text>();
+            controller.statusText = mainPanel.transform.Find("StatusText")?.GetComponent<Text>();
+            controller.signalLevelText = mainPanel.transform.Find("SignalLevelText")?.GetComponent<Text>();
+            controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
+            controller.debugMessageContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
+            controller.debugScrollRect = mainPanel.transform.Find("DebugScrollView")?.GetComponent<ScrollRect>();
             
             // ボタンのイベント設定
-            Button clearButton = mainPanel.transform.Find("ControlSection/ClearButton")?.GetComponent<Button>();
-            Button exportButton = mainPanel.transform.Find("ControlSection/ExportButton")?.GetComponent<Button>();
-            Button copyButton = mainPanel.transform.Find("ControlSection/CopyButton")?.GetComponent<Button>();
+            Button clearButton = mainPanel.transform.Find("ClearButton")?.GetComponent<Button>();
+            Button exportButton = mainPanel.transform.Find("ExportButton")?.GetComponent<Button>();
+            Button copyButton = mainPanel.transform.Find("CopyButton")?.GetComponent<Button>();
             
             if (clearButton) clearButton.onClick.AddListener(() => controller.ClearDebugMessages());
             if (exportButton) exportButton.onClick.AddListener(() => Debug.Log(controller.ExportDebugMessages()));
             if (copyButton) copyButton.onClick.AddListener(() => controller.CopyDebugMessagesToClipboard());
             
             UnityEngine.Debug.Log("[LTC Decoder Setup] LTCUIController configured successfully");
-        }
-        
-        // ヘルパーメソッド
-        
-        /// <summary>
-        /// 水平セクション作成
-        /// </summary>
-        private static GameObject CreateHorizontalSection(GameObject parent, string name, float height)
-        {
-            GameObject section = new GameObject(name);
-            section.transform.SetParent(parent.transform, false);
-            
-            LayoutElement layout = section.AddComponent<LayoutElement>();
-            layout.minHeight = height;
-            layout.preferredHeight = height;
-            
-            HorizontalLayoutGroup horizontalLayout = section.AddComponent<HorizontalLayoutGroup>();
-            horizontalLayout.childAlignment = TextAnchor.MiddleLeft;
-            horizontalLayout.childControlHeight = false;
-            horizontalLayout.childControlWidth = false;
-            horizontalLayout.childForceExpandHeight = false;
-            horizontalLayout.childForceExpandWidth = false;
-            horizontalLayout.spacing = 10;
-            
-            return section;
-        }
-        
-        /// <summary>
-        /// ラベルと値のペア作成
-        /// </summary>
-        private static void CreateLabelValuePair(GameObject parent, string labelText, string valueName, 
-            string defaultValue, float labelWidth, bool bold)
-        {
-            CreateLabel(parent, labelText, labelWidth);
-            CreateValue(parent, valueName, defaultValue, 0, bold);
-        }
-        
-        /// <summary>
-        /// ラベル作成
-        /// </summary>
-        private static GameObject CreateLabel(GameObject parent, string text, float width)
-        {
-            GameObject labelObj = new GameObject("Label");
-            labelObj.transform.SetParent(parent.transform, false);
-            
-            LayoutElement layout = labelObj.AddComponent<LayoutElement>();
-            layout.minWidth = width;
-            layout.preferredWidth = width;
-            
-            Text labelText = labelObj.AddComponent<Text>();
-            labelText.text = text;
-            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            labelText.fontSize = 14;
-            labelText.color = Color.white;
-            labelText.alignment = TextAnchor.MiddleLeft;
-            
-            return labelObj;
-        }
-        
-        /// <summary>
-        /// 値テキスト作成
-        /// </summary>
-        private static GameObject CreateValue(GameObject parent, string name, string defaultText, 
-            float width, bool bold)
-        {
-            GameObject valueObj = new GameObject(name);
-            valueObj.transform.SetParent(parent.transform, false);
-            
-            LayoutElement layout = valueObj.AddComponent<LayoutElement>();
-            if (width > 0)
-            {
-                layout.minWidth = width;
-                layout.preferredWidth = width;
-            }
-            else
-            {
-                layout.flexibleWidth = 1;
-            }
-            
-            Text valueText = valueObj.AddComponent<Text>();
-            valueText.text = defaultText;
-            valueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            valueText.fontSize = bold ? 18 : 14;
-            valueText.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
-            valueText.color = Color.white;
-            valueText.alignment = TextAnchor.MiddleLeft;
-            
-            return valueObj;
-        }
-        
-        /// <summary>
-        /// ボタン作成
-        /// </summary>
-        private static GameObject CreateButton(GameObject parent, string name, string text, float width)
-        {
-            GameObject buttonObj = new GameObject(name);
-            buttonObj.transform.SetParent(parent.transform, false);
-            
-            LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
-            layout.minWidth = width;
-            layout.preferredWidth = width;
-            layout.minHeight = 35;
-            layout.preferredHeight = 35;
-            
-            Image image = buttonObj.AddComponent<Image>();
-            image.color = new Color(0.3f, 0.3f, 0.3f, 1);
-            
-            Button button = buttonObj.AddComponent<Button>();
-            
-            // ボタンテキスト
-            GameObject textObj = new GameObject("Text");
-            textObj.transform.SetParent(buttonObj.transform, false);
-            
-            RectTransform textRect = textObj.AddComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.sizeDelta = Vector2.zero;
-            textRect.anchoredPosition = Vector2.zero;
-            
-            Text buttonText = textObj.AddComponent<Text>();
-            buttonText.text = text;
-            buttonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            buttonText.fontSize = 14;
-            buttonText.color = Color.white;
-            buttonText.alignment = TextAnchor.MiddleCenter;
-            
-            return buttonObj;
-        }
-        
-        /// <summary>
-        /// スペーサー作成
-        /// </summary>
-        private static void CreateSpacer(GameObject parent, float height)
-        {
-            GameObject spacer = new GameObject("Spacer");
-            spacer.transform.SetParent(parent.transform, false);
-            
-            LayoutElement layout = spacer.AddComponent<LayoutElement>();
-            layout.minHeight = height;
-            layout.preferredHeight = height;
         }
     }
 }
