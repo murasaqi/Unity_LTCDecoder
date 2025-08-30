@@ -237,7 +237,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             fillRect.anchorMax = new Vector2(0, 1);
             fillRect.pivot = new Vector2(0, 0.5f);
             fillRect.anchoredPosition = Vector2.zero;
-            fillRect.sizeDelta = new Vector2(0, 0);
+            fillRect.sizeDelta = new Vector2(75, 20); // 初期サイズを設定
             
             Image fillImage = barFill.AddComponent<Image>();
             fillImage.color = Color.green;
@@ -271,6 +271,15 @@ namespace jp.iridescent.ltcdecoder.Editor
             // ScrollView作成
             GameObject scrollView = new GameObject("DebugScrollView");
             scrollView.transform.SetParent(parent.transform, false);
+            
+            // RectTransformを明示的に設定
+            RectTransform scrollRectTransform = scrollView.GetComponent<RectTransform>();
+            if (scrollRectTransform == null)
+                scrollRectTransform = scrollView.AddComponent<RectTransform>();
+            scrollRectTransform.anchorMin = Vector2.zero;
+            scrollRectTransform.anchorMax = Vector2.one;
+            scrollRectTransform.sizeDelta = Vector2.zero;
+            scrollRectTransform.anchoredPosition = Vector2.zero;
             
             LayoutElement scrollLayout = scrollView.AddComponent<LayoutElement>();
             scrollLayout.flexibleHeight = 1; // 残りの高さを全て使う
@@ -378,9 +387,9 @@ namespace jp.iridescent.ltcdecoder.Editor
             
             HorizontalLayoutGroup horizontalLayout = section.AddComponent<HorizontalLayoutGroup>();
             horizontalLayout.childAlignment = TextAnchor.MiddleLeft;
-            horizontalLayout.childControlHeight = true;
+            horizontalLayout.childControlHeight = false;
             horizontalLayout.childControlWidth = false;
-            horizontalLayout.childForceExpandHeight = true;
+            horizontalLayout.childForceExpandHeight = false;
             horizontalLayout.childForceExpandWidth = false;
             horizontalLayout.spacing = 10;
             
@@ -461,6 +470,8 @@ namespace jp.iridescent.ltcdecoder.Editor
             LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
             layout.minWidth = width;
             layout.preferredWidth = width;
+            layout.minHeight = 35;
+            layout.preferredHeight = 35;
             
             Image image = buttonObj.AddComponent<Image>();
             image.color = new Color(0.3f, 0.3f, 0.3f, 1);

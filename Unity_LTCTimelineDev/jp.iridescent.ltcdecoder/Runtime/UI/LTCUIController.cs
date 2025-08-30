@@ -25,7 +25,6 @@ namespace jp.iridescent.ltcdecoder
         
         [Header("Debug Message Settings")]
         [SerializeField] private int maxDebugMessages = 100;
-        [SerializeField] private GameObject debugMessagePrefab;
         
         private Queue<GameObject> debugMessagePool = new Queue<GameObject>();
         private List<GameObject> activeDebugMessages = new List<GameObject>();
@@ -118,14 +117,10 @@ namespace jp.iridescent.ltcdecoder
             
             if (signalLevelBar != null)
             {
-                // バーの幅を更新（親の幅に対する割合）
+                // バーの幅を更新（最大幅150pxに対する割合）
                 RectTransform barRect = signalLevelBar.rectTransform;
-                if (barRect.parent != null)
-                {
-                    RectTransform parentRect = barRect.parent as RectTransform;
-                    float maxWidth = parentRect.rect.width;
-                    barRect.sizeDelta = new Vector2(maxWidth * signalLevel, barRect.sizeDelta.y);
-                }
+                float maxWidth = 150f; // 固定幅
+                barRect.sizeDelta = new Vector2(maxWidth * signalLevel, barRect.sizeDelta.y);
                 
                 // 色を更新
                 signalLevelBar.color = signalLevel > 0.5f ? Color.green : 
@@ -192,25 +187,17 @@ namespace jp.iridescent.ltcdecoder
             }
             else
             {
-                // プレハブがある場合はそれを使用
-                if (debugMessagePrefab != null)
-                {
-                    msgObj = Instantiate(debugMessagePrefab);
-                }
-                else
-                {
-                    // なければ新規作成
-                    msgObj = new GameObject("DebugMessage");
-                    Text text = msgObj.AddComponent<Text>();
-                    text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                    text.fontSize = 12;
-                    text.color = Color.white;
-                    
-                    // LayoutElementを追加して高さを固定
-                    LayoutElement layout = msgObj.AddComponent<LayoutElement>();
-                    layout.minHeight = 20;
-                    layout.preferredHeight = 20;
-                }
+                // 常に新規作成
+                msgObj = new GameObject("DebugMessage");
+                Text text = msgObj.AddComponent<Text>();
+                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                text.fontSize = 12;
+                text.color = Color.white;
+                
+                // LayoutElementを追加して高さを固定
+                LayoutElement layout = msgObj.AddComponent<LayoutElement>();
+                layout.minHeight = 20;
+                layout.preferredHeight = 20;
             }
             
             return msgObj;
