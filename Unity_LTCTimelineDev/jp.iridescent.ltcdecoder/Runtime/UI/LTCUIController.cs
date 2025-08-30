@@ -232,20 +232,42 @@ namespace jp.iridescent.ltcdecoder
             if (debugMessagePool.Count > 0)
             {
                 msgObj = debugMessagePool.Dequeue();
+                
+                // プールから取得したオブジェクトの設定をリセット
+                Text text = msgObj.GetComponent<Text>();
+                if (text != null)
+                {
+                    text.text = "";  // テキストをクリア
+                }
             }
             else
             {
                 // 常に新規作成
                 msgObj = new GameObject("DebugMessage");
+                
+                // RectTransformの設定
+                RectTransform rectTransform = msgObj.AddComponent<RectTransform>();
+                rectTransform.anchorMin = new Vector2(0, 1);
+                rectTransform.anchorMax = new Vector2(1, 1);
+                rectTransform.pivot = new Vector2(0.5f, 1);
+                
                 Text text = msgObj.AddComponent<Text>();
                 text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 text.fontSize = 11;  // フォントサイズを少し小さく
                 text.color = Color.white;
+                text.horizontalOverflow = HorizontalWrapMode.Wrap;  // テキストを折り返し
+                text.verticalOverflow = VerticalWrapMode.Overflow;  // 垂直方向はオーバーフロー許可
                 
-                // LayoutElementを追加して高さを固定
+                // ContentSizeFitterでテキストに合わせて高さを自動調整
+                ContentSizeFitter sizeFitter = msgObj.AddComponent<ContentSizeFitter>();
+                sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                
+                // LayoutElementで最小高さのみ設定（最大高さは設定しない）
                 LayoutElement layout = msgObj.AddComponent<LayoutElement>();
-                layout.minHeight = 12;  // 最小高さを削減
-                layout.preferredHeight = 12;  // 優先高さを削減
+                layout.minHeight = 12;  // 最小高さのみ設定
+                layout.preferredWidth = 0;  // 幅は親に合わせる
+                layout.flexibleWidth = 1;  // 幅を柔軟に
             }
             
             return msgObj;
