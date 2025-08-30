@@ -22,7 +22,9 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField] private bool logToConsole = false;
         
         // コンポーネント参照
-        private LTCDecoder ltcDecoder;
+        [Header("参照設定")]
+        [Tooltip("LTCDecoderへの参照（自動取得されない場合は手動で設定）")]
+        [SerializeField] private LTCDecoder ltcDecoder;
         
         // メッセージ履歴
         private Queue<DebugMessage> messageHistory = new Queue<DebugMessage>();
@@ -59,9 +61,39 @@ namespace jp.iridescent.ltcdecoder
         
         #region プロパティ
         
-        public bool IsEnabled => enableDebugger;
+        public bool IsEnabled 
+        { 
+            get => enableDebugger;
+            set => enableDebugger = value;
+        }
         public int MessageCount => messageHistory.Count;
         public IReadOnlyList<DebugMessage> Messages => messageHistory.ToList();
+        
+        /// <summary>
+        /// LTCDecoderの参照を設定
+        /// </summary>
+        public void SetLTCDecoder(LTCDecoder decoder)
+        {
+            // 既存のイベント購読を解除
+            if (ltcDecoder != null)
+            {
+                ltcDecoder.OnLTCStarted.RemoveListener(HandleLTCStarted);
+                ltcDecoder.OnLTCStopped.RemoveListener(HandleLTCStopped);
+                ltcDecoder.OnLTCReceiving.RemoveListener(HandleLTCReceiving);
+                ltcDecoder.OnLTCNoSignal.RemoveListener(HandleLTCNoSignal);
+            }
+            
+            ltcDecoder = decoder;
+            
+            // 新しいイベント購読を設定
+            if (ltcDecoder != null && enableDebugger)
+            {
+                ltcDecoder.OnLTCStarted.AddListener(HandleLTCStarted);
+                ltcDecoder.OnLTCStopped.AddListener(HandleLTCStopped);
+                ltcDecoder.OnLTCReceiving.AddListener(HandleLTCReceiving);
+                ltcDecoder.OnLTCNoSignal.AddListener(HandleLTCNoSignal);
+            }
+        }
         
         #endregion
         
@@ -69,12 +101,15 @@ namespace jp.iridescent.ltcdecoder
         
         void Awake()
         {
-            ltcDecoder = GetComponent<LTCDecoder>();
+            // SerializeFieldで設定されていない場合は自動取得を試みる
             if (ltcDecoder == null)
             {
-                UnityEngine.Debug.LogError("LTCEventDebugger requires LTCDecoder component!");
-                enabled = false;
-                return;
+                ltcDecoder = GetComponent<LTCDecoder>();
+                if (ltcDecoder == null)
+                {
+                    UnityEngine.Debug.LogWarning("[LTCEventDebugger] LTCDecoder not found on this GameObject. Please assign it manually in the Inspector.");
+                    // enabled = false; を削除して動作を継続
+                }
             }
         }
         
@@ -82,11 +117,14 @@ namespace jp.iridescent.ltcdecoder
         {
             if (!enableDebugger) return;
             
-            // LTCイベントを購読
-            ltcDecoder.OnLTCStarted.AddListener(HandleLTCStarted);
-            ltcDecoder.OnLTCStopped.AddListener(HandleLTCStopped);
-            ltcDecoder.OnLTCReceiving.AddListener(HandleLTCReceiving);
-            ltcDecoder.OnLTCNoSignal.AddListener(HandleLTCNoSignal);
+            // LTCイベントを購読（ltcDecoderが存在する場合のみ）
+            if (ltcDecoder != null)
+            {
+                ltcDecoder.OnLTCStarted.AddListener(HandleLTCStarted);
+                ltcDecoder.OnLTCStopped.AddListener(HandleLTCStopped);
+                ltcDecoder.OnLTCReceiving.AddListener(HandleLTCReceiving);
+                ltcDecoder.OnLTCNoSignal.AddListener(HandleLTCNoSignal);
+            }
         }
         
         void OnDisable()
@@ -114,11 +152,21 @@ namespace jp.iridescent.ltcdecoder
             
             category = category ?? DebugMessage.INFO;
             
+            // ltcDecoderがnullの場合はデフォルト値を使用
+            string timecode = "00:00:00:00";
+            float signalLevel = 0f;
+            
+            if (ltcDecoder != null)
+            {
+                timecode = ltcDecoder.CurrentTimecode;
+                signalLevel = ltcDecoder.SignalLevel;
+            }
+            
             var debugMsg = new DebugMessage(
                 message,
                 category,
-                ltcDecoder.CurrentTimecode,
-                ltcDecoder.SignalLevel,
+                timecode,
+                signalLevel,
                 color
             );
             

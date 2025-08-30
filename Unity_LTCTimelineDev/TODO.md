@@ -19,6 +19,7 @@
 - [x] LTC Event Debuggerシステムの再設計と実装
 - [x] LTC Debug UIの文字視認性改善
 - [x] CLAUDE.mdの開発指針を最上部に移動（既に配置済み）
+- [x] Debug Message Container問題の修正（nullチェック追加・手動参照設定対応）
 
 ---
 
@@ -63,6 +64,12 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31
+- Debug Message Container問題を修正
+- LTCEventDebuggerにnullチェック追加（ltcDecoderが未設定でも動作可能に）
+- LTCUIControllerの初期メッセージ表示を改善（コルーチンで確実に表示）
+- LTCDebugSetupWithUIでLTCDecoderの参照を自動設定
 
 ### 2025-08-30
 - LTC DecoderをUnity Package Manager対応パッケージとして独立

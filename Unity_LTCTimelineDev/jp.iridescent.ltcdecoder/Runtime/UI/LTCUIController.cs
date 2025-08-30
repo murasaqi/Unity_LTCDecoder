@@ -40,9 +40,28 @@ namespace jp.iridescent.ltcdecoder
             // イベントリスナーの設定
             if (ltcEventDebugger != null)
             {
+                // デバッガーが有効であることを確認
+                if (!ltcEventDebugger.IsEnabled)
+                {
+                    ltcEventDebugger.IsEnabled = true;
+                }
+                
                 ltcEventDebugger.OnDebugMessage += AddDebugMessage;
                 
-                // 初期化メッセージを追加
+                // 初期化メッセージを追加（すぐに表示されるようにStartとして呼び出し）
+                StartCoroutine(ShowInitialMessages());
+            }
+        }
+        
+        /// <summary>
+        /// 初期メッセージを表示（少し遅延させて確実に表示）
+        /// </summary>
+        private System.Collections.IEnumerator ShowInitialMessages()
+        {
+            yield return null; // 1フレーム待機
+            
+            if (ltcEventDebugger != null)
+            {
                 ltcEventDebugger.AddDebugMessage("LTC UI Controller initialized", "SYSTEM");
                 ltcEventDebugger.AddDebugMessage($"Connected to LTC Decoder", "SYSTEM");
                 
@@ -50,6 +69,16 @@ namespace jp.iridescent.ltcdecoder
                 if (ltcEventDebugger.IsEnabled)
                 {
                     ltcEventDebugger.AddDebugMessage("Debug logging is enabled", "INFO");
+                }
+                
+                // デコーダーの状態を表示
+                if (ltcDecoder != null)
+                {
+                    ltcEventDebugger.AddDebugMessage($"LTC Decoder found and connected", "SYSTEM");
+                }
+                else
+                {
+                    ltcEventDebugger.AddDebugMessage("Warning: LTC Decoder not connected", "WARNING");
                 }
             }
         }

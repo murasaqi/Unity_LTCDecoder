@@ -69,6 +69,9 @@ namespace jp.iridescent.ltcdecoder.Editor
             if (debugger != null)
             {
                 SerializedObject debuggerSO = new SerializedObject(debugger);
+                // LTCDecoderへの参照を設定
+                var ltcDecoderProp = debuggerSO.FindProperty("ltcDecoder");
+                if (ltcDecoderProp != null) ltcDecoderProp.objectReferenceValue = decoder;
                 // enableDebuggerプロパティを確実に有効化
                 var enableDebuggerProp = debuggerSO.FindProperty("enableDebugger");
                 if (enableDebuggerProp != null) enableDebuggerProp.boolValue = true;
