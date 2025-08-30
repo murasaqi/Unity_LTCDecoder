@@ -9,7 +9,7 @@ namespace jp.iridescent.ltcdecoder.Editor
     /// </summary>
     public static class LTCDebugSetup
     {
-        [MenuItem("GameObject/LTC Debug/Create LTC Decoder", false, 10)]
+        [MenuItem("GameObject/LTC Decoder/Create LTC Decoder", false, 10)]
         public static void CreateLTCDecoder()
         {
             // LTCDecoder + Debugger作成
@@ -87,7 +87,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             UnityEngine.Debug.Log("[LTC Debug Setup] Default settings applied");
         }
         
-        [MenuItem("GameObject/LTC Debug/Create Timeline Sync", false, 11)]
+        [MenuItem("GameObject/LTC Decoder/Create Timeline Sync", false, 11)]
         public static void CreateTimelineSync()
         {
             GameObject syncObject = new GameObject("LTC Timeline Sync");
@@ -116,7 +116,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             UnityEngine.Debug.Log("[LTC Debug Setup] Timeline Sync created successfully!");
         }
         
-        [MenuItem("GameObject/LTC Debug/Documentation", false, 100)]
+        [MenuItem("GameObject/LTC Decoder/Documentation", false, 100)]
         public static void OpenDocumentation()
         {
             Application.OpenURL("https://github.com/murasaqi/Unity_LTCDecoder");
