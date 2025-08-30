@@ -209,13 +209,45 @@ namespace jp.iridescent.ltcdecoder.Editor
             }
             EditorGUILayout.EndHorizontal();
             
-            // Frame Rate
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("frameRate"),
-                new GUIContent("Frame Rate (fps)", "LTC signal frame rate (24/25/29.97/30)"));
+            // LTC Frame Rate
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("LTC Settings", EditorStyles.boldLabel);
             
-            // Sample Rate (Advanced Settingsから移動)
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("sampleRate"),
-                new GUIContent("Sample Rate (Hz)", "Audio input sample rate"));
+            var ltcFrameRateProp = serializedObject.FindProperty("ltcFrameRate");
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(ltcFrameRateProp,
+                new GUIContent("LTC Frame Rate", "Linear Timecode frame rate standard"));
+            if (EditorGUI.EndChangeCheck() && Application.isPlaying)
+            {
+                serializedObject.ApplyModifiedProperties();
+                component.SetLTCFrameRate((LTCDecoder.LTCFrameRate)ltcFrameRateProp.enumValueIndex);
+            }
+            
+            // Drop Frame
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("useDropFrame"),
+                new GUIContent("Use Drop Frame", "Enable drop frame for 29.97 fps"));
+            
+            // Sample Rate with dropdown
+            EditorGUILayout.Space(5);
+            int[] sampleRates = { 44100, 48000, 96000 };
+            string[] sampleRateOptions = { "44100 Hz", "48000 Hz", "96000 Hz" };
+            
+            var sampleRateProp = serializedObject.FindProperty("sampleRate");
+            int currentSampleRate = sampleRateProp.intValue;
+            int currentIndex = System.Array.IndexOf(sampleRates, currentSampleRate);
+            if (currentIndex == -1) currentIndex = 1; // Default to 48000
+            
+            EditorGUI.BeginChangeCheck();
+            int newSampleIndex = EditorGUILayout.Popup("Sample Rate", currentIndex, sampleRateOptions);
+            if (EditorGUI.EndChangeCheck())
+            {
+                sampleRateProp.intValue = sampleRates[newSampleIndex];
+                serializedObject.ApplyModifiedProperties();
+                if (Application.isPlaying)
+                {
+                    component.SetSampleRate(sampleRates[newSampleIndex]);
+                }
+            }
             
             EditorGUILayout.EndVertical();
         }

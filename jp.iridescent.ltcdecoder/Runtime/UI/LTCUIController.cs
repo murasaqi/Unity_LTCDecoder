@@ -19,6 +19,11 @@ namespace jp.iridescent.ltcdecoder
         public Transform debugMessageContainer;
         public ScrollRect debugScrollRect;
         
+        [Header("Audio Settings UI")]
+        public Dropdown deviceDropdown;
+        public Dropdown frameRateDropdown;
+        public Dropdown sampleRateDropdown;
+        
         [Header("Target Components")]
         [SerializeField] private LTCDecoder ltcDecoder;
         [SerializeField] private LTCEventDebugger ltcEventDebugger;
@@ -51,6 +56,190 @@ namespace jp.iridescent.ltcdecoder
                 
                 // 初期化メッセージを追加（すぐに表示されるようにStartとして呼び出し）
                 StartCoroutine(ShowInitialMessages());
+            }
+            
+            // Audio Settings UIの初期化
+            InitializeAudioSettingsUI();
+        }
+        
+        /// <summary>
+        /// Audio Settings UIの初期化
+        /// </summary>
+        private void InitializeAudioSettingsUI()
+        {
+            if (ltcDecoder == null) return;
+            
+            // デバイスドロップダウンの初期化
+            if (deviceDropdown != null)
+            {
+                RefreshDeviceList();
+                deviceDropdown.onValueChanged.AddListener(OnDeviceChanged);
+            }
+            
+            // フレームレートドロップダウンの初期化
+            if (frameRateDropdown != null)
+            {
+                SetupFrameRateDropdown();
+                frameRateDropdown.onValueChanged.AddListener(OnFrameRateChanged);
+            }
+            
+            // サンプルレートドロップダウンの初期化
+            if (sampleRateDropdown != null)
+            {
+                SetupSampleRateDropdown();
+                sampleRateDropdown.onValueChanged.AddListener(OnSampleRateChanged);
+            }
+        }
+        
+        private void RefreshDeviceList()
+        {
+            if (deviceDropdown == null || ltcDecoder == null) return;
+            
+            deviceDropdown.ClearOptions();
+            
+            string[] devices = ltcDecoder.AvailableDevices;
+            if (devices.Length == 0)
+            {
+                deviceDropdown.AddOptions(new List<string> { "No devices found" });
+                return;
+            }
+            
+            deviceDropdown.AddOptions(new List<string>(devices));
+            
+            // 現在選択されているデバイスを選択
+            string currentDevice = ltcDecoder.SelectedDevice;
+            int index = System.Array.IndexOf(devices, currentDevice);
+            if (index >= 0)
+            {
+                deviceDropdown.value = index;
+            }
+        }
+        
+        private void SetupFrameRateDropdown()
+        {
+            if (frameRateDropdown == null) return;
+            
+            frameRateDropdown.ClearOptions();
+            
+            List<string> options = new List<string>
+            {
+                "24 fps",
+                "25 fps",
+                "29.97 fps (Drop Frame)",
+                "29.97 fps (Non-Drop)",
+                "30 fps"
+            };
+            
+            frameRateDropdown.AddOptions(options);
+            
+            // 現在の値を選択
+            LTCDecoder.LTCFrameRate currentRate = ltcDecoder.FrameRate;
+            int index = GetFrameRateIndex(currentRate);
+            frameRateDropdown.value = index;
+        }
+        
+        private void SetupSampleRateDropdown()
+        {
+            if (sampleRateDropdown == null) return;
+            
+            sampleRateDropdown.ClearOptions();
+            
+            List<string> options = new List<string>
+            {
+                "44100 Hz",
+                "48000 Hz",
+                "96000 Hz"
+            };
+            
+            sampleRateDropdown.AddOptions(options);
+            
+            // 現在の値を選択
+            int currentRate = ltcDecoder.SampleRate;
+            int index = GetSampleRateIndex(currentRate);
+            sampleRateDropdown.value = index;
+        }
+        
+        private int GetFrameRateIndex(LTCDecoder.LTCFrameRate frameRate)
+        {
+            switch (frameRate)
+            {
+                case LTCDecoder.LTCFrameRate.FPS_24: return 0;
+                case LTCDecoder.LTCFrameRate.FPS_25: return 1;
+                case LTCDecoder.LTCFrameRate.FPS_29_97_DF: return 2;
+                case LTCDecoder.LTCFrameRate.FPS_29_97_NDF: return 3;
+                case LTCDecoder.LTCFrameRate.FPS_30: return 4;
+                default: return 4;
+            }
+        }
+        
+        private int GetSampleRateIndex(int sampleRate)
+        {
+            switch (sampleRate)
+            {
+                case 44100: return 0;
+                case 48000: return 1;
+                case 96000: return 2;
+                default: return 1;
+            }
+        }
+        
+        private void OnDeviceChanged(int index)
+        {
+            if (deviceDropdown == null || ltcDecoder == null) return;
+            
+            string[] devices = ltcDecoder.AvailableDevices;
+            if (index >= 0 && index < devices.Length)
+            {
+                ltcDecoder.SetDevice(devices[index]);
+                
+                if (ltcEventDebugger != null)
+                {
+                    ltcEventDebugger.AddDebugMessage($"Audio device changed to: {devices[index]}", "SETTINGS", Color.cyan);
+                }
+            }
+        }
+        
+        private void OnFrameRateChanged(int index)
+        {
+            if (frameRateDropdown == null || ltcDecoder == null) return;
+            
+            LTCDecoder.LTCFrameRate newRate = LTCDecoder.LTCFrameRate.FPS_30;
+            
+            switch (index)
+            {
+                case 0: newRate = LTCDecoder.LTCFrameRate.FPS_24; break;
+                case 1: newRate = LTCDecoder.LTCFrameRate.FPS_25; break;
+                case 2: newRate = LTCDecoder.LTCFrameRate.FPS_29_97_DF; break;
+                case 3: newRate = LTCDecoder.LTCFrameRate.FPS_29_97_NDF; break;
+                case 4: newRate = LTCDecoder.LTCFrameRate.FPS_30; break;
+            }
+            
+            ltcDecoder.SetLTCFrameRate(newRate);
+            
+            if (ltcEventDebugger != null)
+            {
+                ltcEventDebugger.AddDebugMessage($"Frame rate changed to: {frameRateDropdown.options[index].text}", "SETTINGS", Color.cyan);
+            }
+        }
+        
+        private void OnSampleRateChanged(int index)
+        {
+            if (sampleRateDropdown == null || ltcDecoder == null) return;
+            
+            int newRate = 48000;
+            
+            switch (index)
+            {
+                case 0: newRate = 44100; break;
+                case 1: newRate = 48000; break;
+                case 2: newRate = 96000; break;
+            }
+            
+            ltcDecoder.SetSampleRate(newRate);
+            
+            if (ltcEventDebugger != null)
+            {
+                ltcEventDebugger.AddDebugMessage($"Sample rate changed to: {newRate} Hz", "SETTINGS", Color.cyan);
             }
         }
         

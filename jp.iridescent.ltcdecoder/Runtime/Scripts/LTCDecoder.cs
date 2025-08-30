@@ -27,6 +27,18 @@ namespace jp.iridescent.ltcdecoder
             Drifting     // ドリフト検出（補正中）
         }
         
+        /// <summary>
+        /// LTCフレームレート
+        /// </summary>
+        public enum LTCFrameRate
+        {
+            FPS_24 = 24,
+            FPS_25 = 25,
+            FPS_29_97_DF = 2997,  // Drop Frame (内部では29.97として処理)
+            FPS_29_97_NDF = 2998, // Non-Drop Frame (内部では29.97として処理)
+            FPS_30 = 30
+        }
+        
         #endregion
         
         #region Serialized Fields
@@ -59,9 +71,9 @@ namespace jp.iridescent.ltcdecoder
         private const float AGC_MIN_THRESHOLD = 0.01f;  // 最小閾値
         [SerializeField] private float timeDifference = 0f;
         
-        [Header("Frame Rate")]
-        [SerializeField] private float frameRate = 30.0f;
-        [SerializeField] private bool dropFrame = false;
+        [Header("LTC Settings")]
+        [SerializeField] private LTCFrameRate ltcFrameRate = LTCFrameRate.FPS_30;
+        [SerializeField] private bool useDropFrame = false;
         
         [Header("Time Offset")]
         [Tooltip("出力タイムコード（Output TC）に適用するオフセット（秒）")]
@@ -176,7 +188,17 @@ namespace jp.iridescent.ltcdecoder
         public bool IsRecording => microphoneClip != null;
         public string SelectedDevice => selectedDevice;
         public string[] AvailableDevices => Microphone.devices;
-        public bool DropFrame => dropFrame;
+        public bool DropFrame => useDropFrame;
+        public LTCFrameRate FrameRate
+        {
+            get => ltcFrameRate;
+            set => SetLTCFrameRate(value);
+        }
+        public int SampleRate
+        {
+            get => sampleRate;
+            set => SetSampleRate(value);
+        }
         
         // ノイズ解析データアクセス
         public float[] LTCNoiseHistory => ltcNoiseHistory;
@@ -219,6 +241,19 @@ namespace jp.iridescent.ltcdecoder
         private void OnDisable()
         {
             StopRecording();
+        }
+        
+        private void OnValidate()
+        {
+            // Play中のInspector変更を反映
+            if (Application.isPlaying && IsRecording)
+            {
+                // フレームレートの変更を検知
+                // SetLTCFrameRateメソッドで処理されるため、ここでは何もしない
+                
+                // サンプルレートの変更を検知
+                // SetSampleRateメソッドで処理されるため、ここでは何もしない
+            }
         }
         
         private void Update()
@@ -392,7 +427,7 @@ namespace jp.iridescent.ltcdecoder
             // イベントチェック
             foreach (var tcEvent in timecodeEvents)
             {
-                if (tcEvent.IsMatch(eventData.currentTimecode, frameRate))
+                if (tcEvent.IsMatch(eventData.currentTimecode, GetActualFrameRate()))
                 {
                     tcEvent.onTimecodeReached?.Invoke(eventData);
                     tcEvent.triggered = true;
@@ -473,7 +508,7 @@ namespace jp.iridescent.ltcdecoder
                 float.TryParse(parts[2], out float seconds) &&
                 float.TryParse(parts[3], out float frames))
             {
-                return hours * 3600f + minutes * 60f + seconds + (frames / frameRate);
+                return hours * 3600f + minutes * 60f + seconds + (frames / GetActualFrameRate());
             }
             
             return 0f;
@@ -508,7 +543,7 @@ namespace jp.iridescent.ltcdecoder
             int hours = (int)(totalSeconds / 3600);
             int minutes = (int)((totalSeconds % 3600) / 60);
             int seconds = (int)(totalSeconds % 60);
-            int frames = (int)((totalSeconds % 1) * frameRate);
+            int frames = (int)((totalSeconds % 1) * GetActualFrameRate());
             
             return $"{hours:D2}:{minutes:D2}:{seconds:D2}:{frames:D2}";
         }
@@ -530,6 +565,11 @@ namespace jp.iridescent.ltcdecoder
             {
                 StartRecording();
             }
+            
+            // Inspectorを更新
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+            #endif
         }
         
         private void StartRecording()
@@ -676,7 +716,7 @@ namespace jp.iridescent.ltcdecoder
         private void ProcessDecodedLTC(string tcString, Timecode tc)
         {
             decodedTimecode = tcString;
-            dropFrame = tc.DropFrame;
+            useDropFrame = tc.DropFrame;
             
             // LTCデコード成功 = 有効な信号あり
             consecutiveStops = 0;  // 停止カウントをリセット
@@ -717,7 +757,7 @@ namespace jp.iridescent.ltcdecoder
             {
                 float actualDelta = currentLtcTime - lastLtcTime;
                 // 期待される差分（1フレーム分の時間）
-                float expectedDelta = 1.0f / frameRate;
+                float expectedDelta = 1.0f / GetActualFrameRate();
                 float deviation = Mathf.Abs(actualDelta - expectedDelta);
                 // 0.01秒（10ms）の誤差を基準にノイズ度合いを計算
                 ltcNoise = Mathf.Clamp01(deviation / 0.01f);
@@ -967,7 +1007,7 @@ namespace jp.iridescent.ltcdecoder
             if (tc == null) return 0;
             
             double totalSeconds = tc.Hour * 3600 + tc.Minute * 60 + tc.Second;
-            totalSeconds += tc.Frame / frameRate;
+            totalSeconds += tc.Frame / GetActualFrameRate();
             
             return totalSeconds;
         }
@@ -982,10 +1022,10 @@ namespace jp.iridescent.ltcdecoder
             int hours = (int)(totalSeconds / 3600);
             int minutes = (int)((totalSeconds % 3600) / 60);
             int seconds = (int)(totalSeconds % 60);
-            int frames = (int)((totalSeconds % 1.0) * frameRate);
+            int frames = (int)((totalSeconds % 1.0) * GetActualFrameRate());
             
             hours = hours % 24;
-            frames = Math.Min(frames, (int)frameRate - 1);
+            frames = Math.Min(frames, (int)GetActualFrameRate() - 1);
             
             return $"{hours:D2}:{minutes:D2}:{seconds:D2}:{frames:D2}";
         }
@@ -1014,6 +1054,106 @@ namespace jp.iridescent.ltcdecoder
         }
         
         /// <summary>
+        /// LTCフレームレートを設定
+        /// </summary>
+        public void SetLTCFrameRate(LTCFrameRate newFrameRate)
+        {
+            if (ltcFrameRate == newFrameRate) return;
+            
+            ltcFrameRate = newFrameRate;
+            
+            // ドロップフレームの自動設定
+            if (ltcFrameRate == LTCFrameRate.FPS_29_97_DF)
+            {
+                useDropFrame = true;
+            }
+            else if (ltcFrameRate == LTCFrameRate.FPS_29_97_NDF)
+            {
+                useDropFrame = false;
+            }
+            
+            // 内部時計のリセット
+            if (Application.isPlaying && IsRecording)
+            {
+                ResetStatistics();
+                LogDebug($"LTC Frame Rate changed to {GetActualFrameRate()} fps");
+            }
+            
+            // Inspectorを更新
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+            #endif
+        }
+        
+        /// <summary>
+        /// サンプルレートを設定
+        /// </summary>
+        public void SetSampleRate(int newSampleRate)
+        {
+            if (sampleRate == newSampleRate) return;
+            
+            bool wasRecording = IsRecording;
+            if (wasRecording) StopRecording();
+            
+            sampleRate = newSampleRate;
+            
+            if (wasRecording && !string.IsNullOrEmpty(selectedDevice))
+            {
+                StartRecording();
+                LogDebug($"Sample Rate changed to {sampleRate} Hz");
+            }
+            
+            // Inspectorを更新
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+            #endif
+        }
+        
+        /// <summary>
+        /// ドロップフレーム設定を変更
+        /// </summary>
+        public void SetDropFrame(bool dropFrame)
+        {
+            if (useDropFrame == dropFrame) return;
+            
+            useDropFrame = dropFrame;
+            
+            // 29.97fpsの場合、フレームレート設定も更新
+            if (ltcFrameRate == LTCFrameRate.FPS_29_97_DF || ltcFrameRate == LTCFrameRate.FPS_29_97_NDF)
+            {
+                ltcFrameRate = dropFrame ? LTCFrameRate.FPS_29_97_DF : LTCFrameRate.FPS_29_97_NDF;
+            }
+            
+            LogDebug($"Drop Frame {(dropFrame ? "enabled" : "disabled")}");
+            
+            // Inspectorを更新
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+            #endif
+        }
+        
+        /// <summary>
+        /// 実際のフレームレート値を取得
+        /// </summary>
+        private float GetActualFrameRate()
+        {
+            switch (ltcFrameRate)
+            {
+                case LTCFrameRate.FPS_29_97_DF:
+                case LTCFrameRate.FPS_29_97_NDF:
+                    return 29.97f;
+                case LTCFrameRate.FPS_24:
+                    return 24.0f;
+                case LTCFrameRate.FPS_25:
+                    return 25.0f;
+                case LTCFrameRate.FPS_30:
+                    return 30.0f;
+                default:
+                    return 30.0f;
+            }
+        }
+        
+        /// <summary>
         /// 統計をリセット
         /// </summary>
         public void ResetStatistics()
@@ -1038,7 +1178,7 @@ namespace jp.iridescent.ltcdecoder
                 int.TryParse(parts[2], out int s) &&
                 int.TryParse(parts[3], out int f))
             {
-                internalTcTime = h * 3600 + m * 60 + s + f / frameRate;
+                internalTcTime = h * 3600 + m * 60 + s + f / GetActualFrameRate();
                 dspTimeBase = AudioSettings.dspTime;
                 isRunning = true;
                 currentState = SyncState.Locked;

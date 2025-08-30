@@ -118,45 +118,68 @@ namespace jp.iridescent.ltcdecoder.Editor
         /// </summary>
         private static GameObject CreateCompleteUI(GameObject canvas, GameObject ltcObject)
         {
-            // メインパネル作成（380x600）
+            // メインパネル作成（380x700）
             GameObject mainPanel = CreateMainPanel(canvas);
             
             // ヘッダー（位置: 中央上部）
             CreateTextAtPosition(mainPanel, "HeaderText", "LTC Decoder Debug UI", 
                 new Vector2(190, -30), new Vector2(360, 40), 24, TextAnchor.MiddleCenter, Color.cyan, true);
             
+            // --- Audio Input Settings セクション ---
+            CreateTextAtPosition(mainPanel, "AudioSettingsLabel", "Audio Input Settings", 
+                new Vector2(190, -70), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
+            
+            // Device Dropdown
+            CreateTextAtPosition(mainPanel, "DeviceLabel", "Device:", 
+                new Vector2(50, -100), new Vector2(60, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "DeviceDropdown", new Vector2(220, -100), new Vector2(250, 25));
+            
+            // Frame Rate Dropdown
+            CreateTextAtPosition(mainPanel, "FrameRateLabel", "Frame Rate:", 
+                new Vector2(60, -130), new Vector2(80, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "FrameRateDropdown", new Vector2(220, -130), new Vector2(250, 25));
+            
+            // Sample Rate Dropdown
+            CreateTextAtPosition(mainPanel, "SampleRateLabel", "Sample Rate:", 
+                new Vector2(65, -160), new Vector2(90, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "SampleRateDropdown", new Vector2(220, -160), new Vector2(250, 25));
+            
+            // --- Timecode Display セクション ---
+            CreateTextAtPosition(mainPanel, "TimecodeDisplayLabel", "Timecode Display", 
+                new Vector2(190, -200), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
+            
             // Current Timecode
             CreateTextAtPosition(mainPanel, "CurrentTCLabel", "Current TC:", 
-                new Vector2(70, -80), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(70, -230), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             CreateTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
-                new Vector2(180, -80), new Vector2(180, 30), 18, TextAnchor.MiddleLeft, Color.white, true);
+                new Vector2(180, -230), new Vector2(180, 30), 18, TextAnchor.MiddleLeft, Color.white, true);
             
             // Decoded Timecode
             CreateTextAtPosition(mainPanel, "DecodedTCLabel", "Decoded TC:", 
-                new Vector2(70, -120), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(70, -270), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             CreateTextAtPosition(mainPanel, "DecodedTimecodeText", "00:00:00:00", 
-                new Vector2(180, -120), new Vector2(180, 30), 16, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(180, -270), new Vector2(180, 30), 16, TextAnchor.MiddleLeft, Color.white, false);
             
             // Status
             CreateTextAtPosition(mainPanel, "StatusLabel", "Status:", 
-                new Vector2(70, -160), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(70, -310), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             CreateTextAtPosition(mainPanel, "StatusText", "NO SIGNAL", 
-                new Vector2(160, -160), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
+                new Vector2(160, -310), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
             
             // Signal Level
             CreateTextAtPosition(mainPanel, "SignalLabel", "Signal Level:", 
-                new Vector2(70, -200), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateSignalBar(mainPanel, new Vector2(180, -200));
+                new Vector2(70, -350), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateSignalBar(mainPanel, new Vector2(180, -350));
             CreateTextAtPosition(mainPanel, "SignalLevelText", "0%", 
-                new Vector2(340, -200), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(340, -350), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             
             // Control Buttons
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -250), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -250), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -250), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -400), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -400), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -400), new Vector2(80, 35));
             
             // Debug Message Area
-            CreateDebugScrollView(mainPanel, new Vector2(10, -300), new Vector2(360, 280));
+            CreateDebugScrollView(mainPanel, new Vector2(10, -450), new Vector2(360, 260));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -177,7 +200,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             rect.anchorMax = new Vector2(0, 1);
             rect.pivot = new Vector2(0, 1);
             rect.anchoredPosition = new Vector2(10, -10);
-            rect.sizeDelta = new Vector2(380, 600);
+            rect.sizeDelta = new Vector2(380, 700);
             
             Image panelImage = mainPanel.AddComponent<Image>();
             panelImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
@@ -251,6 +274,216 @@ namespace jp.iridescent.ltcdecoder.Editor
             buttonText.alignment = TextAnchor.MiddleCenter;
             
             return buttonObj;
+        }
+        
+        /// <summary>
+        /// 固定位置にドロップダウン作成
+        /// </summary>
+        private static GameObject CreateDropdownAtPosition(GameObject parent, string name, Vector2 position, Vector2 size)
+        {
+            GameObject dropdownObj = new GameObject(name);
+            dropdownObj.transform.SetParent(parent.transform, false);
+            
+            RectTransform rect = dropdownObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            
+            Image image = dropdownObj.AddComponent<Image>();
+            image.color = new Color(0.2f, 0.2f, 0.2f, 1);
+            
+            Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
+            
+            // Label
+            GameObject label = new GameObject("Label");
+            label.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform labelRect = label.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(10, 2);
+            labelRect.offsetMax = new Vector2(-25, -2);
+            
+            Text labelText = label.AddComponent<Text>();
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 12;
+            labelText.color = Color.white;
+            labelText.alignment = TextAnchor.MiddleLeft;
+            
+            // Arrow
+            GameObject arrow = new GameObject("Arrow");
+            arrow.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform arrowRect = arrow.AddComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(1, 0.5f);
+            arrowRect.anchorMax = new Vector2(1, 0.5f);
+            arrowRect.pivot = new Vector2(0.5f, 0.5f);
+            arrowRect.anchoredPosition = new Vector2(-12, 0);
+            arrowRect.sizeDelta = new Vector2(10, 10);
+            
+            Text arrowText = arrow.AddComponent<Text>();
+            arrowText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            arrowText.fontSize = 12;
+            arrowText.text = "▼";
+            arrowText.color = Color.white;
+            arrowText.alignment = TextAnchor.MiddleCenter;
+            
+            // Template (dropdown list)
+            GameObject template = new GameObject("Template");
+            template.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform templateRect = template.AddComponent<RectTransform>();
+            templateRect.anchorMin = new Vector2(0, 0);
+            templateRect.anchorMax = new Vector2(1, 0);
+            templateRect.pivot = new Vector2(0.5f, 1);
+            templateRect.anchoredPosition = new Vector2(0, 2);
+            templateRect.sizeDelta = new Vector2(0, 150);
+            
+            ScrollRect scrollRect = template.AddComponent<ScrollRect>();
+            
+            GameObject viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(template.transform, false);
+            
+            RectTransform viewportRect = viewport.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.sizeDelta = Vector2.zero;
+            viewportRect.anchoredPosition = Vector2.zero;
+            
+            viewport.AddComponent<Mask>();
+            Image viewportImage = viewport.AddComponent<Image>();
+            viewportImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+            
+            GameObject content = new GameObject("Content");
+            content.transform.SetParent(viewport.transform, false);
+            
+            RectTransform contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, 28);  // 高さを設定して最初のアイテム用のスペースを確保
+            
+            // Item (template item)
+            GameObject item = new GameObject("Item");
+            item.transform.SetParent(content.transform, false);
+            
+            RectTransform itemRect = item.AddComponent<RectTransform>();
+            itemRect.anchorMin = new Vector2(0, 0.5f);
+            itemRect.anchorMax = new Vector2(1, 0.5f);
+            itemRect.pivot = new Vector2(0.5f, 0.5f);
+            itemRect.sizeDelta = new Vector2(0, 20);
+            itemRect.anchoredPosition = new Vector2(0, -10);  // 最初のアイテムを下にオフセット
+            
+            Toggle toggle = item.AddComponent<Toggle>();
+            
+            // Item Background
+            GameObject itemBg = new GameObject("Item Background");
+            itemBg.transform.SetParent(item.transform, false);
+            
+            RectTransform bgRect = itemBg.AddComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.sizeDelta = Vector2.zero;
+            
+            Image bgImage = itemBg.AddComponent<Image>();
+            bgImage.color = Color.white;
+            
+            // Item Checkmark
+            GameObject checkmark = new GameObject("Item Checkmark");
+            checkmark.transform.SetParent(item.transform, false);
+            
+            RectTransform checkRect = checkmark.AddComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0, 0.5f);
+            checkRect.anchorMax = new Vector2(0, 0.5f);
+            checkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkRect.anchoredPosition = new Vector2(10, 0);
+            checkRect.sizeDelta = new Vector2(10, 10);
+            
+            Image checkImage = checkmark.AddComponent<Image>();
+            checkImage.color = Color.white;
+            
+            // Item Label
+            GameObject itemLabel = new GameObject("Item Label");
+            itemLabel.transform.SetParent(item.transform, false);
+            
+            RectTransform itemLabelRect = itemLabel.AddComponent<RectTransform>();
+            itemLabelRect.anchorMin = Vector2.zero;
+            itemLabelRect.anchorMax = Vector2.one;
+            itemLabelRect.offsetMin = new Vector2(20, 1);
+            itemLabelRect.offsetMax = new Vector2(-10, -2);
+            
+            Text itemText = itemLabel.AddComponent<Text>();
+            itemText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            itemText.fontSize = 12;
+            itemText.color = Color.black;
+            itemText.alignment = TextAnchor.MiddleLeft;
+            
+            // ドロップダウンの設定
+            dropdown.captionText = labelText;
+            dropdown.template = templateRect;
+            dropdown.itemText = itemText;
+            
+            toggle.targetGraphic = bgImage;
+            toggle.graphic = checkImage;
+            
+            scrollRect.content = contentRect;
+            scrollRect.viewport = viewportRect;
+            
+            template.SetActive(false);
+            
+            return dropdownObj;
+        }
+        
+        /// <summary>
+        /// 固定位置にトグル作成
+        /// </summary>
+        private static GameObject CreateToggleAtPosition(GameObject parent, string name, Vector2 position, Vector2 size)
+        {
+            GameObject toggleObj = new GameObject(name);
+            toggleObj.transform.SetParent(parent.transform, false);
+            
+            RectTransform rect = toggleObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            
+            Toggle toggle = toggleObj.AddComponent<Toggle>();
+            
+            // Background
+            GameObject background = new GameObject("Background");
+            background.transform.SetParent(toggleObj.transform, false);
+            
+            RectTransform bgRect = background.AddComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0, 0);
+            bgRect.anchorMax = new Vector2(1, 1);
+            bgRect.sizeDelta = Vector2.zero;
+            bgRect.anchoredPosition = Vector2.zero;
+            
+            Image bgImage = background.AddComponent<Image>();
+            bgImage.color = new Color(0.3f, 0.3f, 0.3f, 1);
+            
+            // Checkmark
+            GameObject checkmark = new GameObject("Checkmark");
+            checkmark.transform.SetParent(background.transform, false);
+            
+            RectTransform checkRect = checkmark.AddComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0.1f, 0.1f);
+            checkRect.anchorMax = new Vector2(0.9f, 0.9f);
+            checkRect.sizeDelta = Vector2.zero;
+            checkRect.anchoredPosition = Vector2.zero;
+            
+            Image checkImage = checkmark.AddComponent<Image>();
+            checkImage.color = Color.green;
+            
+            toggle.targetGraphic = bgImage;
+            toggle.graphic = checkImage;
+            
+            return toggleObj;
         }
         
         /// <summary>
@@ -365,6 +598,11 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
             controller.debugMessageContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
             controller.debugScrollRect = mainPanel.transform.Find("DebugScrollView")?.GetComponent<ScrollRect>();
+            
+            // Audio Settings UIの参照を設定
+            controller.deviceDropdown = mainPanel.transform.Find("DeviceDropdown")?.GetComponent<Dropdown>();
+            controller.frameRateDropdown = mainPanel.transform.Find("FrameRateDropdown")?.GetComponent<Dropdown>();
+            controller.sampleRateDropdown = mainPanel.transform.Find("SampleRateDropdown")?.GetComponent<Dropdown>();
             
             // LTCDecoderとLTCEventDebuggerを設定（参照設定後に）
             LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
