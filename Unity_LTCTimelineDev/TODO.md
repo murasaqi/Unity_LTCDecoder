@@ -6,9 +6,10 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
-- [ ] Package化して、開発しているUnityプロジェクトとPackageを分離管理
+（なし）
 
 ### ✅ 完了済み (Completed)
+- [x] Package化して、開発しているUnityプロジェクトとPackageを分離管理
 - [x] CLAUDE.md作成と開発ルール追加
 - [x] 言語ルールの追加（日本語対話・コメント）
 - [x] LTCデコーダーの安定性改善
@@ -62,6 +63,15 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-30
+- LTC DecoderをUnity Package Manager対応パッケージとして独立
+- jp.iridescent.ltcdecoderとしてパッケージ化
+- 名前空間をjp.iridescent.ltcdecoderに統一
+- Assembly Definitionファイル追加
+- README、LICENSE、CHANGELOG作成
+- サンプルシーン・UI整理
+- GitHubリポジトリ名をUnity_LTCDecoderに変更予定
 
 ### 2025-08-29
 - LTC Event Debuggerシステムの完全再設計

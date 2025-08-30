@@ -1,0 +1,32 @@
+{
+  "name": "jp.iridescent.ltcdecoder",
+  "version": "1.0.0",
+  "displayName": "LTC Decoder",
+  "description": "Linear Timecode (LTC) decoder and Timeline synchronization for Unity",
+  "unity": "2021.3",
+  "unityRelease": "0f1",
+  "author": "Murasaqi",
+  "type": "tool",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "unity",
+    "ltc",
+    "timecode",
+    "timeline",
+    "synchronization",
+    "audio"
+  ],
+  "documentationUrl": "https://github.com/murasaqi/Unity_LTCDecoder",
+  "changelogUrl": "https://github.com/murasaqi/Unity_LTCDecoder/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/murasaqi/Unity_LTCDecoder/blob/main/LICENSE",
+  "samples": [
+    {
+      "displayName": "Basic Setup",
+      "description": "Basic LTC decoder setup with UI and sample scenes",
+      "path": "Samples~/BasicSetup"
+    }
+  ],
+  "dependencies": {
+    "com.unity.timeline": "1.6.0"
+  }
+}

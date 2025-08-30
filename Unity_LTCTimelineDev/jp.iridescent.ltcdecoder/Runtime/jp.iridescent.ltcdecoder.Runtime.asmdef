@@ -1,0 +1,17 @@
+{
+  "name": "jp.iridescent.ltcdecoder.Runtime",
+  "rootNamespace": "jp.iridescent.ltcdecoder",
+  "references": [
+    "Unity.Timeline",
+    "Unity.Timeline.Editor"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
