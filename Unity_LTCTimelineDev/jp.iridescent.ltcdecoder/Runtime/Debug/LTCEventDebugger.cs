@@ -53,6 +53,7 @@ namespace jp.iridescent.ltcdecoder
         // イベント
         public event Action<DebugMessage> OnMessageAdded;
         public event Action OnHistoryCleared;
+        public event Action<string> OnDebugMessage;
         
         #endregion
         
@@ -538,6 +539,7 @@ namespace jp.iridescent.ltcdecoder
             
             // イベント発火
             OnMessageAdded?.Invoke(message);
+            OnDebugMessage?.Invoke($"[{message.category}] {message.message}");
         }
         
         private void UpdateStatistics(string eventName)
