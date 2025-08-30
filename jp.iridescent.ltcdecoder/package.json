@@ -16,9 +16,9 @@
     "synchronization",
     "audio"
   ],
-  "documentationUrl": "https://github.com/murasaqi/Unity_LTCDecoder",
-  "changelogUrl": "https://github.com/murasaqi/Unity_LTCDecoder/blob/main/CHANGELOG.md",
-  "licensesUrl": "https://github.com/murasaqi/Unity_LTCDecoder/blob/main/LICENSE",
+  "documentationUrl": "https://github.com/murasaqi/Unity_LTCTimeline",
+  "changelogUrl": "https://github.com/murasaqi/Unity_LTCTimeline/blob/main/jp.iridescent.ltcdecoder/CHANGELOG.md",
+  "licensesUrl": "https://github.com/murasaqi/Unity_LTCTimeline/blob/main/jp.iridescent.ltcdecoder/LICENSE",
   "samples": [
     {
       "displayName": "Basic Setup",
