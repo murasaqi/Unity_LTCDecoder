@@ -357,12 +357,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             // LTCUIControllerを追加
             LTCUIController controller = mainPanel.AddComponent<LTCUIController>();
             
-            // LTCDecoderとLTCEventDebuggerを設定
-            LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
-            LTCEventDebugger debugger = ltcObject.GetComponent<LTCEventDebugger>();
-            controller.Setup(decoder, debugger);
-            
-            // UI要素の参照を設定
+            // UI要素の参照を先に設定（Setupより前に）
             controller.currentTimecodeText = mainPanel.transform.Find("CurrentTimecodeText")?.GetComponent<Text>();
             controller.decodedTimecodeText = mainPanel.transform.Find("DecodedTimecodeText")?.GetComponent<Text>();
             controller.statusText = mainPanel.transform.Find("StatusText")?.GetComponent<Text>();
@@ -370,6 +365,23 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
             controller.debugMessageContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
             controller.debugScrollRect = mainPanel.transform.Find("DebugScrollView")?.GetComponent<ScrollRect>();
+            
+            // デバッグ用に参照の状態を確認
+            UnityEngine.Debug.Log($"[LTCDebugSetupWithUI] debugMessageContainer: {controller.debugMessageContainer != null}");
+            UnityEngine.Debug.Log($"[LTCDebugSetupWithUI] debugScrollRect: {controller.debugScrollRect != null}");
+            
+            // LTCDecoderとLTCEventDebuggerを設定（参照設定後に）
+            LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
+            LTCEventDebugger debugger = ltcObject.GetComponent<LTCEventDebugger>();
+            
+            // SerializedObjectで参照を設定
+            SerializedObject controllerSO = new SerializedObject(controller);
+            controllerSO.FindProperty("ltcDecoder").objectReferenceValue = decoder;
+            controllerSO.FindProperty("ltcEventDebugger").objectReferenceValue = debugger;
+            controllerSO.ApplyModifiedProperties();
+            
+            // Setupを呼び出し
+            controller.Setup(decoder, debugger);
             
             // ボタンのイベント設定
             Button clearButton = mainPanel.transform.Find("ClearButton")?.GetComponent<Button>();
