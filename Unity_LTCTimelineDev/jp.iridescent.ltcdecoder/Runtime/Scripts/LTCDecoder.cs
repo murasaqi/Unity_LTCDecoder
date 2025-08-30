@@ -63,6 +63,10 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField] private float frameRate = 30.0f;
         [SerializeField] private bool dropFrame = false;
         
+        [Header("Time Offset")]
+        [Tooltip("出力タイムコード（Output TC）に適用するオフセット（秒）")]
+        [SerializeField] private float timeOffset = 0f;
+        
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogging = false;
         
@@ -156,7 +160,14 @@ namespace jp.iridescent.ltcdecoder
         
         #region Properties
         
-        public string CurrentTimecode => currentTimecode;
+        public string CurrentTimecode
+        {
+            get
+            {
+                // Output TCにオフセットを適用
+                return ApplyTimeOffset(currentTimecode);
+            }
+        }
         public string DecodedTimecode => decodedTimecode;
         public SyncState State => currentState;
         public bool HasSignal => hasSignal;
@@ -466,6 +477,40 @@ namespace jp.iridescent.ltcdecoder
             }
             
             return 0f;
+        }
+        
+        /// <summary>
+        /// タイムコードにオフセットを適用
+        /// </summary>
+        private string ApplyTimeOffset(string timecode)
+        {
+            if (timeOffset == 0f) return timecode;
+            if (string.IsNullOrEmpty(timecode)) return timecode;
+            
+            float seconds = TimecodeToSeconds(timecode);
+            seconds += timeOffset;
+            
+            // 負の値は0にクランプ
+            if (seconds < 0) seconds = 0;
+            
+            return SecondsToTimecode(seconds);
+        }
+        
+        /// <summary>
+        /// 秒数をタイムコード文字列に変換
+        /// </summary>
+        private string SecondsToTimecode(float totalSeconds)
+        {
+            // 24時間を超える場合の処理
+            totalSeconds = totalSeconds % 86400; // 24 * 60 * 60
+            if (totalSeconds < 0) totalSeconds += 86400;
+            
+            int hours = (int)(totalSeconds / 3600);
+            int minutes = (int)((totalSeconds % 3600) / 60);
+            int seconds = (int)(totalSeconds % 60);
+            int frames = (int)((totalSeconds % 1) * frameRate);
+            
+            return $"{hours:D2}:{minutes:D2}:{seconds:D2}:{frames:D2}";
         }
         
         #endregion

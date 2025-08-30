@@ -27,6 +27,10 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("同期を有効にする")]
     [SerializeField] private bool enableSync = true;
     
+    [Header("Time Offset")]
+    [Tooltip("Timeline同期時に適用するオフセット（秒）")]
+    [SerializeField] private float timelineOffset = 0f;
+    
     [Header("Status")]
     [SerializeField] private bool isPlaying = false;
     [SerializeField] private float currentTimeDifference = 0f;
@@ -104,7 +108,7 @@ public class LTCTimelineSync : MonoBehaviour
         {
             // LTC開始 → TimelineをOutputTCに合わせて再生開始
             string outputTC = ltcDecoder.CurrentTimecode;
-            float targetTime = ParseTimecodeToSeconds(outputTC);
+            float targetTime = ParseTimecodeToSeconds(outputTC) + timelineOffset;
             
             if (targetTime >= 0)
             {
@@ -131,7 +135,7 @@ public class LTCTimelineSync : MonoBehaviour
         else if (isReceivingLTC)
         {
             string outputTC = ltcDecoder.CurrentTimecode;
-            ltcTime = ParseTimecodeToSeconds(outputTC);
+            ltcTime = ParseTimecodeToSeconds(outputTC) + timelineOffset;
             
             if (ltcTime >= 0)
             {
@@ -156,10 +160,10 @@ public class LTCTimelineSync : MonoBehaviour
                         if (driftDuration >= continuousObservationTime)
                         {
                             // 指定時間以上ドリフトが継続 → 即座に同期
-                            playableDirector.time = ltcTime;
+                            playableDirector.time = ltcTime;  // オフセット適用済みのltcTimeを使用
                             playableDirector.Evaluate();
                             
-                            LogDebug($"Drift persisted for {driftDuration:F1}s - Timeline jumped to {outputTC} ({ltcTime:F3}s)");
+                            LogDebug($"Drift persisted for {driftDuration:F1}s - Timeline jumped to {outputTC} ({ltcTime:F3}s with offset: {timelineOffset:F3}s)");
                             
                             // ドリフト状態をリセット
                             isDrifting = false;
@@ -267,12 +271,15 @@ public class LTCTimelineSync : MonoBehaviour
     /// </summary>
     public void SeekToTimecode(string timecodeString)
     {
-        float targetTime = ParseTimecodeToSeconds(timecodeString);
+        float targetTime = ParseTimecodeToSeconds(timecodeString) + timelineOffset;
         if (targetTime >= 0 && playableDirector != null)
         {
+            // ドュレーション内にクランプ
+            targetTime = Mathf.Clamp(targetTime, 0, (float)playableDirector.duration);
+            
             playableDirector.time = targetTime;
             playableDirector.Evaluate();
-            LogDebug($"Timeline seeked to {timecodeString} ({targetTime:F3}s)");
+            LogDebug($"Timeline seeked to {timecodeString} ({targetTime:F3}s with offset: {timelineOffset:F3}s)");
         }
     }
     
