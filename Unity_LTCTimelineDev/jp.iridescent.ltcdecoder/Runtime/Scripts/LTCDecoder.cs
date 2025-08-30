@@ -150,7 +150,7 @@ namespace jp.iridescent.ltcdecoder
         private bool wasDecodingLTC = false;       // 前フレームでデコード中だったか
         
         // デバッガー参照（オプショナル）
-        private LTC.Debug.LTCEventDebugger debugger;
+        private LTCEventDebugger debugger;
         
         #endregion
         
@@ -194,7 +194,7 @@ namespace jp.iridescent.ltcdecoder
             }
             
             // デバッガーを取得（オプショナル）
-            debugger = GetComponent<LTC.Debug.LTCEventDebugger>();
+            debugger = GetComponent<LTCEventDebugger>();
         }
         
         private void OnEnable()
@@ -253,7 +253,7 @@ namespace jp.iridescent.ltcdecoder
                     
                     // デバッグメッセージ
                     debugger?.AddDebugMessage($"LTC Decoding Stopped at {currentTimecode} (Timeout)", 
-                        LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.yellow);
+                        DebugMessage.EVENT, UnityEngine.Color.yellow);
                 }
             }
         }
@@ -389,7 +389,7 @@ namespace jp.iridescent.ltcdecoder
                     
                     // デバッグメッセージ追加
                     debugger?.AddDebugMessage($"Timecode Event '{tcEvent.eventName}' triggered at {eventData.currentTimecode}", 
-                        LTC.Debug.DebugMessage.TIMECODE_EVENT, UnityEngine.Color.cyan);
+                        DebugMessage.TIMECODE_EVENT, UnityEngine.Color.cyan);
                 }
             }
             
@@ -429,7 +429,7 @@ namespace jp.iridescent.ltcdecoder
                         
                         // デバッグメッセージ
                         debugger?.AddDebugMessage($"Event '{tcEvent.eventName}' reset (rewind detected)", 
-                            LTC.Debug.DebugMessage.INFO, UnityEngine.Color.yellow);
+                            DebugMessage.INFO, UnityEngine.Color.yellow);
                     }
                 }
             }
@@ -655,7 +655,7 @@ namespace jp.iridescent.ltcdecoder
                 
                 // デバッグメッセージ
                 debugger?.AddDebugMessage($"LTC Decoding Started at {tcString}", 
-                    LTC.Debug.DebugMessage.EVENT, UnityEngine.Color.green);
+                    DebugMessage.EVENT, UnityEngine.Color.green);
             }
             
             var sample = new LTCSample
@@ -829,7 +829,7 @@ namespace jp.iridescent.ltcdecoder
             
             // デバッグメッセージ追加
             debugger?.AddDebugMessage($"Jump detected: {oldTC} → {target.timecode}", 
-                LTC.Debug.DebugMessage.WARNING, UnityEngine.Color.yellow);
+                DebugMessage.WARNING, UnityEngine.Color.yellow);
         }
         
         /// <summary>

@@ -11,7 +11,10 @@
       "mcp__unity-natural-mcp__refresh_assets",
       "mcp__unity-natural-mcp__get_compile_logs",
       "mcp__unity-natural-mcp__get_current_console_logs",
-      "mcp__serena__replace_symbol_body"
+      "mcp__serena__replace_symbol_body",
+      "mcp__serena__find_file",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "additionalDirectories": [
       "C:\\Users\\uma92\\AppData\\Roaming",

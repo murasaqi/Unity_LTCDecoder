@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "jp.iridescent.ltcdecoder": "file:../jp.iridescent.ltcdecoder",
     "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
     "com.unity.ai.navigation": "2.0.8",
