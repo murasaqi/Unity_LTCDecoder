@@ -55,7 +55,6 @@ namespace jp.iridescent.ltcdecoder
         // イベント
         public event Action<DebugMessage> OnMessageAdded;
         public event Action OnHistoryCleared;
-        public event Action<string> OnDebugMessage;
         public event Action<string, Color> OnDebugMessageWithColor;  // 色情報付きイベント
         
         #endregion
@@ -591,13 +590,6 @@ namespace jp.iridescent.ltcdecoder
             
             // イベント発火
             OnMessageAdded?.Invoke(message);
-            
-            // OnDebugMessageイベント発火（旧形式）
-            if (OnDebugMessage != null)
-            {
-                string formattedMsg = $"[{message.category}] {message.message}";
-                OnDebugMessage.Invoke(formattedMsg);
-            }
             
             // OnDebugMessageWithColorイベント発火（色情報付き）
             if (OnDebugMessageWithColor != null)

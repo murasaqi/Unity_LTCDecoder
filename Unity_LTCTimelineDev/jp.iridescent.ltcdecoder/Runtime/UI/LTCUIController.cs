@@ -46,10 +46,8 @@ namespace jp.iridescent.ltcdecoder
                     ltcEventDebugger.IsEnabled = true;
                 }
                 
-                // OnDebugMessageイベントのリスナーを設定（色情報付き）
+                // OnDebugMessageWithColorイベントのリスナーを設定（色情報付き）
                 ltcEventDebugger.OnDebugMessageWithColor += AddDebugMessage;
-                // 互換性のために旧イベントもサポート
-                ltcEventDebugger.OnDebugMessage += (msg) => AddDebugMessage(msg, Color.white);
                 
                 // 初期化メッセージを追加（すぐに表示されるようにStartとして呼び出し）
                 StartCoroutine(ShowInitialMessages());
@@ -102,7 +100,6 @@ namespace jp.iridescent.ltcdecoder
             if (ltcEventDebugger != null)
             {
                 ltcEventDebugger.OnDebugMessageWithColor -= AddDebugMessage;
-                ltcEventDebugger.OnDebugMessage -= (msg) => AddDebugMessage(msg, Color.white);
             }
         }
         
