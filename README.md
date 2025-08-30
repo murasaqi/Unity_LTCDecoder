@@ -1,4 +1,4 @@
-# Unity LTC Timeline
+# Unity LTC Decoder
 
 Linear Timecode (LTC) decoder and Timeline synchronization package for Unity.
 
@@ -23,7 +23,7 @@ This repository contains a Unity Package that provides real-time LTC (Linear Tim
 2. Click the "+" button and select "Add package from git URL..."
 3. Enter the following URL:
    ```
-   https://github.com/murasaqi/Unity_LTCTimeline.git?path=jp.iridescent.ltcdecoder
+   https://github.com/murasaqi/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
    ```
 
 ### Via OpenUPM
