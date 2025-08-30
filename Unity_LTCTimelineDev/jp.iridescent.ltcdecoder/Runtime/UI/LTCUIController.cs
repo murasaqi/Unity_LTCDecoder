@@ -46,7 +46,10 @@ namespace jp.iridescent.ltcdecoder
                     ltcEventDebugger.IsEnabled = true;
                 }
                 
-                ltcEventDebugger.OnDebugMessage += AddDebugMessage;
+                // OnDebugMessageイベントのリスナーを設定（色情報付き）
+                ltcEventDebugger.OnDebugMessageWithColor += AddDebugMessage;
+                // 互換性のために旧イベントもサポート
+                ltcEventDebugger.OnDebugMessage += (msg) => AddDebugMessage(msg, Color.white);
                 
                 // 初期化メッセージを追加（すぐに表示されるようにStartとして呼び出し）
                 StartCoroutine(ShowInitialMessages());
@@ -62,23 +65,24 @@ namespace jp.iridescent.ltcdecoder
             
             if (ltcEventDebugger != null)
             {
-                ltcEventDebugger.AddDebugMessage("LTC UI Controller initialized", "SYSTEM");
-                ltcEventDebugger.AddDebugMessage($"Connected to LTC Decoder", "SYSTEM");
+                // システムメッセージをシアン色で
+                ltcEventDebugger.AddDebugMessage("LTC UI Controller initialized", "SYSTEM", new Color(0.5f, 1f, 1f));
+                ltcEventDebugger.AddDebugMessage($"Connected to LTC Decoder", "SYSTEM", new Color(0.5f, 1f, 1f));
                 
                 // デバッガーの状態を確認
                 if (ltcEventDebugger.IsEnabled)
                 {
-                    ltcEventDebugger.AddDebugMessage("Debug logging is enabled", "INFO");
+                    ltcEventDebugger.AddDebugMessage("Debug logging is enabled", "INFO", Color.white);
                 }
                 
                 // デコーダーの状態を表示
                 if (ltcDecoder != null)
                 {
-                    ltcEventDebugger.AddDebugMessage($"LTC Decoder found and connected", "SYSTEM");
+                    ltcEventDebugger.AddDebugMessage($"LTC Decoder found and connected", "SYSTEM", new Color(0.5f, 1f, 1f));
                 }
                 else
                 {
-                    ltcEventDebugger.AddDebugMessage("Warning: LTC Decoder not connected", "WARNING");
+                    ltcEventDebugger.AddDebugMessage("Warning: LTC Decoder not connected", "WARNING", new Color(1f, 0.7f, 0f));
                 }
             }
         }
@@ -97,7 +101,8 @@ namespace jp.iridescent.ltcdecoder
             // イベントリスナーの解除
             if (ltcEventDebugger != null)
             {
-                ltcEventDebugger.OnDebugMessage -= AddDebugMessage;
+                ltcEventDebugger.OnDebugMessageWithColor -= AddDebugMessage;
+                ltcEventDebugger.OnDebugMessage -= (msg) => AddDebugMessage(msg, Color.white);
             }
         }
         
@@ -181,6 +186,14 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void AddDebugMessage(string message)
         {
+            AddDebugMessage(message, Color.white);
+        }
+        
+        /// <summary>
+        /// デバッグメッセージを追加（色指定付き）
+        /// </summary>
+        public void AddDebugMessage(string message, Color color)
+        {
             if (debugMessageContainer == null) return;
             
             GameObject msgObj = GetOrCreateDebugMessageObject();
@@ -188,6 +201,7 @@ namespace jp.iridescent.ltcdecoder
             if (msgText != null)
             {
                 msgText.text = $"[{System.DateTime.Now:HH:mm:ss.fff}] {message}";
+                msgText.color = color;  // 色を適用
             }
             
             msgObj.transform.SetParent(debugMessageContainer, false);

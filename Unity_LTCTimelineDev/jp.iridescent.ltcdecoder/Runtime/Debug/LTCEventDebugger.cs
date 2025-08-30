@@ -56,6 +56,7 @@ namespace jp.iridescent.ltcdecoder
         public event Action<DebugMessage> OnMessageAdded;
         public event Action OnHistoryCleared;
         public event Action<string> OnDebugMessage;
+        public event Action<string, Color> OnDebugMessageWithColor;  // 色情報付きイベント
         
         #endregion
         
@@ -194,7 +195,8 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void AddEventMessage(string message)
         {
-            AddDebugMessage(message, DebugMessage.EVENT, Color.green);
+            // イベントメッセージを明るい緑色で強調
+            AddDebugMessage(message, DebugMessage.EVENT, new Color(0.2f, 1f, 0.2f));
         }
         
         /// <summary>
@@ -202,7 +204,8 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void AddWarningMessage(string message)
         {
-            AddDebugMessage(message, DebugMessage.WARNING, Color.yellow);
+            // 警告メッセージをオレンジ色で表示
+            AddDebugMessage(message, DebugMessage.WARNING, new Color(1f, 0.7f, 0f));
         }
         
         /// <summary>
@@ -210,7 +213,8 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void AddErrorMessage(string message)
         {
-            AddDebugMessage(message, DebugMessage.ERROR, Color.red);
+            // エラーメッセージを赤色で表示
+            AddDebugMessage(message, DebugMessage.ERROR, new Color(1f, 0.2f, 0.2f));
         }
         
         /// <summary>
@@ -366,7 +370,7 @@ namespace jp.iridescent.ltcdecoder
             sessionStartTime = DateTime.Now;
             isSessionActive = true;
             ResetStatistics();
-            AddDebugMessage("Debug session started", DebugMessage.INFO, Color.cyan);
+            AddDebugMessage("Debug session started", DebugMessage.INFO, new Color(0.5f, 1f, 1f));  // 明るいシアン
         }
         
         /// <summary>
@@ -380,7 +384,7 @@ namespace jp.iridescent.ltcdecoder
             isSessionActive = false;
             
             var duration = sessionEndTime - sessionStartTime;
-            AddDebugMessage($"Debug session ended. Duration: {duration:hh\\:mm\\:ss}", DebugMessage.INFO, Color.cyan);
+            AddDebugMessage($"Debug session ended. Duration: {duration:hh\\:mm\\:ss}", DebugMessage.INFO, new Color(0.5f, 1f, 1f));  // 明るいシアン
         }
         
         /// <summary>
@@ -415,7 +419,7 @@ namespace jp.iridescent.ltcdecoder
                 AddDebugMessage(
                     $"Performance [{label}]: {duration * 1000:F2}ms",
                     DebugMessage.PERFORMANCE,
-                    Color.magenta
+                    new Color(1f, 0.5f, 1f)  // 明るいマゼンタ
                 );
                 performanceTimers.Remove(label);
             }
@@ -491,7 +495,7 @@ namespace jp.iridescent.ltcdecoder
             AddDebugMessage(
                 $"LTC Started at {data.currentTimecode}",
                 DebugMessage.EVENT,
-                Color.green
+                new Color(0.2f, 1f, 0.2f)  // 明るい緑色
             );
             UpdateStatistics("LTC Started");
             
@@ -510,7 +514,7 @@ namespace jp.iridescent.ltcdecoder
             AddDebugMessage(
                 $"LTC Stopped at {data.currentTimecode}",
                 DebugMessage.EVENT,
-                Color.yellow
+                new Color(1f, 0.9f, 0.2f)  // 明るい黄色
             );
             UpdateStatistics("LTC Stopped");
             dropoutCount++;
@@ -531,7 +535,7 @@ namespace jp.iridescent.ltcdecoder
                 AddDebugMessage(
                     $"⚠ Timecode Jump: {lastTimecode} -> {data.currentTimecode}",
                     DebugMessage.WARNING,
-                    new Color(1f, 0.5f, 0f) // オレンジ色
+                    new Color(1f, 0.7f, 0f) // オレンジ色
                 );
             }
             lastTimecode = data.currentTimecode;
@@ -543,7 +547,7 @@ namespace jp.iridescent.ltcdecoder
                 AddDebugMessage(
                     $"Receiving: {data.currentTimecode} (Signal: {data.signalLevel:P0})",
                     DebugMessage.DEBUG,
-                    Color.gray
+                    new Color(0.7f, 0.7f, 0.7f)  // 明るいグレー
                 );
             }
         }
@@ -557,7 +561,7 @@ namespace jp.iridescent.ltcdecoder
                 AddDebugMessage(
                     "No Signal detected",
                     DebugMessage.WARNING,
-                    Color.yellow
+                    new Color(1f, 0.7f, 0f)  // オレンジ色
                 );
                 UpdateStatistics("No Signal");
                 dropoutCount++;
@@ -588,11 +592,18 @@ namespace jp.iridescent.ltcdecoder
             // イベント発火
             OnMessageAdded?.Invoke(message);
             
-            // OnDebugMessageイベント発火
+            // OnDebugMessageイベント発火（旧形式）
             if (OnDebugMessage != null)
             {
                 string formattedMsg = $"[{message.category}] {message.message}";
                 OnDebugMessage.Invoke(formattedMsg);
+            }
+            
+            // OnDebugMessageWithColorイベント発火（色情報付き）
+            if (OnDebugMessageWithColor != null)
+            {
+                string formattedMsg = $"[{message.category}] {message.message}";
+                OnDebugMessageWithColor.Invoke(formattedMsg, message.color);
             }
         }
         
