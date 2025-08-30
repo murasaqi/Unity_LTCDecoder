@@ -37,8 +37,6 @@ namespace jp.iridescent.ltcdecoder
             ltcDecoder = decoder;
             ltcEventDebugger = debugger;
             
-            Debug.Log("[LTCUIController] Setup called with decoder: " + (decoder != null) + ", debugger: " + (debugger != null));
-            
             // イベントリスナーの設定
             if (ltcEventDebugger != null)
             {
@@ -46,18 +44,12 @@ namespace jp.iridescent.ltcdecoder
                 if (!ltcEventDebugger.IsEnabled)
                 {
                     ltcEventDebugger.IsEnabled = true;
-                    Debug.Log("[LTCUIController] Enabled debugger");
                 }
                 
                 ltcEventDebugger.OnDebugMessage += AddDebugMessage;
-                Debug.Log("[LTCUIController] Connected OnDebugMessage event");
                 
                 // 初期化メッセージを追加（すぐに表示されるようにStartとして呼び出し）
                 StartCoroutine(ShowInitialMessages());
-            }
-            else
-            {
-                Debug.LogWarning("[LTCUIController] Setup called but debugger is null!");
             }
         }
         
@@ -66,16 +58,10 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         private System.Collections.IEnumerator ShowInitialMessages()
         {
-            Debug.Log("[LTCUIController] ShowInitialMessages coroutine started");
             yield return null; // 1フレーム待機
             
             if (ltcEventDebugger != null)
             {
-                Debug.Log("[LTCUIController] Adding initial messages...");
-                
-                // 直接AddDebugMessageを呼んでテスト
-                AddDebugMessage("[SYSTEM] LTC UI Controller initialized (Direct Test)");
-                
                 ltcEventDebugger.AddDebugMessage("LTC UI Controller initialized", "SYSTEM");
                 ltcEventDebugger.AddDebugMessage($"Connected to LTC Decoder", "SYSTEM");
                 
@@ -94,23 +80,14 @@ namespace jp.iridescent.ltcdecoder
                 {
                     ltcEventDebugger.AddDebugMessage("Warning: LTC Decoder not connected", "WARNING");
                 }
-                
-                Debug.Log("[LTCUIController] Initial messages added");
-            }
-            else
-            {
-                Debug.LogError("[LTCUIController] ltcEventDebugger is null in coroutine!");
             }
         }
         
         void Start()
         {
-            Debug.Log("[LTCUIController] Start called");
-            
             // Startで自動的にSetupを試みる（コンポーネントが設定されている場合）
             if (ltcDecoder != null && ltcEventDebugger != null)
             {
-                Debug.Log("[LTCUIController] Auto-setup from Start");
                 Setup(ltcDecoder, ltcEventDebugger);
             }
         }
@@ -204,31 +181,18 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void AddDebugMessage(string message)
         {
-            Debug.Log($"[LTCUIController] AddDebugMessage called: {message}");
-            
-            if (debugMessageContainer == null) 
-            {
-                Debug.LogError("[LTCUIController] debugMessageContainer is null!");
-                return;
-            }
+            if (debugMessageContainer == null) return;
             
             GameObject msgObj = GetOrCreateDebugMessageObject();
             Text msgText = msgObj.GetComponent<Text>();
             if (msgText != null)
             {
                 msgText.text = $"[{System.DateTime.Now:HH:mm:ss.fff}] {message}";
-                Debug.Log($"[LTCUIController] Message text set: {msgText.text}");
-            }
-            else
-            {
-                Debug.LogError("[LTCUIController] msgText is null!");
             }
             
             msgObj.transform.SetParent(debugMessageContainer, false);
             msgObj.SetActive(true);
             activeDebugMessages.Add(msgObj);
-            
-            Debug.Log($"[LTCUIController] Message added. Total messages: {activeDebugMessages.Count}");
             
             // 最大数を超えたら古いメッセージを削除
             while (activeDebugMessages.Count > maxDebugMessages)
@@ -275,13 +239,13 @@ namespace jp.iridescent.ltcdecoder
                 msgObj = new GameObject("DebugMessage");
                 Text text = msgObj.AddComponent<Text>();
                 text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                text.fontSize = 12;
+                text.fontSize = 11;  // フォントサイズを少し小さく
                 text.color = Color.white;
                 
                 // LayoutElementを追加して高さを固定
                 LayoutElement layout = msgObj.AddComponent<LayoutElement>();
-                layout.minHeight = 20;
-                layout.preferredHeight = 20;
+                layout.minHeight = 12;  // 最小高さを削減
+                layout.preferredHeight = 12;  // 優先高さを削減
             }
             
             return msgObj;

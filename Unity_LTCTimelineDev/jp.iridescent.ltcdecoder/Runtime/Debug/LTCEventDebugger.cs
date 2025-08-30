@@ -579,10 +579,7 @@ namespace jp.iridescent.ltcdecoder
                 messageHistory.Dequeue();
             }
             
-            // デバッグログ（イベント発火の確認用）
-            UnityEngine.Debug.Log($"[LTCEventDebugger] AddMessageInternal: {message.message}");
-            
-            // コンソールログ
+            // コンソールログ（logToConsoleが有効な場合のみ）
             if (logToConsole)
             {
                 UnityEngine.Debug.Log(message.GetFormattedMessage());
@@ -595,12 +592,7 @@ namespace jp.iridescent.ltcdecoder
             if (OnDebugMessage != null)
             {
                 string formattedMsg = $"[{message.category}] {message.message}";
-                UnityEngine.Debug.Log($"[LTCEventDebugger] Firing OnDebugMessage event: {formattedMsg}");
                 OnDebugMessage.Invoke(formattedMsg);
-            }
-            else
-            {
-                UnityEngine.Debug.LogWarning("[LTCEventDebugger] OnDebugMessage has no listeners!");
             }
         }
         

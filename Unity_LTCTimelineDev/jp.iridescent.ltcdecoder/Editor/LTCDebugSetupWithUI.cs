@@ -339,8 +339,8 @@ namespace jp.iridescent.ltcdecoder.Editor
             layout.childControlWidth = true;
             layout.childForceExpandHeight = false;
             layout.childForceExpandWidth = true;
-            layout.spacing = 2;
-            layout.padding = new RectOffset(5, 5, 5, 5);
+            layout.spacing = 1;  // スペーシングを最小に
+            layout.padding = new RectOffset(5, 5, 2, 2);  // 上下パディングを削減
             
             ContentSizeFitter fitter = content.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -365,10 +365,6 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
             controller.debugMessageContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
             controller.debugScrollRect = mainPanel.transform.Find("DebugScrollView")?.GetComponent<ScrollRect>();
-            
-            // デバッグ用に参照の状態を確認
-            UnityEngine.Debug.Log($"[LTCDebugSetupWithUI] debugMessageContainer: {controller.debugMessageContainer != null}");
-            UnityEngine.Debug.Log($"[LTCDebugSetupWithUI] debugScrollRect: {controller.debugScrollRect != null}");
             
             // LTCDecoderとLTCEventDebuggerを設定（参照設定後に）
             LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
@@ -407,7 +403,7 @@ namespace jp.iridescent.ltcdecoder.Editor
                 debugger?.AddDebugMessage("Debug messages copied to clipboard", "SYSTEM");
             });
             
-            UnityEngine.Debug.Log("[LTC Decoder Setup] LTCUIController configured successfully");
+            // セットアップ完了
         }
     }
 }
