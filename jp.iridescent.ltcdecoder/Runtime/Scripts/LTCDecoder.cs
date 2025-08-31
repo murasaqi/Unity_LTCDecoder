@@ -189,6 +189,7 @@ namespace jp.iridescent.ltcdecoder
         public string DecodedTimecode => decodedTimecode;
         public SyncState State => currentState;
         public bool HasSignal => hasSignal;
+        public bool IsRunning => isRunning;  // 内部クロックが動作中かどうか
         public float SignalLevel => signalLevel;
         public float TimeDifference => timeDifference;
         public bool IsRecording => microphoneClip != null;
