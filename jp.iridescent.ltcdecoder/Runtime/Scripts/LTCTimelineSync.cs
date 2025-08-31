@@ -17,7 +17,6 @@ public class LTCTimelineSync : MonoBehaviour
     [Header("LTC Source")]
     [SerializeField] private LTCDecoder ltcDecoder;
     
-    [Header("Timeline Target")]
     [Tooltip("同期対象のPlayableDirector。未設定の場合は同じGameObjectから自動検索")]
     [SerializeField] private PlayableDirector playableDirector;
     
@@ -31,7 +30,6 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("同期を有効にする")]
     [SerializeField] private bool enableSync = true;
     
-    [Header("Time Offset")]
     [Tooltip("Timeline同期時に適用するオフセット（秒）")]
     [SerializeField] private float timelineOffset = 0f;
     
