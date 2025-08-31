@@ -296,7 +296,7 @@ public class LTCTimelineSync : MonoBehaviour
         }
         
         playableDirector.playableAsset = timeline;
-        LogDebug($"Timeline set: {timeline != null ? timeline.name : "null"}");
+        LogDebug($"Timeline set: {(timeline != null ? timeline.name : "null")}");
     }
     
     /// <summary>
