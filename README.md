@@ -82,6 +82,8 @@ Unityメニューから簡単にセットアップできます。
 
 Unity TimelineをデコードされたLTCと同期させるコンポーネントです。
 
+![LTC Timeline Sync](Documents/LTCTimelineSync.png)
+
 **同期設定**:
 - `Sync Threshold`: 同期トリガー閾値です (デフォルト: 0.1秒)
 - `Smoothing Factor`: タイムライン調整の滑らかさを設定します (0-1)

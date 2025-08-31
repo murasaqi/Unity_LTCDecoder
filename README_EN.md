@@ -82,6 +82,8 @@ This is the main LTC decoding component. It analyzes LTC signals from audio inpu
 
 This component synchronizes Unity Timeline with decoded LTC.
 
+![LTC Timeline Sync](Documents/LTCTimelineSync.png)
+
 **Sync Settings**:
 - `Sync Threshold`: This is the sync trigger threshold (default: 0.1s)
 - `Smoothing Factor`: Sets timeline adjustment smoothness (0-1)
