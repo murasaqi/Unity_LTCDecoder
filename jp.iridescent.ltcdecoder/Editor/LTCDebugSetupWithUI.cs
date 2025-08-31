@@ -148,32 +148,35 @@ namespace jp.iridescent.ltcdecoder.Editor
             CreateTextAtPosition(mainPanel, "TimecodeDisplayLabel", "Timecode Display", 
                 new Vector2(190, -200), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
             
-            // Current Timecode - 大きく目立つように表示
-            CreateTextAtPosition(mainPanel, "CurrentTCLabel", "TIMECODE", 
-                new Vector2(190, -230), new Vector2(200, 30), 16, TextAnchor.MiddleCenter, new Color(0.7f, 0.9f, 1f), true);
-            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
-                new Vector2(190, -265), new Vector2(300, 45), 32, TextAnchor.MiddleCenter, Color.white, true);
+            // 統合表示用のメインテキスト（1行表示）
+            // フォーマット: [REC] 01:23:45:12 | ████████░░ 85%
+            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "[---] 00:00:00:00 | ░░░░░░░░░░ 000%", 
+                new Vector2(190, -240), new Vector2(360, 35), 18, TextAnchor.MiddleCenter, Color.white, false);
             
-            // Status
-            CreateTextAtPosition(mainPanel, "StatusLabel", "Status:", 
-                new Vector2(70, -320), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateTextAtPosition(mainPanel, "StatusText", "NO SIGNAL", 
-                new Vector2(160, -320), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
+            // 互換性のために残すが非表示（LTCUIControllerが参照する可能性があるため）
+            GameObject statusText = CreateTextAtPosition(mainPanel, "StatusText", "", 
+                new Vector2(-1000, -1000), new Vector2(1, 1), 1, TextAnchor.MiddleLeft, Color.clear, false);
+            statusText.SetActive(false);
             
-            // Signal Level
-            CreateTextAtPosition(mainPanel, "SignalLabel", "Signal Level:", 
-                new Vector2(70, -360), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateSignalBar(mainPanel, new Vector2(180, -360));
-            CreateTextAtPosition(mainPanel, "SignalLevelText", "0%", 
-                new Vector2(340, -360), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            GameObject signalLevelText = CreateTextAtPosition(mainPanel, "SignalLevelText", "", 
+                new Vector2(-1000, -1000), new Vector2(1, 1), 1, TextAnchor.MiddleLeft, Color.clear, false);
+            signalLevelText.SetActive(false);
             
-            // Control Buttons
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -410), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -410), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -410), new Vector2(80, 35));
+            // シグナルバーも非表示で作成（互換性のため）
+            GameObject signalBar = new GameObject("SignalLevelBar");
+            signalBar.transform.SetParent(mainPanel.transform, false);
+            GameObject fill = new GameObject("Fill");
+            fill.transform.SetParent(signalBar.transform, false);
+            fill.AddComponent<Image>().color = Color.clear;
+            signalBar.SetActive(false);
             
-            // Debug Message Area
-            CreateDebugScrollView(mainPanel, new Vector2(10, -460), new Vector2(360, 230));
+            // Control Buttons（位置を上に調整）
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -290), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -290), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -290), new Vector2(80, 35));
+            
+            // Debug Message Area（位置とサイズを調整）
+            CreateDebugScrollView(mainPanel, new Vector2(10, -340), new Vector2(360, 350));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
