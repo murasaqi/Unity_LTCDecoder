@@ -303,9 +303,21 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnEnable()
         {
-            if (!string.IsNullOrEmpty(selectedDevice))
+            // Play中は録音を開始
+            if (Application.isPlaying)
             {
-                StartRecording();
+                // デバイスが設定されていない場合は、利用可能な最初のデバイスを使用
+                if (string.IsNullOrEmpty(selectedDevice) && Microphone.devices.Length > 0)
+                {
+                    selectedDevice = Microphone.devices[0];
+                    SaveSettings();
+                    LogDebug($"No device selected, using first available: {selectedDevice}");
+                }
+                
+                if (!string.IsNullOrEmpty(selectedDevice))
+                {
+                    StartRecording();
+                }
             }
         }
         
@@ -660,7 +672,8 @@ namespace jp.iridescent.ltcdecoder
             selectedDevice = deviceName;
             SaveSettings();  // 設定を保存
             
-            if (wasRecording && !string.IsNullOrEmpty(deviceName))
+            // Play中は常に録音を開始（初回設定時も含む）
+            if (Application.isPlaying && !string.IsNullOrEmpty(deviceName))
             {
                 StartRecording();
             }
@@ -673,12 +686,37 @@ namespace jp.iridescent.ltcdecoder
         
         private void StartRecording()
         {
-            if (string.IsNullOrEmpty(selectedDevice)) return;
+            if (string.IsNullOrEmpty(selectedDevice))
+            {
+                // デバイスが設定されていない場合、利用可能な最初のデバイスを使用
+                if (Microphone.devices.Length > 0)
+                {
+                    selectedDevice = Microphone.devices[0];
+                    SaveSettings();
+                    LogDebug($"No device selected, using first available: {selectedDevice}");
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning("No audio devices available");
+                    return;
+                }
+            }
             
             if (!Microphone.devices.Contains(selectedDevice))
             {
-                UnityEngine.Debug.LogWarning($"Device '{selectedDevice}' not found");
-                return;
+                // 指定されたデバイスが見つからない場合、利用可能な最初のデバイスを使用
+                if (Microphone.devices.Length > 0)
+                {
+                    string oldDevice = selectedDevice;
+                    selectedDevice = Microphone.devices[0];
+                    SaveSettings();
+                    UnityEngine.Debug.LogWarning($"Device '{oldDevice}' not found, using '{selectedDevice}' instead");
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning($"Device '{selectedDevice}' not found and no other devices available");
+                    return;
+                }
             }
             
             microphoneClip = Microphone.Start(selectedDevice, true, 1, sampleRate);
