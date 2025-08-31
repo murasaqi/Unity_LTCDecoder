@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] READMEを日本語/英語版で更新（画像付き）
 - [x] LTC Timeline Syncの外部制御API拡充
 - [x] LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化
 - [x] Play終了後のInspector自動リフレッシュ処理を実装
@@ -77,6 +78,15 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-09-01
+- READMEを日本語/英語版で更新
+  - 日本語版README.mdをメインに配置
+  - 英語版README_EN.mdへのリンクを追加
+  - Documents/ディレクトリの画像を埋め込み
+  - Inspector ViewとDebug UIのスクリーンショットを追加
+  - 最新の実装状況に合わせて内容を更新
+  - API使用例、推奨設定、トラブルシューティング等を充実
 
 ### 2025-08-31 (13)
 - LTC Timeline Syncの外部制御API拡充

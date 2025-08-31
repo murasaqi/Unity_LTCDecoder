@@ -10,14 +10,14 @@ namespace jp.iridescent.ltcdecoder.Samples
     public class TimecodeEventLogger : MonoBehaviour
     {
         [Header("Settings")]
-        [Tooltip("ログを出力するLTCDecoderUI")]
+        [Tooltip("LTCDecoderUI to output logs / ログを出力するLTCDecoderUI")]
         [SerializeField] private LTCDecoderUI targetUI;
         
-        [Tooltip("イベント名（ログに表示される）")]
+        [Tooltip("Event name (displayed in logs) / イベント名（ログに表示される）")]
         [SerializeField] private string eventName = "TimecodeEvent";
         
         [Header("Options")]
-        [Tooltip("自動的にLTCDecoderUIを検索する")]
+        [Tooltip("Automatically search for LTCDecoderUI / 自動的にLTCDecoderUIを検索する")]
         [SerializeField] private bool autoFindUI = true;
         
         void Start()

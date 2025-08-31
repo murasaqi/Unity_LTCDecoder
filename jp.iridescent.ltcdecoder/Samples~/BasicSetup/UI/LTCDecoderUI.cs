@@ -43,15 +43,15 @@ namespace jp.iridescent.ltcdecoder.Samples
         [SerializeField] private Text anomalyCountText;
         
         [Header("Event Log Messages")]
-        [Tooltip("LTC開始時のメッセージ ({timecode}=TC, {signal}=信号レベル)")]
+        [Tooltip("Message when LTC starts ({timecode}=TC, {signal}=signal level) / LTC開始時のメッセージ ({timecode}=TC, {signal}=信号レベル)")]
         [SerializeField] private string ltcStartedMessage = "LTC信号受信開始";
-        [Tooltip("LTC停止時のメッセージ")]
+        [Tooltip("Message when LTC stops / LTC停止時のメッセージ")]
         [SerializeField] private string ltcStoppedMessage = "LTC信号停止 at {timecode}";
-        [Tooltip("LTC受信中のメッセージ")]
+        [Tooltip("Message while receiving LTC / LTC受信中のメッセージ")]
         [SerializeField] private string ltcReceivingMessage = "受信中: {timecode}";
-        [Tooltip("信号なし時のメッセージ")]
+        [Tooltip("Message when no signal / 信号なし時のメッセージ")]
         [SerializeField] private string ltcNoSignalMessage = "⚠ 信号喪失";
-        [Tooltip("タイムコードイベント時のメッセージ ({eventName}=イベント名)")]
+        [Tooltip("Message for timecode event ({eventName}=event name) / タイムコードイベント時のメッセージ ({eventName}=イベント名)")]
         [SerializeField] private string timecodeEventMessageFormat = "イベント '{eventName}' 発火: {timecode}";
         
         #endregion

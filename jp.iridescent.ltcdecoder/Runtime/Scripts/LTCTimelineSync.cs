@@ -17,20 +17,20 @@ public class LTCTimelineSync : MonoBehaviour
     [Header("LTC Source")]
     [SerializeField] private LTCDecoder ltcDecoder;
     
-    [Tooltip("同期対象のPlayableDirector。未設定の場合は同じGameObjectから自動検索")]
+    [Tooltip("PlayableDirector to sync. Auto-searches from same GameObject if not set / 同期対象のPlayableDirector。未設定の場合は同じGameObjectから自動検索")]
     [SerializeField] private PlayableDirector playableDirector;
     
     [Header("Sync Settings")]
-    [Tooltip("時間差がこの値を超えた状態が継続したら同期（秒）")]
+    [Tooltip("Sync when time difference exceeds this value continuously (seconds) / 時間差がこの値を超えた状態が継続したら同期（秒）")]
     [SerializeField, Range(0.1f, 2.0f)] private float syncThreshold = 0.5f;
     
-    [Tooltip("同期判定に必要な連続観測時間（秒）")]
+    [Tooltip("Continuous observation time required for sync decision (seconds) / 同期判定に必要な連続観測時間（秒）")]
     [SerializeField, Range(0.1f, 5.0f)] private float continuousObservationTime = 1.0f;
     
-    [Tooltip("同期を有効にする")]
+    [Tooltip("Enable synchronization / 同期を有効にする")]
     [SerializeField] private bool enableSync = true;
     
-    [Tooltip("Timeline同期時に適用するオフセット（秒）")]
+    [Tooltip("Offset applied during Timeline sync (seconds) / Timeline同期時に適用するオフセット（秒）")]
     [SerializeField] private float timelineOffset = 0f;
     
     [Header("Status")]

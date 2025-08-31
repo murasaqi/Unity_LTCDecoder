@@ -16,14 +16,14 @@ namespace jp.iridescent.ltcdecoder
     {
         #region フィールド
         
-        [Header("デバッグ設定")]
+        [Header("Debug Settings")]
         [SerializeField] private bool enableDebugger = true;
         [SerializeField] private int maxHistorySize = 100;
         [SerializeField] private bool logToConsole = false;
         
         // コンポーネント参照
-        [Header("参照設定")]
-        [Tooltip("LTCDecoderへの参照（自動取得されない場合は手動で設定）")]
+        [Header("References")]
+        [Tooltip("Reference to LTCDecoder (set manually if not auto-detected) / LTCDecoderへの参照（自動取得されない場合は手動で設定）")]
         [SerializeField] private LTCDecoder ltcDecoder;
         
         // メッセージ履歴

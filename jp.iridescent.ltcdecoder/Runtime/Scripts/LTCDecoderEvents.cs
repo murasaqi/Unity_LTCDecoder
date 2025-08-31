@@ -40,25 +40,25 @@ namespace jp.iridescent.ltcdecoder
     public class TimecodeEvent
     {
         [Header("Event Settings")]
-        [Tooltip("イベントの名前（識別用）")]
+        [Tooltip("Event name (for identification) / イベントの名前（識別用）")]
         public string eventName = "New Event";
         
-        [Tooltip("発火するタイムコード (HH:MM:SS:FF)")]
+        [Tooltip("Timecode to trigger (HH:MM:SS:FF) / 発火するタイムコード (HH:MM:SS:FF)")]
         public string targetTimecode = "00:00:00:00";
         
-        [Tooltip("許容誤差（フレーム数）")]
+        [Tooltip("Tolerance (number of frames) / 許容誤差（フレーム数）")]
         [Range(0, 5)]
         public int toleranceFrames = 1;
         
         [Header("Trigger Settings")]
-        [Tooltip("一度だけ発火する")]
+        [Tooltip("Fire only once / 一度だけ発火する")]
         public bool oneShot = true;
         
-        [Tooltip("イベントを有効にする")]
+        [Tooltip("Enable event / イベントを有効にする")]
         public bool enabled = true;
         
         [Space(10)]
-        [Tooltip("このタイムコードに到達した時に実行されるイベント")]
+        [Tooltip("Event executed when this timecode is reached / このタイムコードに到達した時に実行されるイベント")]
         public UnityEvent<LTCEventData> onTimecodeReached;
         
         // 内部状態

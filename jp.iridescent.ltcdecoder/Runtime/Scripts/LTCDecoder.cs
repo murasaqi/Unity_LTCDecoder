@@ -76,7 +76,7 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField] private bool useDropFrame = false;
         
         [Header("Time Offset")]
-        [Tooltip("出力タイムコード（Output TC）に適用するオフセット（秒）")]
+        [Tooltip("Offset applied to Output TC (seconds) / 出力タイムコード（Output TC）に適用するオフセット（秒）")]
         [SerializeField] private float timeOffset = 0f;
         
         [Header("Debug")]
@@ -84,50 +84,50 @@ namespace jp.iridescent.ltcdecoder
         
         [Header("Events")]
         [Space(5)]
-        [Tooltip("LTC受信開始の瞬間に発火")]
+        [Tooltip("Fires at the moment LTC reception starts / LTC受信開始の瞬間に発火")]
         public LTCUnityEvent OnLTCStarted = new LTCUnityEvent();
         
-        [Tooltip("LTC受信停止の瞬間に発火")]
+        [Tooltip("Fires at the moment LTC reception stops / LTC受信停止の瞬間に発火")]
         public LTCUnityEvent OnLTCStopped = new LTCUnityEvent();
         
-        [Tooltip("LTC受信中、毎フレーム発火")]
+        [Tooltip("Fires every frame while receiving LTC / LTC受信中、毎フレーム発火")]
         public LTCUnityEvent OnLTCReceiving = new LTCUnityEvent();
         
-        [Tooltip("LTC未受信中、毎フレーム発火")]
+        [Tooltip("Fires every frame while not receiving LTC / LTC未受信中、毎フレーム発火")]
         public LTCUnityEvent OnLTCNoSignal = new LTCUnityEvent();
         
         [Header("Timecode Events")]
         [SerializeField] private List<TimecodeEvent> timecodeEvents = new List<TimecodeEvent>();
-        [Tooltip("タイムコード巻き戻し時にイベントをリセット")]
+        [Tooltip("Reset events when timecode rewinds / タイムコード巻き戻し時にイベントをリセット")]
         [SerializeField] private bool resetOnRewind = true;
         
         [Header("Signal Events")]
-        [Tooltip("LTC信号の受信を開始した時に発火")]
+        [Tooltip("Fires when LTC signal reception starts / LTC信号の受信を開始した時に発火")]
         public UnityEvent onLTCStarted = new UnityEvent();
         
-        [Tooltip("LTC信号の受信を停止した時に発火")]
+        [Tooltip("Fires when LTC signal reception stops / LTC信号の受信を停止した時に発火")]
         public UnityEvent onLTCStopped = new UnityEvent();
         
-        [Tooltip("タイムコードが更新された時に発火")]
+        [Tooltip("Fires when timecode is updated / タイムコードが更新された時に発火")]
         public LTCUnityEvent onTimecodeUpdated = new LTCUnityEvent();
         
-        [Tooltip("信号レベルが変化した時に発火")]
+        [Tooltip("Fires when signal level changes / 信号レベルが変化した時に発火")]
         public UnityEvent<float> onSignalLevelChanged = new UnityEvent<float>();
         
         [Header("Advanced Drift Control")]
-        [Tooltip("このサイズ以下のドリフトは完全に無視（ノイズとみなす）")]
+        [Tooltip("Drifts below this size are completely ignored (considered noise) / このサイズ以下のドリフトは完全に無視（ノイズとみなす）")]
         [SerializeField, Range(0.01f, 0.1f)] private float driftDeadzoneSmall = 0.03f;
         
-        [Tooltip("このサイズ以下のドリフトは緩やかに補正")]
+        [Tooltip("Drifts below this size are corrected gradually / このサイズ以下のドリフトは緩やかに補正")]
         [SerializeField, Range(0.05f, 0.3f)] private float driftDeadzoneMedium = 0.1f;
         
-        [Tooltip("このサイズ以上のドリフトは即座に同期")]
+        [Tooltip("Drifts above this size are synced immediately / このサイズ以上のドリフトは即座に同期")]
         [SerializeField, Range(0.2f, 1.0f)] private float driftThresholdLarge = 0.3f;
         
-        [Tooltip("小さなドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [Tooltip("Correction rate for small drifts (0-1, smaller is slower) / 小さなドリフトの補正率（0-1、小さいほどゆっくり）")]
         [SerializeField, Range(0.001f, 0.1f)] private float driftCorrectionSlow = 0.01f;
         
-        [Tooltip("通常ドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [Tooltip("Correction rate for normal drifts (0-1, smaller is slower) / 通常ドリフトの補正率（0-1、小さいほどゆっくり）")]
         [SerializeField, Range(0.01f, 0.5f)] private float driftCorrectionNormal = 0.1f;
         
         #endregion
