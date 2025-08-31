@@ -217,10 +217,10 @@ namespace jp.iridescent.ltcdecoder
         public string[] AvailableDevices => Microphone.devices;
         
         // C#標準のイベント（外部スクリプトから += で簡単に登録可能）
-        public event System.Action OnLTCStarted;
-        public event System.Action OnLTCStopped;
-        public event System.Action<LTCEventData> OnTimecodeUpdated;
-        public event System.Action<float> OnSignalLevelChanged;
+        public event System.Action LTCStarted;
+        public event System.Action LTCStopped;
+        public event System.Action<LTCEventData> TimecodeUpdated;
+        public event System.Action<float> SignalLevelChanged;
         public bool DropFrame => useDropFrame;
         public LTCFrameRate FrameRate
         {
@@ -506,7 +506,8 @@ namespace jp.iridescent.ltcdecoder
                         0f
                     );
                     onLTCStopped?.Invoke();
-                    OnLTCStopped?.Invoke();
+                    OnLTCStopped?.Invoke(eventData);
+                    LTCStopped?.Invoke();
                     
                     // デバッグメッセージ
                     debugger?.AddDebugMessage($"LTC Decoding Stopped at {currentTimecode} (Timeout)", 
@@ -551,7 +552,7 @@ namespace jp.iridescent.ltcdecoder
             {
                 var tcEventData = new LTCEventData(currentTimecode, (float)internalTcTime, hasSignal, signalLevel);
                 onTimecodeUpdated?.Invoke(tcEventData);
-                OnTimecodeUpdated?.Invoke(tcEventData);
+                TimecodeUpdated?.Invoke(tcEventData);
             }
             
             // hasSignalはProcessDecodedLTCとProcessAudioBufferで管理される
@@ -932,7 +933,7 @@ namespace jp.iridescent.ltcdecoder
             if (Mathf.Abs(signalLevel - previousLevel) > 0.01f)
             {
                 onSignalLevelChanged?.Invoke(signalLevel);
-                OnSignalLevelChanged?.Invoke(signalLevel);
+                SignalLevelChanged?.Invoke(signalLevel);
             }
             
             // 音声信号の有無判定（生の振幅で判定）
@@ -993,7 +994,8 @@ namespace jp.iridescent.ltcdecoder
                     signalLevel
                 );
                 onLTCStarted?.Invoke();
-                OnLTCStarted?.Invoke();
+                OnLTCStarted?.Invoke(eventData);
+                LTCStarted?.Invoke();
                 
                 // デバッグメッセージ
                 debugger?.AddDebugMessage($"LTC Decoding Started at {tcString}", 
