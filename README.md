@@ -45,11 +45,15 @@ https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdeco
    - PlayableDirectorを持つGameObjectに`LTCTimelineSync`コンポーネントを追加してください
    - LTC Decoderコンポーネントへの参照を設定してください
 
-3. **再生**
-   - Playモードを開始してください
-   - LTC信号ソースを起動してください
+3. **動作確認**
+   - UnityをPlay
+   - Audio Interface等からLTCの音声を入力してください
 
 ### メニューからの簡単セットアップ
+
+Unityメニューから簡単にセットアップできます。
+
+![Menu Setup](Documents/Menu.png)
 
 **基本セットアップ**: `GameObject > LTC Decoder > Create LTC Decoder`
 
