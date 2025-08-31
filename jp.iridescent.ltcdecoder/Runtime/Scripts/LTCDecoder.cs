@@ -101,6 +101,19 @@ namespace jp.iridescent.ltcdecoder
         [Tooltip("タイムコード巻き戻し時にイベントをリセット")]
         [SerializeField] private bool resetOnRewind = true;
         
+        [Header("Signal Events")]
+        [Tooltip("LTC信号の受信を開始した時に発火")]
+        public UnityEvent onLTCStarted = new UnityEvent();
+        
+        [Tooltip("LTC信号の受信を停止した時に発火")]
+        public UnityEvent onLTCStopped = new UnityEvent();
+        
+        [Tooltip("タイムコードが更新された時に発火")]
+        public LTCUnityEvent onTimecodeUpdated = new LTCUnityEvent();
+        
+        [Tooltip("信号レベルが変化した時に発火")]
+        public UnityEvent<float> onSignalLevelChanged = new UnityEvent<float>();
+        
         [Header("Advanced Drift Control")]
         [Tooltip("このサイズ以下のドリフトは完全に無視（ノイズとみなす）")]
         [SerializeField, Range(0.01f, 0.1f)] private float driftDeadzoneSmall = 0.03f;
@@ -202,6 +215,12 @@ namespace jp.iridescent.ltcdecoder
         public bool IsRecording => microphoneClip != null;
         public string SelectedDevice => selectedDevice;
         public string[] AvailableDevices => Microphone.devices;
+        
+        // C#標準のイベント（外部スクリプトから += で簡単に登録可能）
+        public event System.Action OnLTCStarted;
+        public event System.Action OnLTCStopped;
+        public event System.Action<LTCEventData> OnTimecodeUpdated;
+        public event System.Action<float> OnSignalLevelChanged;
         public bool DropFrame => useDropFrame;
         public LTCFrameRate FrameRate
         {
@@ -486,7 +505,8 @@ namespace jp.iridescent.ltcdecoder
                         false,
                         0f
                     );
-                    OnLTCStopped?.Invoke(eventData);
+                    onLTCStopped?.Invoke();
+                    OnLTCStopped?.Invoke();
                     
                     // デバッグメッセージ
                     debugger?.AddDebugMessage($"LTC Decoding Stopped at {currentTimecode} (Timeout)", 
@@ -523,7 +543,16 @@ namespace jp.iridescent.ltcdecoder
             dspTimeBase = currentDsp;
             
             // タイムコード文字列に変換
+            string previousTimecode = currentTimecode;
             currentTimecode = SecondsToTimecode(internalTcTime);
+            
+            // タイムコードが変更された場合にイベント発火
+            if (previousTimecode != currentTimecode)
+            {
+                var tcEventData = new LTCEventData(currentTimecode, (float)internalTcTime, hasSignal, signalLevel);
+                onTimecodeUpdated?.Invoke(tcEventData);
+                OnTimecodeUpdated?.Invoke(tcEventData);
+            }
             
             // hasSignalはProcessDecodedLTCとProcessAudioBufferで管理される
             // ここでは設定しない
@@ -896,7 +925,15 @@ namespace jp.iridescent.ltcdecoder
             float normalizedLevel = maxAmplitude / Mathf.Max(signalLevelMax, AGC_MIN_THRESHOLD);
             
             // スムーズング適用
+            float previousLevel = signalLevel;
             signalLevel = Mathf.Lerp(signalLevel, Mathf.Clamp01(normalizedLevel), 0.5f);
+            
+            // 信号レベルが変化した場合にイベント発火（0.01以上の変化）
+            if (Mathf.Abs(signalLevel - previousLevel) > 0.01f)
+            {
+                onSignalLevelChanged?.Invoke(signalLevel);
+                OnSignalLevelChanged?.Invoke(signalLevel);
+            }
             
             // 音声信号の有無判定（生の振幅で判定）
             bool audioSignalPresent = maxAmplitude > signalThreshold;
@@ -955,7 +992,8 @@ namespace jp.iridescent.ltcdecoder
                     true,
                     signalLevel
                 );
-                OnLTCStarted?.Invoke(eventData);
+                onLTCStarted?.Invoke();
+                OnLTCStarted?.Invoke();
                 
                 // デバッグメッセージ
                 debugger?.AddDebugMessage($"LTC Decoding Started at {tcString}", 
@@ -1436,6 +1474,53 @@ namespace jp.iridescent.ltcdecoder
         public void ClearTimecodeEvents()
         {
             timecodeEvents.Clear();
+        }
+        
+        /// <summary>
+        /// より詳細な設定が可能なタイムコードイベント追加メソッド
+        /// </summary>
+        public TimecodeEvent AddTimecodeEventAdvanced(
+            string eventName,
+            string targetTimecode,
+            int toleranceFrames = 1,
+            bool oneShot = true,
+            bool enabled = true)
+        {
+            var newEvent = new TimecodeEvent
+            {
+                eventName = eventName,
+                targetTimecode = targetTimecode,
+                toleranceFrames = toleranceFrames,
+                oneShot = oneShot,
+                enabled = enabled
+            };
+            timecodeEvents.Add(newEvent);
+            return newEvent;
+        }
+        
+        /// <summary>
+        /// タイムコードイベントの有効/無効を切り替え
+        /// </summary>
+        public void SetTimecodeEventEnabled(string eventName, bool enabled)
+        {
+            var evt = timecodeEvents.FirstOrDefault(e => e.eventName == eventName);
+            if (evt != null) evt.enabled = enabled;
+        }
+        
+        /// <summary>
+        /// 特定のタイムコードイベントを取得
+        /// </summary>
+        public TimecodeEvent GetTimecodeEvent(string eventName)
+        {
+            return timecodeEvents.FirstOrDefault(e => e.eventName == eventName);
+        }
+        
+        /// <summary>
+        /// すべてのタイムコードイベントを取得（読み取り専用）
+        /// </summary>
+        public IReadOnlyList<TimecodeEvent> GetTimecodeEvents()
+        {
+            return timecodeEvents.AsReadOnly();
         }
         
         #endregion
