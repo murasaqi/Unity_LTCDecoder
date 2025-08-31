@@ -11,11 +11,14 @@ namespace jp.iridescent.ltcdecoder
 /// - 継続的なドリフト検出時：即座に同期
 /// </summary>
 [AddComponentMenu("Audio/LTC Timeline Sync")]
-[RequireComponent(typeof(PlayableDirector))]
 public class LTCTimelineSync : MonoBehaviour
 {
     [Header("LTC Source")]
     [SerializeField] private LTCDecoder ltcDecoder;
+    
+    [Header("Timeline Target")]
+    [Tooltip("同期対象のPlayableDirector。未設定の場合は同じGameObjectから自動検索")]
+    [SerializeField] private PlayableDirector playableDirector;
     
     [Header("Sync Settings")]
     [Tooltip("時間差がこの値を超えた状態が継続したら同期（秒）")]
@@ -42,7 +45,6 @@ public class LTCTimelineSync : MonoBehaviour
     [SerializeField] private bool enableDebugLog = false;
     
     // Private fields
-    private PlayableDirector playableDirector;
     private float driftStartTime = 0f;
     private bool isDrifting = false;
     private bool wasReceivingLTC = false;
@@ -60,7 +62,22 @@ public class LTCTimelineSync : MonoBehaviour
     
     private void Awake()
     {
-        playableDirector = GetComponent<PlayableDirector>();
+        // PlayableDirectorが未設定の場合の処理
+        if (playableDirector == null)
+        {
+            // 同じGameObjectから検索
+            playableDirector = GetComponent<PlayableDirector>();
+            
+            if (playableDirector == null)
+            {
+                // シーン内から検索（オプション）
+                Debug.LogWarning($"[LTC Sync] PlayableDirector not assigned on {gameObject.name}. Please assign it manually in the Inspector.");
+            }
+            else
+            {
+                Debug.Log($"[LTC Sync] PlayableDirector found on the same GameObject: {gameObject.name}");
+            }
+        }
         
         // LTCDecoderが未設定の場合は自動検索
         if (ltcDecoder == null)
@@ -244,6 +261,19 @@ public class LTCTimelineSync : MonoBehaviour
     }
     
     /// <summary>
+    /// PlayableDirectorを設定
+    /// </summary>
+    public void SetPlayableDirector(PlayableDirector director)
+    {
+        playableDirector = director;
+        if (director != null)
+        {
+            playableDirector.timeUpdateMode = DirectorUpdateMode.GameTime;
+        }
+        LogDebug($"PlayableDirector set: {director != null}");
+    }
+    
+    /// <summary>
     /// 同期をリセット
     /// </summary>
     public void ResetSync()
@@ -271,8 +301,14 @@ public class LTCTimelineSync : MonoBehaviour
     /// </summary>
     public void SeekToTimecode(string timecodeString)
     {
+        if (playableDirector == null)
+        {
+            LogDebug("Cannot seek - PlayableDirector is not assigned");
+            return;
+        }
+        
         float targetTime = ParseTimecodeToSeconds(timecodeString) + timelineOffset;
-        if (targetTime >= 0 && playableDirector != null)
+        if (targetTime >= 0)
         {
             // ドュレーション内にクランプ
             targetTime = Mathf.Clamp(targetTime, 0, (float)playableDirector.duration);
@@ -293,6 +329,10 @@ public class LTCTimelineSync : MonoBehaviour
             playableDirector.Play();
             isPlaying = true;
         }
+        else
+        {
+            LogDebug("Cannot play - PlayableDirector is not assigned");
+        }
     }
     
     /// <summary>
@@ -305,6 +345,10 @@ public class LTCTimelineSync : MonoBehaviour
             playableDirector.Pause();
             isPlaying = false;
         }
+        else
+        {
+            LogDebug("Cannot pause - PlayableDirector is not assigned");
+        }
     }
     
     /// <summary>
@@ -316,6 +360,10 @@ public class LTCTimelineSync : MonoBehaviour
         {
             playableDirector.Stop();
             isPlaying = false;
+        }
+        else
+        {
+            LogDebug("Cannot stop - PlayableDirector is not assigned");
         }
     }
     

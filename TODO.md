@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化
 - [x] Play終了後のInspector自動リフレッシュ処理を実装
 - [x] Play終了後のInspector/UI表示の更新処理を実装
 - [x] 設定管理システムの完全な再実装（UI/Inspector両対応）
@@ -75,6 +76,14 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (12)
+- LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化
+  - RequireComponent制約を削除
+  - PlayableDirectorをPublicフィールドで手動設定可能に
+  - 別GameObjectのPlayableDirectorも参照可能に
+  - SetPlayableDirector()メソッドを追加
+  - 後方互換性を維持（同一GameObject構成も引き続きサポート）
 
 ### 2025-08-31 (11)
 - Play終了後のInspector自動リフレッシュ処理を実装
