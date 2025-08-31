@@ -121,37 +121,33 @@ namespace jp.iridescent.ltcdecoder.Editor
             // メインパネル作成（380x700）
             GameObject mainPanel = CreateMainPanel(canvas);
             
-            // ヘッダー（位置: 中央上部）
-            CreateTextAtPosition(mainPanel, "HeaderText", "LTC Decoder Debug UI", 
-                new Vector2(190, -30), new Vector2(360, 40), 24, TextAnchor.MiddleCenter, Color.cyan, true);
+            // ヘッダー削除（タイムコードを最上部に大きく表示するため）
             
-            // --- Audio Input Settings セクション ---
+            // タイムコード表示（最上部に大きく配置）
+            // フォーマット: [REC] 01:23:45:12 | ████████░░ 85%
+            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "[---] 00:00:00:00 | ░░░░░░░░░░ 000%", 
+                new Vector2(190, -50), new Vector2(360, 45), 24, TextAnchor.MiddleCenter, Color.white, false);
+            
+            // --- Audio Input Settings セクション（中段に配置） ---
             CreateTextAtPosition(mainPanel, "AudioSettingsLabel", "Audio Input Settings", 
-                new Vector2(190, -70), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
+                new Vector2(190, -110), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
             
             // Device Dropdown
             CreateTextAtPosition(mainPanel, "DeviceLabel", "Device:", 
-                new Vector2(50, -100), new Vector2(60, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "DeviceDropdown", new Vector2(220, -100), new Vector2(250, 25));
+                new Vector2(50, -140), new Vector2(60, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "DeviceDropdown", new Vector2(220, -140), new Vector2(250, 25));
             
             // Frame Rate Dropdown
             CreateTextAtPosition(mainPanel, "FrameRateLabel", "Frame Rate:", 
-                new Vector2(60, -130), new Vector2(80, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "FrameRateDropdown", new Vector2(220, -130), new Vector2(250, 25));
+                new Vector2(60, -170), new Vector2(80, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "FrameRateDropdown", new Vector2(220, -170), new Vector2(250, 25));
             
             // Sample Rate Dropdown
             CreateTextAtPosition(mainPanel, "SampleRateLabel", "Sample Rate:", 
-                new Vector2(65, -160), new Vector2(90, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "SampleRateDropdown", new Vector2(220, -160), new Vector2(250, 25));
+                new Vector2(65, -200), new Vector2(90, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
+            CreateDropdownAtPosition(mainPanel, "SampleRateDropdown", new Vector2(220, -200), new Vector2(250, 25));
             
-            // --- Timecode Display セクション ---
-            CreateTextAtPosition(mainPanel, "TimecodeDisplayLabel", "Timecode Display", 
-                new Vector2(190, -200), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
-            
-            // 統合表示用のメインテキスト（1行表示）
-            // フォーマット: [REC] 01:23:45:12 | ████████░░ 85%
-            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "[---] 00:00:00:00 | ░░░░░░░░░░ 000%", 
-                new Vector2(190, -240), new Vector2(360, 35), 18, TextAnchor.MiddleCenter, Color.white, false);
+            // Timecode Displayラベル削除（タイムコードは最上部に移動済み）
             
             // 互換性のために残すが非表示（LTCUIControllerが参照する可能性があるため）
             GameObject statusText = CreateTextAtPosition(mainPanel, "StatusText", "", 
@@ -170,13 +166,13 @@ namespace jp.iridescent.ltcdecoder.Editor
             fill.AddComponent<Image>().color = Color.clear;
             signalBar.SetActive(false);
             
-            // Control Buttons（位置を上に調整）
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -290), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -290), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -290), new Vector2(80, 35));
+            // Control Buttons
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -250), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -250), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -250), new Vector2(80, 35));
             
-            // Debug Message Area（位置とサイズを調整）
-            CreateDebugScrollView(mainPanel, new Vector2(10, -340), new Vector2(360, 350));
+            // Debug Message Area
+            CreateDebugScrollView(mainPanel, new Vector2(10, -300), new Vector2(360, 390));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
