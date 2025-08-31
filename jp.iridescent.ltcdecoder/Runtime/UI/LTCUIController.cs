@@ -11,7 +11,8 @@ namespace jp.iridescent.ltcdecoder
     public class LTCUIController : MonoBehaviour
     {
         [Header("UI References")]
-        public Text currentTimecodeText;  // メイン表示用（タイムコード、ステータス、シグナルレベルを統合）
+        public Text currentTimecodeText;  // タイムコード表示用（1段目）
+        public Text statusLineText;  // ステータスライン表示用（2段目）
         public Text statusText;  // 互換性のため残すが使用しない
         public Text signalLevelText;  // 互換性のため残すが使用しない
         public Image signalLevelBar;  // 互換性のため残すが使用しない
@@ -306,11 +307,11 @@ namespace jp.iridescent.ltcdecoder
         }
         
         /// <summary>
-        /// タイムコード表示を更新（固定幅対応・1行統合表示）
+        /// タイムコード表示を更新（2段表示対応）
         /// </summary>
         private void UpdateTimecodeDisplay()
         {
-            if (currentTimecodeText == null || ltcDecoder == null) return;
+            if (ltcDecoder == null) return;
             
             // タイムコード取得
             string timecode = ltcDecoder.CurrentTimecode;
@@ -319,39 +320,47 @@ namespace jp.iridescent.ltcdecoder
                 timecode = "00:00:00:00";
             }
             
-            // ステータス取得（短縮形）
-            bool hasSignal = ltcDecoder.HasSignal;
-            string status = hasSignal ? "REC" : "---";
-            Color statusColor = hasSignal ? Color.green : Color.gray;
-            string statusHex = ColorUtility.ToHtmlStringRGB(statusColor);
-            
-            // シグナルレベル取得
-            float signalLevel = ltcDecoder.SignalLevel;
-            int signalPercent = Mathf.RoundToInt(signalLevel * 100);
-            
-            // シグナルバー生成（テキストベース）
-            int barLength = 10;
-            int filledBars = Mathf.RoundToInt(signalLevel * barLength);
-            string signalBar = new string('█', filledBars) + new string('░', barLength - filledBars);
-            
-            // シグナルバーの色
-            Color barColor = signalLevel > 0.5f ? Color.green : 
-                            signalLevel > 0.2f ? Color.yellow : Color.red;
-            string barHex = ColorUtility.ToHtmlStringRGB(barColor);
-            
-            // 1行統合表示（等幅フォント推奨）
-            // フォーマット: [REC] 01:23:45:12 | ████████░░ 85%
-            currentTimecodeText.text = $"<color=#{statusHex}>[{status}]</color> <b>{timecode}</b> | <color=#{barHex}>{signalBar}</color> {signalPercent:D3}%";
-            
-            // 等幅フォント設定（初回のみ）
-            if (currentTimecodeText.font == null || !currentTimecodeText.font.name.Contains("Consola"))
+            // 1段目：タイムコードのみ
+            if (currentTimecodeText != null)
             {
-                // Consolasまたは等幅フォントを設定
-                Font monoFont = Font.CreateDynamicFontFromOSFont("Consolas", currentTimecodeText.fontSize);
-                if (monoFont != null)
+                currentTimecodeText.text = timecode;
+                
+                // 等幅フォント設定（初回のみ）
+                if (currentTimecodeText.font == null || !currentTimecodeText.font.name.Contains("Consola"))
                 {
-                    currentTimecodeText.font = monoFont;
+                    Font monoFont = Font.CreateDynamicFontFromOSFont("Consolas", currentTimecodeText.fontSize);
+                    if (monoFont != null)
+                    {
+                        currentTimecodeText.font = monoFont;
+                    }
                 }
+            }
+            
+            // 2段目：ステータスライン（ステータス＋シグナルレベル）
+            if (statusLineText != null)
+            {
+                // ステータス取得（短縮形）
+                bool hasSignal = ltcDecoder.HasSignal;
+                string status = hasSignal ? "REC" : "---";
+                Color statusColor = hasSignal ? Color.green : Color.gray;
+                string statusHex = ColorUtility.ToHtmlStringRGB(statusColor);
+                
+                // シグナルレベル取得
+                float signalLevel = ltcDecoder.SignalLevel;
+                int signalPercent = Mathf.RoundToInt(signalLevel * 100);
+                
+                // シグナルバー生成（テキストベース）
+                int barLength = 10;
+                int filledBars = Mathf.RoundToInt(signalLevel * barLength);
+                string signalBar = new string('█', filledBars) + new string('░', barLength - filledBars);
+                
+                // シグナルバーの色
+                Color barColor = signalLevel > 0.5f ? Color.green : 
+                                signalLevel > 0.2f ? Color.yellow : Color.red;
+                string barHex = ColorUtility.ToHtmlStringRGB(barColor);
+                
+                // フォーマット: [REC] ████████░░ 85%
+                statusLineText.text = $"<color=#{statusHex}>[{status}]</color> <color=#{barHex}>{signalBar}</color> {signalPercent:D3}%";
             }
         }
         
