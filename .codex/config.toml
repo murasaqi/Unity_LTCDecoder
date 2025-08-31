@@ -1,9 +1,23 @@
 # Codex CLI configuration
-# Unity Natural MCP (SSE) server registration
+# MCP servers registration
 
-[mcp.servers.unity-natural-mcp]
+[mcp_servers.unity-natural-mcp]
 type = "sse"
 # Default Unity Natural MCP SSE endpoint. If connection fails,
 # try switching to "http://localhost:56780/mcp" depending on server version.
 url  = "http://localhost:56780/mcp/sse"
 
+[mcp_servers.serena]
+command = "uvx"
+args = [
+    "--from",
+    "git+https://github.com/oraios/serena",
+    "serena",
+    "start-mcp-server",
+    "--context",
+    "codex",
+]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
