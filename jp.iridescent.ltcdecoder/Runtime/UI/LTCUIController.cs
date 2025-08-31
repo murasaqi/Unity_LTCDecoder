@@ -73,21 +73,21 @@ namespace jp.iridescent.ltcdecoder
             if (deviceDropdown != null)
             {
                 RefreshDeviceList();
-                deviceDropdown.onValueChanged.AddListener(OnDeviceChanged);
+                // RefreshDeviceList内でリスナーが設定されるため、ここでは設定しない
             }
             
             // フレームレートドロップダウンの初期化
             if (frameRateDropdown != null)
             {
                 SetupFrameRateDropdown();
-                frameRateDropdown.onValueChanged.AddListener(OnFrameRateChanged);
+                // SetupFrameRateDropdown内でリスナーが設定されるため、ここでは設定しない
             }
             
             // サンプルレートドロップダウンの初期化
             if (sampleRateDropdown != null)
             {
                 SetupSampleRateDropdown();
-                sampleRateDropdown.onValueChanged.AddListener(OnSampleRateChanged);
+                // SetupSampleRateDropdown内でリスナーが設定されるため、ここでは設定しない
             }
         }
         
@@ -95,12 +95,16 @@ namespace jp.iridescent.ltcdecoder
         {
             if (deviceDropdown == null || ltcDecoder == null) return;
             
+            // 一時的にリスナーを無効化（初期化時の不要なイベント発火を防ぐ）
+            deviceDropdown.onValueChanged.RemoveListener(OnDeviceChanged);
+            
             deviceDropdown.ClearOptions();
             
             string[] devices = ltcDecoder.AvailableDevices;
             if (devices.Length == 0)
             {
                 deviceDropdown.AddOptions(new List<string> { "No devices found" });
+                deviceDropdown.onValueChanged.AddListener(OnDeviceChanged);
                 return;
             }
             
@@ -113,11 +117,22 @@ namespace jp.iridescent.ltcdecoder
             {
                 deviceDropdown.value = index;
             }
+            else if (devices.Length > 0)
+            {
+                // 保存されたデバイスが見つからない場合は最初のデバイスを選択
+                deviceDropdown.value = 0;
+            }
+            
+            // リスナーを再度有効化
+            deviceDropdown.onValueChanged.AddListener(OnDeviceChanged);
         }
         
         private void SetupFrameRateDropdown()
         {
             if (frameRateDropdown == null) return;
+            
+            // 一時的にリスナーを無効化（初期化時の不要なイベント発火を防ぐ）
+            frameRateDropdown.onValueChanged.RemoveListener(OnFrameRateChanged);
             
             frameRateDropdown.ClearOptions();
             
@@ -136,11 +151,17 @@ namespace jp.iridescent.ltcdecoder
             LTCDecoder.LTCFrameRate currentRate = ltcDecoder.FrameRate;
             int index = GetFrameRateIndex(currentRate);
             frameRateDropdown.value = index;
+            
+            // リスナーを再度有効化
+            frameRateDropdown.onValueChanged.AddListener(OnFrameRateChanged);
         }
         
         private void SetupSampleRateDropdown()
         {
             if (sampleRateDropdown == null) return;
+            
+            // 一時的にリスナーを無効化（初期化時の不要なイベント発火を防ぐ）
+            sampleRateDropdown.onValueChanged.RemoveListener(OnSampleRateChanged);
             
             sampleRateDropdown.ClearOptions();
             
@@ -157,6 +178,9 @@ namespace jp.iridescent.ltcdecoder
             int currentRate = ltcDecoder.SampleRate;
             int index = GetSampleRateIndex(currentRate);
             sampleRateDropdown.value = index;
+            
+            // リスナーを再度有効化
+            sampleRateDropdown.onValueChanged.AddListener(OnSampleRateChanged);
         }
         
         private int GetFrameRateIndex(LTCDecoder.LTCFrameRate frameRate)
@@ -280,6 +304,11 @@ namespace jp.iridescent.ltcdecoder
             if (ltcDecoder != null && ltcEventDebugger != null)
             {
                 Setup(ltcDecoder, ltcEventDebugger);
+            }
+            else if (ltcDecoder != null)
+            {
+                // デバッガーがなくてもUIの設定は初期化
+                InitializeAudioSettingsUI();
             }
         }
         
