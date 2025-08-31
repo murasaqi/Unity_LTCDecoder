@@ -2633,7 +2633,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 912d4127427cc1a40b5e8fd3bbb77dec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ltcDecoder: {fileID: 0}
+  ltcDecoder: {fileID: 1007256568}
+  playableDirector: {fileID: 982331615}
   syncThreshold: 0.5
   continuousObservationTime: 1
   enableSync: 1
@@ -2858,7 +2859,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enableDebugger: 1
   maxHistorySize: 100
-  logToConsole: 0
+  logToConsole: 1
   ltcDecoder: {fileID: 1007256568}
 --- !u!114 &1007256568
 MonoBehaviour:
@@ -2893,10 +2894,34 @@ MonoBehaviour:
   enableDebugLogging: 0
   OnLTCStarted:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1007256567}
+        m_TargetAssemblyTypeName: jp.iridescent.ltcdecoder.LTCEventDebugger, jp.iridescent.ltcdecoder.Runtime
+        m_MethodName: AddDebugMessageSimple
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Start
+          m_BoolArgument: 0
+        m_CallState: 2
   OnLTCStopped:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1007256567}
+        m_TargetAssemblyTypeName: jp.iridescent.ltcdecoder.LTCEventDebugger, jp.iridescent.ltcdecoder.Runtime
+        m_MethodName: AddDebugMessageSimple
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Stop
+          m_BoolArgument: 0
+        m_CallState: 2
   OnLTCReceiving:
     m_PersistentCalls:
       m_Calls: []
@@ -2905,6 +2930,18 @@ MonoBehaviour:
       m_Calls: []
   timecodeEvents: []
   resetOnRewind: 1
+  onLTCStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  onLTCStopped:
+    m_PersistentCalls:
+      m_Calls: []
+  onTimecodeUpdated:
+    m_PersistentCalls:
+      m_Calls: []
+  onSignalLevelChanged:
+    m_PersistentCalls:
+      m_Calls: []
   driftDeadzoneSmall: 0.03
   driftDeadzoneMedium: 0.1
   driftThresholdLarge: 0.3
