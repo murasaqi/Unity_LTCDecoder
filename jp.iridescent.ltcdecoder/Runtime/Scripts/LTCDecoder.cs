@@ -1497,7 +1497,14 @@ namespace jp.iridescent.ltcdecoder
                 using (var so = new UnityEditor.SerializedObject(this))
                 {
                     so.FindProperty("selectedDevice").stringValue = selectedDevice;
-                    so.FindProperty("ltcFrameRate").enumValueIndex = (int)ltcFrameRate;
+                    
+                    // enumValueIndexではなくintValueを使用（enumの実際の値を設定）
+                    var frameRateProp = so.FindProperty("ltcFrameRate");
+                    if (frameRateProp != null)
+                    {
+                        frameRateProp.intValue = (int)ltcFrameRate;
+                    }
+                    
                     so.FindProperty("sampleRate").intValue = sampleRate;
                     so.FindProperty("useDropFrame").boolValue = useDropFrame;
                     so.ApplyModifiedPropertiesWithoutUndo();
