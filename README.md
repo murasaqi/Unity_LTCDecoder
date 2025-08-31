@@ -1,8 +1,10 @@
-# Unity LTC Timeline Sync
+# Unity LTC Decoder
 
 [English Version](README_EN.md)
 
-Unity上でLinear Timecode (LTC/業務用音響・映像機器で使用される同期用タイムコード信号)をリアルタイムデコードし、Unity Timelineと同期させるためのパッケージです。オーディオ入力からLTC信号を解析し、PlayableDirector（Unity Timelineを再生するコンポーネント）を自動的に同期させます。
+Unity上でLinear Timecode (LTC/業務用音響・映像機器で使用される同期用タイムコード信号)をリアルタイムでデコードするパッケージです。オーディオ入力からLTC信号を解析し、正確なタイムコードを取得できます。
+
+さらに、デコードしたLTCをUnity Timelineと同期させる機能も提供しています。LTC Timeline Syncコンポーネントを使用することで、PlayableDirector（Unity Timelineを再生するコンポーネント）を自動的にLTCに同期させることができます。
 
 ![LTC Decoder Inspector View](Documents/LTC_Decoder_InspectorView.png)
 
