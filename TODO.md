@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] LTC Timeline Syncの外部制御API拡充
 - [x] LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化
 - [x] Play終了後のInspector自動リフレッシュ処理を実装
 - [x] Play終了後のInspector/UI表示の更新処理を実装
@@ -76,6 +77,15 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (13)
+- LTC Timeline Syncの外部制御API拡充
+  - SetTimeline()メソッド：TimelineAssetを動的に設定
+  - SetTimelineAndDirector()メソッド：Timeline＋Director同時設定
+  - GetTimeline()/GetPlayableDirector()：現在の設定を取得
+  - SetBinding()メソッド：Timelineトラックのバインディング設定
+  - SetTimelineOffset()/GetTimelineOffset()：オフセット管理
+  - SyncThreshold/ContinuousObservationTimeプロパティ：同期パラメータの動的制御
 
 ### 2025-08-31 (12)
 - LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化

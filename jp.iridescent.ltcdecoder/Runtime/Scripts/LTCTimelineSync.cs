@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Playables;
+using UnityEngine.Timeline;
 
 namespace jp.iridescent.ltcdecoder
 {
@@ -56,6 +57,16 @@ public class LTCTimelineSync : MonoBehaviour
     { 
         get => enableSync; 
         set => enableSync = value; 
+    }
+    public float SyncThreshold
+    {
+        get => syncThreshold;
+        set => syncThreshold = Mathf.Max(0.1f, value);
+    }
+    public float ContinuousObservationTime
+    {
+        get => continuousObservationTime;
+        set => continuousObservationTime = Mathf.Max(0.1f, value);
     }
     
     #region Unity Lifecycle
@@ -271,6 +282,102 @@ public class LTCTimelineSync : MonoBehaviour
             playableDirector.timeUpdateMode = DirectorUpdateMode.GameTime;
         }
         LogDebug($"PlayableDirector set: {director != null}");
+    }
+    
+    /// <summary>
+    /// TimelineAssetを設定（PlayableDirectorも必要）
+    /// </summary>
+    public void SetTimeline(TimelineAsset timeline)
+    {
+        if (playableDirector == null)
+        {
+            LogDebug("Cannot set Timeline - PlayableDirector is not assigned");
+            return;
+        }
+        
+        playableDirector.playableAsset = timeline;
+        LogDebug($"Timeline set: {timeline != null ? timeline.name : "null"}");
+    }
+    
+    /// <summary>
+    /// TimelineAssetとPlayableDirectorを同時に設定
+    /// </summary>
+    public void SetTimelineAndDirector(TimelineAsset timeline, PlayableDirector director)
+    {
+        SetPlayableDirector(director);
+        if (director != null && timeline != null)
+        {
+            director.playableAsset = timeline;
+            LogDebug($"Timeline and Director set: Timeline={timeline.name}, Director={director.name}");
+        }
+    }
+    
+    /// <summary>
+    /// 現在のTimelineAssetを取得
+    /// </summary>
+    public TimelineAsset GetTimeline()
+    {
+        if (playableDirector != null && playableDirector.playableAsset is TimelineAsset timeline)
+        {
+            return timeline;
+        }
+        return null;
+    }
+    
+    /// <summary>
+    /// 現在のPlayableDirectorを取得
+    /// </summary>
+    public PlayableDirector GetPlayableDirector()
+    {
+        return playableDirector;
+    }
+    
+    /// <summary>
+    /// TimelineのBindingsを設定
+    /// </summary>
+    public void SetBinding(string trackName, UnityEngine.Object bindingObject)
+    {
+        if (playableDirector == null || playableDirector.playableAsset == null)
+        {
+            LogDebug("Cannot set binding - PlayableDirector or Timeline is not assigned");
+            return;
+        }
+        
+        TimelineAsset timeline = playableDirector.playableAsset as TimelineAsset;
+        if (timeline == null)
+        {
+            LogDebug("Cannot set binding - PlayableAsset is not a Timeline");
+            return;
+        }
+        
+        foreach (var track in timeline.GetOutputTracks())
+        {
+            if (track.name == trackName)
+            {
+                playableDirector.SetGenericBinding(track, bindingObject);
+                LogDebug($"Binding set for track '{trackName}' to '{bindingObject.name}'");
+                return;
+            }
+        }
+        
+        LogDebug($"Track '{trackName}' not found in Timeline");
+    }
+    
+    /// <summary>
+    /// タイムラインオフセットを設定
+    /// </summary>
+    public void SetTimelineOffset(float offset)
+    {
+        timelineOffset = offset;
+        LogDebug($"Timeline offset set to {offset:F3}s");
+    }
+    
+    /// <summary>
+    /// タイムラインオフセットを取得
+    /// </summary>
+    public float GetTimelineOffset()
+    {
+        return timelineOffset;
     }
     
     /// <summary>
