@@ -1,0 +1,9 @@
+# Codex CLI configuration
+# Unity Natural MCP (SSE) server registration
+
+[mcp.servers.unity-natural-mcp]
+type = "sse"
+# Default Unity Natural MCP SSE endpoint. If connection fails,
+# try switching to "http://localhost:56780/mcp" depending on server version.
+url  = "http://localhost:56780/mcp/sse"
+

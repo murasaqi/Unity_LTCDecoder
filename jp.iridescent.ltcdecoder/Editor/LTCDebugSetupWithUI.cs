@@ -148,38 +148,32 @@ namespace jp.iridescent.ltcdecoder.Editor
             CreateTextAtPosition(mainPanel, "TimecodeDisplayLabel", "Timecode Display", 
                 new Vector2(190, -200), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
             
-            // Current Timecode
-            CreateTextAtPosition(mainPanel, "CurrentTCLabel", "Current TC:", 
-                new Vector2(70, -230), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
-                new Vector2(180, -230), new Vector2(180, 30), 18, TextAnchor.MiddleLeft, Color.white, true);
-            
-            // Decoded Timecode
-            CreateTextAtPosition(mainPanel, "DecodedTCLabel", "Decoded TC:", 
-                new Vector2(70, -270), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateTextAtPosition(mainPanel, "DecodedTimecodeText", "00:00:00:00", 
-                new Vector2(180, -270), new Vector2(180, 30), 16, TextAnchor.MiddleLeft, Color.white, false);
+            // Current Timecode - 大きく目立つように表示
+            CreateTextAtPosition(mainPanel, "CurrentTCLabel", "TIMECODE", 
+                new Vector2(190, -230), new Vector2(200, 30), 16, TextAnchor.MiddleCenter, new Color(0.7f, 0.9f, 1f), true);
+            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
+                new Vector2(190, -265), new Vector2(300, 45), 32, TextAnchor.MiddleCenter, Color.white, true);
             
             // Status
             CreateTextAtPosition(mainPanel, "StatusLabel", "Status:", 
-                new Vector2(70, -310), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(70, -320), new Vector2(80, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             CreateTextAtPosition(mainPanel, "StatusText", "NO SIGNAL", 
-                new Vector2(160, -310), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
+                new Vector2(160, -320), new Vector2(150, 30), 16, TextAnchor.MiddleLeft, Color.yellow, false);
             
             // Signal Level
             CreateTextAtPosition(mainPanel, "SignalLabel", "Signal Level:", 
-                new Vector2(70, -350), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
-            CreateSignalBar(mainPanel, new Vector2(180, -350));
+                new Vector2(70, -360), new Vector2(100, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+            CreateSignalBar(mainPanel, new Vector2(180, -360));
             CreateTextAtPosition(mainPanel, "SignalLevelText", "0%", 
-                new Vector2(340, -350), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
+                new Vector2(340, -360), new Vector2(40, 30), 14, TextAnchor.MiddleLeft, Color.white, false);
             
             // Control Buttons
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -400), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -400), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -400), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -410), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -410), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -410), new Vector2(80, 35));
             
             // Debug Message Area
-            CreateDebugScrollView(mainPanel, new Vector2(10, -450), new Vector2(360, 260));
+            CreateDebugScrollView(mainPanel, new Vector2(10, -460), new Vector2(360, 230));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -231,6 +225,43 @@ namespace jp.iridescent.ltcdecoder.Editor
             textComp.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
             textComp.alignment = alignment;
             textComp.color = color;
+            
+            return textObj;
+        }
+        
+        /// <summary>
+        /// 固定位置に等幅フォントテキスト作成
+        /// </summary>
+        private static GameObject CreateMonospaceTextAtPosition(GameObject parent, string name, string text, 
+            Vector2 position, Vector2 size, int fontSize, TextAnchor alignment, Color color, bool bold)
+        {
+            GameObject textObj = new GameObject(name);
+            textObj.transform.SetParent(parent.transform, false);
+            
+            RectTransform rect = textObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            
+            Text textComp = textObj.AddComponent<Text>();
+            textComp.text = text;
+            // 等幅フォントを使用（Arialは比較的等幅に近い）
+            textComp.font = Font.CreateDynamicFontFromOSFont("Consolas", fontSize);
+            if (textComp.font == null)
+            {
+                textComp.font = Font.CreateDynamicFontFromOSFont("Courier New", fontSize);
+            }
+            if (textComp.font == null)
+            {
+                textComp.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            }
+            textComp.fontSize = fontSize;
+            textComp.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+            textComp.alignment = alignment;
+            textComp.color = color;
+            textComp.horizontalOverflow = HorizontalWrapMode.Overflow;
             
             return textObj;
         }
@@ -592,7 +623,6 @@ namespace jp.iridescent.ltcdecoder.Editor
             
             // UI要素の参照を先に設定（Setupより前に）
             controller.currentTimecodeText = mainPanel.transform.Find("CurrentTimecodeText")?.GetComponent<Text>();
-            controller.decodedTimecodeText = mainPanel.transform.Find("DecodedTimecodeText")?.GetComponent<Text>();
             controller.statusText = mainPanel.transform.Find("StatusText")?.GetComponent<Text>();
             controller.signalLevelText = mainPanel.transform.Find("SignalLevelText")?.GetComponent<Text>();
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();

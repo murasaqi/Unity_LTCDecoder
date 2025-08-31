@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] LTCUIControllerのコンパイルエラー修正（未定義変数decodedTimecodeTextの参照を削除）
 - [x] Package化して、開発しているUnityプロジェクトとPackageを分離管理
 - [x] CLAUDE.md作成と開発ルール追加
 - [x] 言語ルールの追加（日本語対話・コメント）
@@ -64,6 +65,9 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (2)
+- LTCUIControllerのコンパイルエラー修正（未定義変数decodedTimecodeTextの参照を削除）
 
 ### 2025-08-31
 - Debug Message Container問題を修正

@@ -12,7 +12,6 @@ namespace jp.iridescent.ltcdecoder
     {
         [Header("UI References")]
         public Text currentTimecodeText;
-        public Text decodedTimecodeText;
         public Text statusText;
         public Text signalLevelText;
         public Image signalLevelBar;
@@ -314,11 +313,6 @@ namespace jp.iridescent.ltcdecoder
             if (currentTimecodeText != null)
             {
                 currentTimecodeText.text = ltcDecoder.CurrentTimecode;
-            }
-            
-            if (decodedTimecodeText != null)
-            {
-                decodedTimecodeText.text = ltcDecoder.DecodedTimecode;
             }
         }
         

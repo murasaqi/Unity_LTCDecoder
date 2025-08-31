@@ -26,12 +26,6 @@ This repository contains a Unity Package that provides real-time LTC (Linear Tim
    https://github.com/murasaqi/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
    ```
 
-### Via OpenUPM
-
-```bash
-openupm add jp.iridescent.ltcdecoder
-```
-
 ### Manual Installation
 
 1. Clone this repository
