@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] UIステータス表示をOutput TC形式に変更、設定永続化機能追加
 - [x] タイムコードとステータスの2段表示対応
 - [x] UIレイアウト再配置（タイムコードを最上部、設定を中段に配置）
 - [x] Menu追加時のUIレイアウトも1行表示に対応
@@ -69,6 +70,18 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (6)
+- UIステータス表示をOutput TC形式に変更
+  - `[REC]` → `Output TC: Running`
+  - `[---]` → `Output TC: Stopped`
+  - LTCUIController.csでIsRunningプロパティを使用
+- Audio Input Settings永続化機能実装
+  - PlayerPrefsを使用した統一実装（Editor/ビルド共通）
+  - 設定キー: LTCDecoder.Device, FrameRate, SampleRate, DropFrame
+  - Awakeで設定読み込み、変更時に自動保存
+  - OnDestroy, OnApplicationPause, OnApplicationFocusで保存
+  - Editor専用: Reset Settingsコンテキストメニュー追加
 
 ### 2025-08-31 (5)
 - タイムコードとステータスの2段表示実装

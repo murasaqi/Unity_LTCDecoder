@@ -130,9 +130,9 @@ namespace jp.iridescent.ltcdecoder.Editor
                 new Vector2(190, -70), new Vector2(360, 35), 28, TextAnchor.MiddleCenter, Color.white, true);
             
             // ステータス表示（2段目）
-            // フォーマット: [REC] ████████░░ 85%
-            CreateTextAtPosition(mainPanel, "StatusLineText", "[---] ░░░░░░░░░░ 000%", 
-                new Vector2(190, -105), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, Color.white, false);
+            // フォーマット: Output TC: Stopped ░░░░░░░░░░ 000%
+            CreateTextAtPosition(mainPanel, "StatusLineText", "Output TC: Stopped ░░░░░░░░░░ 000%", 
+                new Vector2(190, -105), new Vector2(360, 25), 14, TextAnchor.MiddleCenter, Color.white, false);
             
             // --- Audio Input Settings セクション（中段に配置） ---
             CreateTextAtPosition(mainPanel, "AudioSettingsLabel", "Audio Input Settings", 

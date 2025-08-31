@@ -121,6 +121,12 @@ namespace jp.iridescent.ltcdecoder
         
         #region Private Fields
         
+        // PlayerPrefs設定キー
+        private const string PREF_DEVICE = "LTCDecoder.Device";
+        private const string PREF_FRAMERATE = "LTCDecoder.FrameRate";
+        private const string PREF_SAMPLERATE = "LTCDecoder.SampleRate";
+        private const string PREF_DROPFRAME = "LTCDecoder.DropFrame";
+        
         // DSPクロック管理
         private double dspTimeBase;
         private double internalTcTime;
@@ -209,10 +215,74 @@ namespace jp.iridescent.ltcdecoder
         
         #endregion
         
+        #region Settings Persistence
+        
+        /// <summary>
+        /// 設定を保存
+        /// </summary>
+        public void SaveSettings()
+        {
+            PlayerPrefs.SetString(PREF_DEVICE, selectedDevice);
+            PlayerPrefs.SetInt(PREF_FRAMERATE, (int)ltcFrameRate);
+            PlayerPrefs.SetInt(PREF_SAMPLERATE, sampleRate);
+            PlayerPrefs.SetInt(PREF_DROPFRAME, useDropFrame ? 1 : 0);
+            PlayerPrefs.Save();
+            
+            LogDebug($"Settings saved - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
+            
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);  // Inspectorを更新
+            #endif
+        }
+        
+        /// <summary>
+        /// 設定を読み込み
+        /// </summary>
+        private void LoadSettings()
+        {
+            if (PlayerPrefs.HasKey(PREF_DEVICE))
+            {
+                selectedDevice = PlayerPrefs.GetString(PREF_DEVICE, "");
+                ltcFrameRate = (LTCFrameRate)PlayerPrefs.GetInt(PREF_FRAMERATE, (int)LTCFrameRate.FPS_30);
+                sampleRate = PlayerPrefs.GetInt(PREF_SAMPLERATE, 48000);
+                useDropFrame = PlayerPrefs.GetInt(PREF_DROPFRAME, 0) == 1;
+                
+                LogDebug($"Settings loaded - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
+            }
+        }
+        
+        /// <summary>
+        /// 設定をリセット（Editor専用）
+        /// </summary>
+        #if UNITY_EDITOR
+        [ContextMenu("Reset Settings")]
+        private void ResetSettings()
+        {
+            PlayerPrefs.DeleteKey(PREF_DEVICE);
+            PlayerPrefs.DeleteKey(PREF_FRAMERATE);
+            PlayerPrefs.DeleteKey(PREF_SAMPLERATE);
+            PlayerPrefs.DeleteKey(PREF_DROPFRAME);
+            PlayerPrefs.Save();
+            
+            // デフォルト値に戻す
+            selectedDevice = "";
+            ltcFrameRate = LTCFrameRate.FPS_30;
+            sampleRate = 48000;
+            useDropFrame = false;
+            
+            LogDebug("Settings reset to default");
+        }
+        #endif
+        
+        #endregion
+        
         #region Unity Lifecycle
         
         private void Awake()
         {
+            // 設定を読み込み
+            LoadSettings();
+            
             decoder = new TimecodeDecoder();
             ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
             audioBuffer = new float[bufferSize];
@@ -243,16 +313,43 @@ namespace jp.iridescent.ltcdecoder
             StopRecording();
         }
         
+        private void OnDestroy()
+        {
+            SaveSettings();  // アプリ終了時に設定を保存
+        }
+        
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (pauseStatus)
+            {
+                SaveSettings();  // アプリがバックグラウンドに移行時に保存
+            }
+        }
+        
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus)
+            {
+                SaveSettings();  // アプリがフォーカスを失った時に保存
+            }
+        }
+        
         private void OnValidate()
         {
             // Play中のInspector変更を反映
-            if (Application.isPlaying && IsRecording)
+            if (Application.isPlaying)
             {
-                // フレームレートの変更を検知
-                // SetLTCFrameRateメソッドで処理されるため、ここでは何もしない
+                // Inspectorでの変更を保存
+                SaveSettings();
                 
-                // サンプルレートの変更を検知
-                // SetSampleRateメソッドで処理されるため、ここでは何もしない
+                if (IsRecording)
+                {
+                    // フレームレートの変更を検知
+                    // SetLTCFrameRateメソッドで処理されるため、ここでは何もしない
+                    
+                    // サンプルレートの変更を検知
+                    // SetSampleRateメソッドで処理されるため、ここでは何もしない
+                }
             }
         }
         
@@ -560,6 +657,7 @@ namespace jp.iridescent.ltcdecoder
             if (wasRecording) StopRecording();
             
             selectedDevice = deviceName;
+            SaveSettings();  // 設定を保存
             
             if (wasRecording && !string.IsNullOrEmpty(deviceName))
             {
@@ -1072,6 +1170,8 @@ namespace jp.iridescent.ltcdecoder
                 useDropFrame = false;
             }
             
+            SaveSettings();  // 設定を保存
+            
             // 内部時計のリセット
             if (Application.isPlaying && IsRecording)
             {
@@ -1096,6 +1196,7 @@ namespace jp.iridescent.ltcdecoder
             if (wasRecording) StopRecording();
             
             sampleRate = newSampleRate;
+            SaveSettings();  // 設定を保存
             
             if (wasRecording && !string.IsNullOrEmpty(selectedDevice))
             {

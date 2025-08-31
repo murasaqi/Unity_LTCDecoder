@@ -336,13 +336,13 @@ namespace jp.iridescent.ltcdecoder
                 }
             }
             
-            // 2段目：ステータスライン（ステータス＋シグナルレベル）
+            // 2段目：ステータスライン（Output TC Status＋シグナルレベル）
             if (statusLineText != null)
             {
-                // ステータス取得（短縮形）
-                bool hasSignal = ltcDecoder.HasSignal;
-                string status = hasSignal ? "REC" : "---";
-                Color statusColor = hasSignal ? Color.green : Color.gray;
+                // ステータス取得（Output TC形式）
+                bool isRunning = ltcDecoder.IsRunning;
+                string status = isRunning ? "Output TC: Running" : "Output TC: Stopped";
+                Color statusColor = isRunning ? Color.green : Color.gray;
                 string statusHex = ColorUtility.ToHtmlStringRGB(statusColor);
                 
                 // シグナルレベル取得
@@ -359,8 +359,8 @@ namespace jp.iridescent.ltcdecoder
                                 signalLevel > 0.2f ? Color.yellow : Color.red;
                 string barHex = ColorUtility.ToHtmlStringRGB(barColor);
                 
-                // フォーマット: [REC] ████████░░ 85%
-                statusLineText.text = $"<color=#{statusHex}>[{status}]</color> <color=#{barHex}>{signalBar}</color> {signalPercent:D3}%";
+                // フォーマット: Output TC: Running ████████░░ 85%
+                statusLineText.text = $"<color=#{statusHex}>{status}</color> <color=#{barHex}>{signalBar}</color> {signalPercent:D3}%";
             }
         }
         
