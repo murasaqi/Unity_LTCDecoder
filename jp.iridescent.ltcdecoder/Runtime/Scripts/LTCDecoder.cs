@@ -1439,7 +1439,6 @@ namespace jp.iridescent.ltcdecoder
         }
         
         #endregion
-        #endregion
         
         #region Editor PlayMode State Handler
         
