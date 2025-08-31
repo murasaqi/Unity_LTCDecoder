@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] Play終了後のInspector自動リフレッシュ処理を実装
 - [x] Play終了後のInspector/UI表示の更新処理を実装
 - [x] 設定管理システムの完全な再実装（UI/Inspector両対応）
 - [x] LTC Decoder初回インスタンス化時の録音開始問題を修正
@@ -74,6 +75,14 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (11)
+- Play終了後のInspector自動リフレッシュ処理を実装
+  - LTCDecoderEditorにPlayMode終了検知処理を追加
+  - InspectorWindowを直接Repaint()で更新
+  - 選択中のLTCDecoderオブジェクトを再選択して確実に更新
+  - OnEnableでSerializedObjectを再取得
+  - Play終了後も最新のInspector表示を維持
 
 ### 2025-08-31 (10)
 - Play終了後のInspector/UI表示の更新処理を実装

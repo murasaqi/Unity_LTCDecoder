@@ -1506,6 +1506,20 @@ namespace jp.iridescent.ltcdecoder
                 // Inspectorを更新
                 UnityEditor.EditorUtility.SetDirty(this);
                 
+                // 選択中の場合は再選択して確実にInspectorを更新
+                if (UnityEditor.Selection.activeGameObject == gameObject)
+                {
+                    var temp = gameObject;
+                    UnityEditor.Selection.activeGameObject = null;
+                    UnityEditor.EditorApplication.delayCall += () =>
+                    {
+                        if (temp != null)
+                        {
+                            UnityEditor.Selection.activeGameObject = temp;
+                        }
+                    };
+                }
+                
                 UnityEngine.Debug.Log($"[LTCDecoder] Settings restored in Editor - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
             }
         }

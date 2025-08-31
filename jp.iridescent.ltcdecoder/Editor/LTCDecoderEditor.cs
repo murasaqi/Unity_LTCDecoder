@@ -17,6 +17,54 @@ namespace jp.iridescent.ltcdecoder.Editor
         private bool showDebugInfo = false;  // Debug Info折りたたみ状態
         private float graphTimeWindow = 5.0f; // グラフの表示時間範囲（秒）
         
+        /// <summary>
+        /// PlayMode終了時のInspectorリフレッシュ設定（静的初期化）
+        /// </summary>
+        [InitializeOnLoadMethod]
+        static void SetupPlayModeInspectorRefresh()
+        {
+            EditorApplication.playModeStateChanged += (state) =>
+            {
+                if (state == PlayModeStateChange.EnteredEditMode)
+                {
+                    // InspectorWindowを強制的に再描画
+                    EditorApplication.delayCall += () =>
+                    {
+                        // すべてのInspectorWindowを取得して再描画
+                        var inspectorType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
+                        if (inspectorType != null)
+                        {
+                            var windows = Resources.FindObjectsOfTypeAll(inspectorType);
+                            foreach (var window in windows)
+                            {
+                                var editorWindow = window as EditorWindow;
+                                if (editorWindow != null)
+                                {
+                                    editorWindow.Repaint();
+                                    Debug.Log("[LTCDecoderEditor] Inspector refreshed after Play Mode");
+                                }
+                            }
+                        }
+                        
+                        // LTCDecoderが選択されている場合は再選択して確実に更新
+                        if (Selection.activeGameObject != null)
+                        {
+                            var decoder = Selection.activeGameObject.GetComponent<LTCDecoder>();
+                            if (decoder != null)
+                            {
+                                var tempSelection = Selection.activeGameObject;
+                                Selection.activeGameObject = null;
+                                EditorApplication.delayCall += () =>
+                                {
+                                    Selection.activeGameObject = tempSelection;
+                                };
+                            }
+                        }
+                    };
+                }
+            };
+        }
+        
         // スタイル
         private GUIStyle titleStyle;
         private GUIStyle timecodeStyle;
@@ -45,6 +93,13 @@ namespace jp.iridescent.ltcdecoder.Editor
             graphTimeWindow = EditorPrefs.GetFloat("LTCDecoder.GraphTimeWindow", 5.0f);
             showAdvancedSettings = EditorPrefs.GetBool("LTCDecoder.ShowAdvancedSettings", false);
             advancedEditMode = EditorPrefs.GetBool("LTCDecoder.AdvancedEditMode", false);
+            
+            // Play終了後の再初期化
+            if (!Application.isPlaying)
+            {
+                // SerializedObjectを再取得して最新状態を反映
+                serializedObject.Update();
+            }
         }
         
         private void OnDisable()
