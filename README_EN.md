@@ -2,18 +2,18 @@
 
 [日本語版](README.md)
 
-A Unity package for real-time Linear Timecode (LTC) decoding and synchronization with Unity Timeline. Analyzes LTC signals from audio input and automatically synchronizes PlayableDirector.
+A Unity package for real-time Linear Timecode (LTC - synchronization timecode signal used in professional audio/video equipment) decoding and synchronization with Unity Timeline. This package analyzes LTC signals from audio input and automatically synchronizes PlayableDirector (Unity Timeline playback component).
 
 ![LTC Decoder Inspector View](Documents/LTC_Decoder_InspectorView.png)
 
 ## ✨ Key Features
 
-- 🎙️ **Real-time LTC Decoding** - Analyze LTC signals from microphone input
-- 🎬 **Unity Timeline Auto-sync** - High-precision synchronization with PlayableDirector
-- 🔧 **Advanced Noise Filtering** - Jitter removal with adaptive filtering
-- 📊 **Comprehensive Debug Tools** - Waveform display, jitter analysis, detailed logging
-- 🎮 **Flexible Event System** - Extensible integration via UnityEvents
-- 🖥️ **Debug UI** - Real-time timecode display and status monitoring
+- 🎙️ **Real-time LTC Decoding** - Analyzes LTC signals from microphone input
+- 🎬 **Unity Timeline Auto-sync** - Provides high-precision synchronization with PlayableDirector
+- 🔧 **Advanced Noise Filtering** - Removes jitter (irregular timecode fluctuations) with adaptive filtering
+- 📊 **Comprehensive Debug Tools** - Provides waveform display, jitter analysis, and detailed logging
+- 🎮 **Flexible Event System** - Enables extensible integration via UnityEvents
+- 🖥️ **Debug UI** - Features real-time timecode display and status monitoring
 
 ![Debug UI Screenshot](Documents/UI_ScreenShot.png)
 
@@ -21,33 +21,33 @@ A Unity package for real-time Linear Timecode (LTC) decoding and synchronization
 
 ### Via Unity Package Manager
 
-1. Open Unity Package Manager (Window > Package Manager)
-2. Click "+" button and select "Add package from git URL..."
-3. Enter the following URL:
+1. Please open Unity Package Manager (Window > Package Manager)
+2. Please click "+" button and select "Add package from git URL..."
+3. Please enter the following URL:
 ```
 https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
 ```
 
 ### Manual Installation
 
-1. Clone this repository
-2. Copy the `jp.iridescent.ltcdecoder` folder to your project's `Packages` folder
+1. Please clone this repository
+2. Please copy the `jp.iridescent.ltcdecoder` folder to your project's `Packages` folder
 
 ## 🚀 Quick Start
 
 ### Basic Setup
 
 1. **Add LTC Decoder**
-   - Add `LTCDecoder` component to a GameObject
-   - Select audio input device in Inspector
+   - Please add `LTCDecoder` component to a GameObject
+   - Please select audio input device in Inspector
 
 2. **Configure Timeline Sync**
-   - Add `LTCTimelineSync` component to GameObject with PlayableDirector
-   - Set reference to LTC Decoder component
+   - Please add `LTCTimelineSync` component to GameObject with PlayableDirector
+   - Please set reference to LTC Decoder component
 
 3. **Play**
-   - Start Play mode
-   - Start your LTC source
+   - Please start Play mode
+   - Please start your LTC source
 
 ### Easy Setup from Menu
 
@@ -59,7 +59,7 @@ https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdeco
 
 ### LTCDecoder
 
-Main LTC decoding component. Analyzes LTC signals from audio input.
+This is the main LTC decoding component. It analyzes LTC signals from audio input.
 
 **Main Settings**:
 - `Device`: Audio input device
@@ -68,37 +68,22 @@ Main LTC decoding component. Analyzes LTC signals from audio input.
 - `Sample Rate`: Audio sampling rate
 
 **Noise Filtering Settings**:
-- `Use Timecode Validation`: Enable timecode continuity checking
-- `Jitter Threshold`: Jitter detection threshold (default: 100ms)
-- `Denoising Strength`: Filter strength 0-1 (default: 0.8)
+- `Use Timecode Validation`: Enables timecode continuity checking
+- `Jitter Threshold`: Detection threshold for determining timecode deviation as abnormal (default: 100ms)
+- `Denoising Strength`: Sets noise removal strength 0-1 (default: 0.8)
 
 ### LTCTimelineSync
 
-Component for synchronizing Unity Timeline with decoded LTC.
+This component synchronizes Unity Timeline with decoded LTC.
 
 **Sync Settings**:
-- `Sync Threshold`: Sync trigger threshold (default: 0.1s)
-- `Smoothing Factor`: Timeline adjustment smoothness (0-1)
-- `Pause When No Signal`: Auto-pause timeline when LTC signal is lost
-
-**API Features**:
-```csharp
-// Dynamically set Timeline
-ltcSync.SetTimeline(timelineAsset);
-
-// Set PlayableDirector from another GameObject
-ltcSync.SetPlayableDirector(director);
-
-// Set timecode offset
-ltcSync.SetTimelineOffset(10.0f);
-
-// Set track binding
-ltcSync.SetBinding(trackName, bindingObject);
-```
+- `Sync Threshold`: This is the sync trigger threshold (default: 0.1s)
+- `Smoothing Factor`: Sets timeline adjustment smoothness (0-1)
+- `Pause When No Signal`: Automatically pauses timeline when LTC signal is lost
 
 ### LTCEventDebugger
 
-Component for debugging and monitoring the event system.
+This component is for debugging and monitoring the event system.
 
 **Events**:
 - `OnTimecodeReceived`: When timecode is received
@@ -106,70 +91,47 @@ Component for debugging and monitoring the event system.
 - `OnSignalLost`: When LTC signal is lost
 - `OnSignalRestored`: When LTC signal is restored
 
-## 🎛️ Recommended Settings
-
-### Clean LTC Source (Hardware Generator)
-```
-Jitter Threshold: 0.05 (50ms)
-Denoising Strength: 0.5
-Min Consecutive Valid Frames: 2
-```
-
-### Noisy LTC Source (Tape/Wireless)
-```
-Jitter Threshold: 0.15 (150ms)
-Denoising Strength: 0.8-1.0
-Min Consecutive Valid Frames: 3-4
-```
-
-### Development/Testing
-```
-Enable Debug Mode: ON
-Log Debug Info: ON
-Log To Console: OFF (for performance)
-```
-
 ## 🔍 Troubleshooting
 
 ### No Timecode Display
-1. Check if audio input device is correctly selected
-2. Verify LTC signal is being input
-3. Check frame rate and drop frame settings
+1. Please check if audio input device is correctly selected
+2. Please verify LTC signal is being input
+3. Please check frame rate and drop frame settings
 
 ### Unstable Timecode
-1. Increase `Jitter Threshold`
-2. Increase `Denoising Strength`
-3. Increase `Min Consecutive Valid Frames`
+1. Please increase `Jitter Threshold` (around 0.05 for stable signals, 0.15 for unstable signals)
+2. Please increase `Denoising Strength` (adjust within 0.5 to 1.0 range)
+3. Please increase `Min Consecutive Valid Frames` (number of consecutive frames required for validation, range 2-4)
 
 ### Timeline Sync Not Working
-1. Check if PlayableDirector is correctly configured
-2. Adjust `Sync Threshold`
-3. Verify TimelineAsset is set
+1. Please check if PlayableDirector is correctly configured
+2. Please adjust `Sync Threshold`
+3. Please verify TimelineAsset is set
 
 ## 📊 Performance Optimization
 
 ### Log Settings
-- **Always keep** `Log To Console` **OFF** (major performance impact)
-- Enable specific log categories only when needed
-- Check logs in Inspector's Debug Logs section
+- **Always keep** `Log To Console` **OFF** (this has major performance impact)
+- Please enable specific log categories only when needed
+- Please check logs in Inspector's Debug Logs section
 
 ### Buffer Size
-- Trade-off between latency and stability
-- Recommended: 512-1024 samples
+- Please consider the trade-off between latency and stability
+- Recommended value is 512-1024 samples
 
 ## 🛠️ Developer Information
 
 ### Build Settings
-- Enable microphone permissions
-- Recommended sample rate: 48000 Hz
-- Note platform-specific settings
+- Please enable microphone permissions
+- Recommended sample rate is 48000 Hz
+- Please note platform-specific settings
 
 ### Extension Development
 When adding new features:
-1. Check impact on `ValidateTimecode` logic
-2. Test with both clean and noisy LTC sources
-3. Ensure logging doesn't impact performance
-4. Update this documentation
+1. Please check impact on `ValidateTimecode` logic
+2. Please test with both stable and unstable signal sources
+3. Please ensure logging doesn't impact performance
+4. Please update this documentation
 
 ## 📋 Requirements
 

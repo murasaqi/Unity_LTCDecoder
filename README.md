@@ -2,18 +2,18 @@
 
 [English Version](README_EN.md)
 
-Unity上でLinear Timecode (LTC)をリアルタイムデコードし、Unity Timelineと同期させるためのパッケージです。オーディオ入力からLTC信号を解析し、PlayableDirectorを自動的に同期させます。
+Unity上でLinear Timecode (LTC/業務用音響・映像機器で使用される同期用タイムコード信号)をリアルタイムデコードし、Unity Timelineと同期させるためのパッケージです。オーディオ入力からLTC信号を解析し、PlayableDirector（Unity Timelineを再生するコンポーネント）を自動的に同期させます。
 
 ![LTC Decoder Inspector View](Documents/LTC_Decoder_InspectorView.png)
 
 ## ✨ 主な機能
 
-- 🎙️ **リアルタイムLTCデコード** - マイク入力からLTC信号を解析
-- 🎬 **Unity Timeline自動同期** - PlayableDirectorとの高精度同期
-- 🔧 **高度なノイズ除去** - 適応フィルタリングによるジッター除去
-- 📊 **包括的なデバッグツール** - 波形表示、ジッター解析、詳細ログ
-- 🎮 **柔軟なイベントシステム** - UnityEventによる拡張性の高い連携
-- 🖥️ **デバッグUI** - リアルタイムタイムコード表示とステータスモニター
+- 🎙️ **リアルタイムLTCデコード** - マイク入力からLTC信号を解析します
+- 🎬 **Unity Timeline自動同期** - PlayableDirectorとの高精度同期を実現します
+- 🔧 **高度なノイズ除去** - 適応フィルタリングによりジッター（タイムコードの不規則な揺らぎ）を除去します
+- 📊 **包括的なデバッグツール** - 波形表示、ジッター解析、詳細ログを提供します
+- 🎮 **柔軟なイベントシステム** - UnityEventによる拡張性の高い連携が可能です
+- 🖥️ **デバッグUI** - リアルタイムタイムコード表示とステータスモニターを備えています
 
 ![Debug UI Screenshot](Documents/UI_ScreenShot.png)
 
@@ -21,33 +21,33 @@ Unity上でLinear Timecode (LTC)をリアルタイムデコードし、Unity Tim
 
 ### Unity Package Manager経由
 
-1. Unity Package Managerを開く (Window > Package Manager)
-2. 「+」ボタンから「Add package from git URL...」を選択
-3. 以下のURLを入力:
+1. Unity Package Managerを開いてください (Window > Package Manager)
+2. 「+」ボタンから「Add package from git URL...」を選択してください
+3. 以下のURLを入力してください:
 ```
 https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
 ```
 
 ### 手動インストール
 
-1. このリポジトリをクローン
-2. `jp.iridescent.ltcdecoder`フォルダをプロジェクトの`Packages`フォルダにコピー
+1. このリポジトリをクローンしてください
+2. `jp.iridescent.ltcdecoder`フォルダをプロジェクトの`Packages`フォルダにコピーしてください
 
 ## 🚀 クイックスタート
 
 ### 基本セットアップ
 
 1. **LTC Decoderを追加**
-   - GameObjectに`LTCDecoder`コンポーネントを追加
-   - Inspectorでオーディオ入力デバイスを選択
+   - GameObjectに`LTCDecoder`コンポーネントを追加してください
+   - Inspectorでオーディオ入力デバイスを選択してください
 
 2. **Timeline同期を設定**
-   - PlayableDirectorを持つGameObjectに`LTCTimelineSync`コンポーネントを追加
-   - LTC Decoderコンポーネントへの参照を設定
+   - PlayableDirectorを持つGameObjectに`LTCTimelineSync`コンポーネントを追加してください
+   - LTC Decoderコンポーネントへの参照を設定してください
 
 3. **再生**
-   - Playモードを開始
-   - LTC信号ソースを起動
+   - Playモードを開始してください
+   - LTC信号ソースを起動してください
 
 ### メニューからの簡単セットアップ
 
@@ -59,7 +59,7 @@ https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdeco
 
 ### LTCDecoder
 
-メインのLTCデコードコンポーネント。オーディオ入力からLTC信号を解析します。
+メインのLTCデコードコンポーネントです。オーディオ入力からLTC信号を解析します。
 
 **主要設定**:
 - `Device`: オーディオ入力デバイス
@@ -68,37 +68,22 @@ https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdeco
 - `Sample Rate`: オーディオサンプリングレート
 
 **ノイズ除去設定**:
-- `Use Timecode Validation`: タイムコード連続性チェック
-- `Jitter Threshold`: ジッター検出閾値 (デフォルト: 100ms)
-- `Denoising Strength`: フィルタ強度 0-1 (デフォルト: 0.8)
+- `Use Timecode Validation`: タイムコード連続性チェックを有効化します
+- `Jitter Threshold`: ジッター検出閾値（タイムコードのずれを異常と判定する基準値）です (デフォルト: 100ms)
+- `Denoising Strength`: ノイズ除去の強度を設定します 0-1 (デフォルト: 0.8)
 
 ### LTCTimelineSync
 
-Unity TimelineをデコードされたLTCと同期させるコンポーネント。
+Unity TimelineをデコードされたLTCと同期させるコンポーネントです。
 
 **同期設定**:
-- `Sync Threshold`: 同期トリガー閾値 (デフォルト: 0.1秒)
-- `Smoothing Factor`: タイムライン調整の滑らかさ (0-1)
-- `Pause When No Signal`: LTC信号喪失時の自動一時停止
-
-**API機能**:
-```csharp
-// 動的にTimelineを設定
-ltcSync.SetTimeline(timelineAsset);
-
-// PlayableDirectorを別のGameObjectから設定
-ltcSync.SetPlayableDirector(director);
-
-// タイムコードオフセットを設定
-ltcSync.SetTimelineOffset(10.0f);
-
-// トラックバインディングを設定
-ltcSync.SetBinding(trackName, bindingObject);
-```
+- `Sync Threshold`: 同期トリガー閾値です (デフォルト: 0.1秒)
+- `Smoothing Factor`: タイムライン調整の滑らかさを設定します (0-1)
+- `Pause When No Signal`: LTC信号喪失時に自動一時停止を行います
 
 ### LTCEventDebugger
 
-イベントシステムのデバッグとモニタリング用コンポーネント。
+イベントシステムのデバッグとモニタリング用コンポーネントです。
 
 **イベント**:
 - `OnTimecodeReceived`: タイムコード受信時
@@ -106,70 +91,47 @@ ltcSync.SetBinding(trackName, bindingObject);
 - `OnSignalLost`: LTC信号喪失時
 - `OnSignalRestored`: LTC信号復旧時
 
-## 🎛️ 推奨設定
-
-### クリーンなLTCソース（ハードウェアジェネレータ）
-```
-Jitter Threshold: 0.05 (50ms)
-Denoising Strength: 0.5
-Min Consecutive Valid Frames: 2
-```
-
-### ノイジーなLTCソース（テープ/ワイヤレス）
-```
-Jitter Threshold: 0.15 (150ms)
-Denoising Strength: 0.8-1.0
-Min Consecutive Valid Frames: 3-4
-```
-
-### 開発/テスト環境
-```
-Enable Debug Mode: ON
-Log Debug Info: ON
-Log To Console: OFF (パフォーマンスのため)
-```
-
 ## 🔍 トラブルシューティング
 
 ### タイムコードが表示されない
-1. オーディオ入力デバイスが正しく選択されているか確認
-2. LTC信号が入力されているか確認
-3. フレームレートとドロップフレーム設定を確認
+1. オーディオ入力デバイスが正しく選択されているか確認してください
+2. LTC信号が入力されているか確認してください
+3. フレームレートとドロップフレーム設定を確認してください
 
 ### タイムコードが不安定
-1. `Jitter Threshold`を上げる
-2. `Denoising Strength`を上げる
-3. `Min Consecutive Valid Frames`を増やす
+1. `Jitter Threshold`を上げてください（安定した信号なら0.05、不安定な信号なら0.15程度）
+2. `Denoising Strength`を上げてください（0.5から1.0の範囲で調整）
+3. `Min Consecutive Valid Frames`（有効と判定するための連続フレーム数）を増やしてください（2から4の範囲）
 
 ### Timeline同期が動作しない
-1. PlayableDirectorが正しく設定されているか確認
-2. `Sync Threshold`を調整
-3. TimelineAssetが設定されているか確認
+1. PlayableDirectorが正しく設定されているか確認してください
+2. `Sync Threshold`を調整してください
+3. TimelineAssetが設定されているか確認してください
 
 ## 📊 パフォーマンス最適化
 
 ### ログ設定
-- `Log To Console`は**必ずOFF**にする（大きなパフォーマンス影響）
-- 必要な時のみ特定のログカテゴリを有効化
-- Inspector内のDebug Logsセクションでログを確認
+- `Log To Console`は**必ずOFF**にしてください（大きなパフォーマンス影響があります）
+- 必要な時のみ特定のログカテゴリを有効化してください
+- Inspector内のDebug Logsセクションでログを確認してください
 
 ### バッファサイズ
-- レイテンシと安定性のトレードオフ
-- 推奨: 512-1024サンプル
+- レイテンシと安定性のトレードオフを考慮してください
+- 推奨値は512-1024サンプルです
 
 ## 🛠️ 開発者向け情報
 
 ### ビルド設定
-- マイクロフォン権限を有効化
-- サンプルレート: 48000 Hz推奨
-- プラットフォーム固有の設定に注意
+- マイクロフォン権限を有効化してください
+- サンプルレートは48000 Hzを推奨します
+- プラットフォーム固有の設定に注意してください
 
 ### 拡張開発
 新機能追加時の注意点:
-1. `ValidateTimecode`ロジックへの影響を確認
-2. クリーン/ノイジー両方のLTCソースでテスト
-3. ログがパフォーマンスに影響しないことを確認
-4. このドキュメントを更新
+1. `ValidateTimecode`ロジックへの影響を確認してください
+2. 安定した信号と不安定な信号の両方でテストしてください
+3. ログがパフォーマンスに影響しないことを確認してください
+4. このドキュメントを更新してください
 
 ## 📋 動作環境
 
