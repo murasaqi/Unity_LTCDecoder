@@ -127,6 +127,13 @@ namespace jp.iridescent.ltcdecoder
         private const string PREF_SAMPLERATE = "LTCDecoder.SampleRate";
         private const string PREF_DROPFRAME = "LTCDecoder.DropFrame";
         
+        // 状態管理フラグ
+        private bool isInitialized = false;
+        private bool isDirtyFromRuntime = false;  // 実行時に変更されたか
+        private string lastSavedDevice = "";
+        private LTCFrameRate lastSavedFrameRate;
+        private int lastSavedSampleRate;
+        
         // DSPクロック管理
         private double dspTimeBase;
         private double internalTcTime;
@@ -223,17 +230,29 @@ namespace jp.iridescent.ltcdecoder
         /// </summary>
         public void SaveSettings()
         {
-            PlayerPrefs.SetString(PREF_DEVICE, selectedDevice);
-            PlayerPrefs.SetInt(PREF_FRAMERATE, (int)ltcFrameRate);
-            PlayerPrefs.SetInt(PREF_SAMPLERATE, sampleRate);
-            PlayerPrefs.SetInt(PREF_DROPFRAME, useDropFrame ? 1 : 0);
-            PlayerPrefs.Save();
-            
-            LogDebug($"Settings saved - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
-            
-            #if UNITY_EDITOR
-            UnityEditor.EditorUtility.SetDirty(this);  // Inspectorを更新
-            #endif
+            try
+            {
+                PlayerPrefs.SetString(PREF_DEVICE, selectedDevice);
+                PlayerPrefs.SetInt(PREF_FRAMERATE, (int)ltcFrameRate);
+                PlayerPrefs.SetInt(PREF_SAMPLERATE, sampleRate);
+                PlayerPrefs.SetInt(PREF_DROPFRAME, useDropFrame ? 1 : 0);
+                PlayerPrefs.Save();  // 即座に永続化
+                
+                // 最後に保存した値を記録
+                lastSavedDevice = selectedDevice;
+                lastSavedFrameRate = ltcFrameRate;
+                lastSavedSampleRate = sampleRate;
+                
+                LogDebug($"Settings saved - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
+                
+                #if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(this);  // Inspectorを更新
+                #endif
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.LogError($"[LTCDecoder] Failed to save settings: {e.Message}");
+            }
         }
         
         /// <summary>
@@ -243,13 +262,61 @@ namespace jp.iridescent.ltcdecoder
         {
             if (PlayerPrefs.HasKey(PREF_DEVICE))
             {
-                selectedDevice = PlayerPrefs.GetString(PREF_DEVICE, "");
-                ltcFrameRate = (LTCFrameRate)PlayerPrefs.GetInt(PREF_FRAMERATE, (int)LTCFrameRate.FPS_30);
-                sampleRate = PlayerPrefs.GetInt(PREF_SAMPLERATE, 48000);
-                useDropFrame = PlayerPrefs.GetInt(PREF_DROPFRAME, 0) == 1;
+                selectedDevice = PlayerPrefs.GetString(PREF_DEVICE, selectedDevice);
+                ltcFrameRate = (LTCFrameRate)PlayerPrefs.GetInt(PREF_FRAMERATE, (int)ltcFrameRate);
+                sampleRate = PlayerPrefs.GetInt(PREF_SAMPLERATE, sampleRate);
+                useDropFrame = PlayerPrefs.GetInt(PREF_DROPFRAME, useDropFrame ? 1 : 0) == 1;
+                
+                // 設定の妥当性チェック
+                ValidateAndFixSettings();
+                
+                // 最後に保存した値を記録
+                lastSavedDevice = selectedDevice;
+                lastSavedFrameRate = ltcFrameRate;
+                lastSavedSampleRate = sampleRate;
+                
+                isDirtyFromRuntime = true;  // 保存された設定があることを記録
                 
                 LogDebug($"Settings loaded - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
             }
+        }
+        
+        /// <summary>
+        /// 設定の妥当性チェックと修正
+        /// </summary>
+        private void ValidateAndFixSettings()
+        {
+            // デバイスが存在するか確認
+            if (!string.IsNullOrEmpty(selectedDevice))
+            {
+                if (!System.Linq.Enumerable.Contains(Microphone.devices, selectedDevice))
+                {
+                    // デバイスが見つからない場合
+                    if (Microphone.devices.Length > 0)
+                    {
+                        string oldDevice = selectedDevice;
+                        selectedDevice = Microphone.devices[0];
+                        UnityEngine.Debug.LogWarning($"[LTCDecoder] Saved device '{oldDevice}' not found, using: {selectedDevice}");
+                    }
+                }
+            }
+            
+            // サンプルレートの妥当性確認
+            if (sampleRate != 44100 && sampleRate != 48000 && sampleRate != 96000)
+            {
+                sampleRate = 48000;
+                UnityEngine.Debug.LogWarning($"[LTCDecoder] Invalid sample rate, reset to: {sampleRate}");
+            }
+        }
+        
+        /// <summary>
+        /// Inspector値が変更されたかチェック
+        /// </summary>
+        private bool HasInspectorChanges()
+        {
+            return selectedDevice != lastSavedDevice ||
+                   ltcFrameRate != lastSavedFrameRate ||
+                   sampleRate != lastSavedSampleRate;
         }
         
         /// <summary>
@@ -283,6 +350,7 @@ namespace jp.iridescent.ltcdecoder
         {
             // 設定を読み込み
             LoadSettings();
+            isInitialized = true;
             
             decoder = new TimecodeDecoder();
             ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
@@ -328,12 +396,15 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnDestroy()
         {
-            SaveSettings();  // アプリ終了時に設定を保存
+            if (isDirtyFromRuntime)
+            {
+                SaveSettings();  // 実行時変更があった場合のみ保存
+            }
         }
         
         private void OnApplicationPause(bool pauseStatus)
         {
-            if (pauseStatus)
+            if (pauseStatus && isDirtyFromRuntime)
             {
                 SaveSettings();  // アプリがバックグラウンドに移行時に保存
             }
@@ -341,7 +412,7 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnApplicationFocus(bool hasFocus)
         {
-            if (!hasFocus)
+            if (!hasFocus && isDirtyFromRuntime)
             {
                 SaveSettings();  // アプリがフォーカスを失った時に保存
             }
@@ -349,21 +420,31 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnValidate()
         {
+            // 初期化前は処理しない
+            if (!isInitialized) return;
+            
             // Play中のInspector変更を反映
             if (Application.isPlaying)
             {
-                // Inspectorでの変更を保存
-                SaveSettings();
-                
-                if (IsRecording)
+                // Inspector値が変更されたかチェック
+                if (HasInspectorChanges())
                 {
-                    // フレームレートの変更を検知
-                    // SetLTCFrameRateメソッドで処理されるため、ここでは何もしない
+                    isDirtyFromRuntime = true;
+                    SaveSettings();
                     
-                    // サンプルレートの変更を検知
-                    // SetSampleRateメソッドで処理されるため、ここでは何もしない
+                    // 必要に応じてシステムに適用
+                    if (IsRecording)
+                    {
+                        // デバイスが変更された場合は再起動が必要
+                        if (selectedDevice != lastSavedDevice)
+                        {
+                            StopRecording();
+                            StartRecording();
+                        }
+                    }
                 }
             }
+            // Editor時（Play前）は何もしない - デフォルト値として保持
         }
         
         private void Update()
@@ -670,6 +751,7 @@ namespace jp.iridescent.ltcdecoder
             if (wasRecording) StopRecording();
             
             selectedDevice = deviceName;
+            isDirtyFromRuntime = true;  // 実行時変更フラグを立てる
             SaveSettings();  // 設定を保存
             
             // Play中は常に録音を開始（初回設定時も含む）
@@ -1209,6 +1291,7 @@ namespace jp.iridescent.ltcdecoder
                 useDropFrame = false;
             }
             
+            isDirtyFromRuntime = true;  // 実行時変更フラグを立てる
             SaveSettings();  // 設定を保存
             
             // 内部時計のリセット
@@ -1235,6 +1318,7 @@ namespace jp.iridescent.ltcdecoder
             if (wasRecording) StopRecording();
             
             sampleRate = newSampleRate;
+            isDirtyFromRuntime = true;  // 実行時変更フラグを立てる
             SaveSettings();  // 設定を保存
             
             if (wasRecording && !string.IsNullOrEmpty(selectedDevice))
@@ -1353,6 +1437,36 @@ namespace jp.iridescent.ltcdecoder
         {
             timecodeEvents.Clear();
         }
+        
+        #endregion
+        #endregion
+        
+        #region Editor PlayMode State Handler
+        
+        #if UNITY_EDITOR
+        /// <summary>
+        /// Play Mode終了時の設定保存（Editor限定）
+        /// </summary>
+        [UnityEditor.InitializeOnLoadMethod]
+        static void SetupPlayModeStateChanged()
+        {
+            UnityEditor.EditorApplication.playModeStateChanged += (state) =>
+            {
+                if (state == UnityEditor.PlayModeStateChange.ExitingPlayMode)
+                {
+                    // 全インスタンスの設定を保存
+                    foreach (var decoder in FindObjectsOfType<LTCDecoder>())
+                    {
+                        if (decoder != null && decoder.isDirtyFromRuntime)
+                        {
+                            decoder.SaveSettings();
+                            UnityEngine.Debug.Log("[LTCDecoder] Settings saved on exiting play mode");
+                        }
+                    }
+                }
+            };
+        }
+        #endif
         
         #endregion
     }

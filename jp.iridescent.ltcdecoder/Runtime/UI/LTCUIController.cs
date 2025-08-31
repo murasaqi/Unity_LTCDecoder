@@ -34,6 +34,9 @@ namespace jp.iridescent.ltcdecoder
         private Queue<GameObject> debugMessagePool = new Queue<GameObject>();
         public List<GameObject> activeDebugMessages = new List<GameObject>();
         
+        // UI同期制御用フラグ
+        private bool isUpdatingFromCode = false;
+        
         /// <summary>
         /// LTCDecoderとLTCEventDebuggerを設定
         /// </summary>
@@ -115,12 +118,20 @@ namespace jp.iridescent.ltcdecoder
             int index = System.Array.IndexOf(devices, currentDevice);
             if (index >= 0)
             {
+                #if UNITY_2019_1_OR_NEWER
+                deviceDropdown.SetValueWithoutNotify(index);
+                #else
                 deviceDropdown.value = index;
+                #endif
             }
             else if (devices.Length > 0)
             {
                 // 保存されたデバイスが見つからない場合は最初のデバイスを選択
+                #if UNITY_2019_1_OR_NEWER
+                deviceDropdown.SetValueWithoutNotify(0);
+                #else
                 deviceDropdown.value = 0;
+                #endif
             }
             
             // リスナーを再度有効化
@@ -150,7 +161,12 @@ namespace jp.iridescent.ltcdecoder
             // 現在の値を選択
             LTCDecoder.LTCFrameRate currentRate = ltcDecoder.FrameRate;
             int index = GetFrameRateIndex(currentRate);
+            
+            #if UNITY_2019_1_OR_NEWER
+            frameRateDropdown.SetValueWithoutNotify(index);
+            #else
             frameRateDropdown.value = index;
+            #endif
             
             // リスナーを再度有効化
             frameRateDropdown.onValueChanged.AddListener(OnFrameRateChanged);
@@ -177,7 +193,12 @@ namespace jp.iridescent.ltcdecoder
             // 現在の値を選択
             int currentRate = ltcDecoder.SampleRate;
             int index = GetSampleRateIndex(currentRate);
+            
+            #if UNITY_2019_1_OR_NEWER
+            sampleRateDropdown.SetValueWithoutNotify(index);
+            #else
             sampleRateDropdown.value = index;
+            #endif
             
             // リスナーを再度有効化
             sampleRateDropdown.onValueChanged.AddListener(OnSampleRateChanged);
@@ -209,6 +230,8 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnDeviceChanged(int index)
         {
+            if (isUpdatingFromCode) return;  // コードからの更新時は無視
+            
             if (deviceDropdown == null || ltcDecoder == null) return;
             
             string[] devices = ltcDecoder.AvailableDevices;
@@ -225,6 +248,8 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnFrameRateChanged(int index)
         {
+            if (isUpdatingFromCode) return;  // コードからの更新時は無視
+            
             if (frameRateDropdown == null || ltcDecoder == null) return;
             
             LTCDecoder.LTCFrameRate newRate = LTCDecoder.LTCFrameRate.FPS_30;
@@ -248,6 +273,8 @@ namespace jp.iridescent.ltcdecoder
         
         private void OnSampleRateChanged(int index)
         {
+            if (isUpdatingFromCode) return;  // コードからの更新時は無視
+            
             if (sampleRateDropdown == null || ltcDecoder == null) return;
             
             int newRate = 48000;
@@ -300,6 +327,17 @@ namespace jp.iridescent.ltcdecoder
         
         void Start()
         {
+            // 1フレーム遅延させて初期化（確実な同期のため）
+            StartCoroutine(InitializeUIDelayed());
+        }
+        
+        /// <summary>
+        /// UIの遅延初期化
+        /// </summary>
+        private System.Collections.IEnumerator InitializeUIDelayed()
+        {
+            yield return null;  // 1フレーム待機
+            
             // Startで自動的にSetupを試みる（コンポーネントが設定されている場合）
             if (ltcDecoder != null && ltcEventDebugger != null)
             {
@@ -309,6 +347,12 @@ namespace jp.iridescent.ltcdecoder
             {
                 // デバッガーがなくてもUIの設定は初期化
                 InitializeAudioSettingsUI();
+            }
+            
+            // UIをデコーダーの現在値で同期
+            if (ltcDecoder != null)
+            {
+                SyncUIWithDecoder();
             }
         }
         
@@ -541,6 +585,46 @@ namespace jp.iridescent.ltcdecoder
                 }
             }
             return sb.ToString();
+        }
+        
+        /// <summary>
+        /// UIをデコーダーの現在値で同期
+        /// </summary>
+        private void SyncUIWithDecoder()
+        {
+            if (ltcDecoder == null) return;
+            
+            isUpdatingFromCode = true;  // フラグを立てる
+            
+            // デバイスドロップダウンの同期
+            if (deviceDropdown != null)
+            {
+                RefreshDeviceList();
+            }
+            
+            // フレームレートドロップダウンの同期
+            if (frameRateDropdown != null)
+            {
+                int index = GetFrameRateIndex(ltcDecoder.FrameRate);
+                #if UNITY_2019_1_OR_NEWER
+                frameRateDropdown.SetValueWithoutNotify(index);
+                #else
+                frameRateDropdown.value = index;
+                #endif
+            }
+            
+            // サンプルレートドロップダウンの同期
+            if (sampleRateDropdown != null)
+            {
+                int index = GetSampleRateIndex(ltcDecoder.SampleRate);
+                #if UNITY_2019_1_OR_NEWER
+                sampleRateDropdown.SetValueWithoutNotify(index);
+                #else
+                sampleRateDropdown.value = index;
+                #endif
+            }
+            
+            isUpdatingFromCode = false;  // フラグを下ろす
         }
         
         /// <summary>
