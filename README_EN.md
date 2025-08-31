@@ -122,9 +122,12 @@ This component is for debugging and monitoring the event system.
 ## 🛠️ Developer Information
 
 ### Build Settings
-- Please enable microphone permissions
-- Recommended sample rate is 48000 Hz
-- Please note platform-specific settings
+- Microphone permissions are required for each platform:
+  - Windows/macOS: A microphone access permission dialog will appear on first launch
+  - iOS: Please add `NSMicrophoneUsageDescription` to Info.plist
+  - Android: Please add `RECORD_AUDIO` permission to AndroidManifest.xml
+- Please set the sample rate according to your audio interface and LTC equipment specifications (typically 48000Hz, sometimes 44100Hz)
+- Please refer to Unity official documentation for platform-specific settings
 
 ### Extension Development
 When adding new features:
