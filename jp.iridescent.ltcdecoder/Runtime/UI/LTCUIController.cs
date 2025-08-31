@@ -636,5 +636,69 @@ namespace jp.iridescent.ltcdecoder
             GUIUtility.systemCopyBuffer = messages;
             Debug.Log("[LTCUIController] Debug messages copied to clipboard");
         }
+        
+        #if UNITY_EDITOR
+        /// <summary>
+        /// Editor PlayMode終了後のUI更新（Editor限定）
+        /// </summary>
+        [UnityEditor.InitializeOnLoadMethod]
+        static void SetupEditorUIUpdate()
+        {
+            UnityEditor.EditorApplication.playModeStateChanged += (state) =>
+            {
+                if (state == UnityEditor.PlayModeStateChange.EnteredEditMode)
+                {
+                    // EditMode復帰後にUIを更新
+                    UnityEditor.EditorApplication.delayCall += () =>
+                    {
+                        // シーン内のLTCUIControllerを探してUIを更新
+                        foreach (var uiController in FindObjectsOfType<LTCUIController>())
+                        {
+                            if (uiController != null && uiController.ltcDecoder != null)
+                            {
+                                uiController.UpdateUIAfterPlayMode();
+                            }
+                        }
+                    };
+                }
+            };
+        }
+        
+        /// <summary>
+        /// PlayMode終了後のUI更新
+        /// </summary>
+        private void UpdateUIAfterPlayMode()
+        {
+            // LTCDecoderの現在値でUIを同期
+            if (ltcDecoder != null)
+            {
+                // ドロップダウンを更新
+                if (deviceDropdown != null)
+                {
+                    RefreshDeviceList();
+                }
+                
+                if (frameRateDropdown != null)
+                {
+                    int index = GetFrameRateIndex(ltcDecoder.FrameRate);
+                    if (index >= 0 && index < frameRateDropdown.options.Count)
+                    {
+                        frameRateDropdown.value = index;
+                    }
+                }
+                
+                if (sampleRateDropdown != null)
+                {
+                    int index = GetSampleRateIndex(ltcDecoder.SampleRate);
+                    if (index >= 0 && index < sampleRateDropdown.options.Count)
+                    {
+                        sampleRateDropdown.value = index;
+                    }
+                }
+                
+                Debug.Log("[LTCUIController] UI updated after returning to Edit Mode");
+            }
+        }
+        #endif
     }
 }

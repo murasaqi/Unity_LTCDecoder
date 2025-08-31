@@ -9,6 +9,7 @@
 （なし）
 
 ### ✅ 完了済み (Completed)
+- [x] Play終了後のInspector/UI表示の更新処理を実装
 - [x] 設定管理システムの完全な再実装（UI/Inspector両対応）
 - [x] LTC Decoder初回インスタンス化時の録音開始問題を修正
 - [x] UI設定の永続化バグ修正（ドロップダウンの初期値同期問題）
@@ -73,6 +74,14 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-08-31 (10)
+- Play終了後のInspector/UI表示の更新処理を実装
+  - PlayModeStateChange.EnteredEditModeイベントで設定を復元
+  - LoadSettingsForEditor()メソッドでInspectorを更新
+  - SerializedObjectを使用して確実にInspectorに反映
+  - UIコントローラーもEditMode復帰時に更新
+  - Play終了後も最終状態が表示されるように改善
 
 ### 2025-08-31 (9)
 - 設定管理システムの完全な再実装

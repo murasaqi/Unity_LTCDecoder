@@ -1444,7 +1444,7 @@ namespace jp.iridescent.ltcdecoder
         
         #if UNITY_EDITOR
         /// <summary>
-        /// Play Mode終了時の設定保存（Editor限定）
+        /// Play Mode終了時の設定保存とEditor復帰時の復元（Editor限定）
         /// </summary>
         [UnityEditor.InitializeOnLoadMethod]
         static void SetupPlayModeStateChanged()
@@ -1463,7 +1463,51 @@ namespace jp.iridescent.ltcdecoder
                         }
                     }
                 }
+                else if (state == UnityEditor.PlayModeStateChange.EnteredEditMode)
+                {
+                    // EditMode復帰時に保存された設定をInspectorに反映
+                    UnityEditor.EditorApplication.delayCall += () =>
+                    {
+                        foreach (var decoder in FindObjectsOfType<LTCDecoder>())
+                        {
+                            if (decoder != null)
+                            {
+                                decoder.LoadSettingsForEditor();
+                            }
+                        }
+                    };
+                }
             };
+        }
+        
+        /// <summary>
+        /// Editor用の設定読み込み（Play終了後のInspector更新用）
+        /// </summary>
+        private void LoadSettingsForEditor()
+        {
+            // PlayerPrefsから設定を読み込んでシリアライズフィールドに反映
+            if (PlayerPrefs.HasKey(PREF_DEVICE))
+            {
+                selectedDevice = PlayerPrefs.GetString(PREF_DEVICE, selectedDevice);
+                ltcFrameRate = (LTCFrameRate)PlayerPrefs.GetInt(PREF_FRAMERATE, (int)ltcFrameRate);
+                sampleRate = PlayerPrefs.GetInt(PREF_SAMPLERATE, sampleRate);
+                useDropFrame = PlayerPrefs.GetInt(PREF_DROPFRAME, useDropFrame ? 1 : 0) == 1;
+                
+                // SerializedObjectを使用してInspectorを更新
+                using (var so = new UnityEditor.SerializedObject(this))
+                {
+                    so.FindProperty("selectedDevice").stringValue = selectedDevice;
+                    so.FindProperty("ltcFrameRate").enumValueIndex = (int)ltcFrameRate;
+                    so.FindProperty("sampleRate").intValue = sampleRate;
+                    so.FindProperty("useDropFrame").boolValue = useDropFrame;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+                
+                // Inspectorを更新
+                UnityEditor.EditorUtility.SetDirty(this);
+                
+                UnityEngine.Debug.Log($"[LTCDecoder] Settings restored in Editor - Device: {selectedDevice}, FrameRate: {ltcFrameRate}, SampleRate: {sampleRate}");
+            }
         }
         #endif
         
