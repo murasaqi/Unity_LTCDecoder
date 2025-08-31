@@ -27,7 +27,7 @@ Additionally, it offers Unity Timeline synchronization functionality. By using t
 2. Please click "+" button and select "Add package from git URL..."
 3. Please enter the following URL:
 ```
-https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
+https://github.com/murasaqi/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
 ```
 
 ### Manual Installation
@@ -156,7 +156,7 @@ MIT License
 
 ## 🤝 Contributing
 
-Please submit issues and pull requests to the [GitHub repository](https://github.com/iridescent-jp/Unity_LTCDecoder).
+Please submit issues and pull requests to the [GitHub repository](https://github.com/murasaqi/Unity_LTCDecoder).
 
 ## 📝 Version History
 

@@ -15,6 +15,7 @@
 - [x] クイックスタートセクションの改善とメニュー画像追加
 - [x] LTC DecoderとTimeline同期機能の説明を分離
 - [x] LTCTimelineSync.png画像をREADMEに追加
+- [x] GitHubリポジトリURLを正しいものに修正
 - [x] LTC Timeline Syncの外部制御API拡充
 - [x] LTC Timeline SyncコンポーネントのPlayableDirector参照を柔軟化
 - [x] Play終了後のInspector自動リフレッシュ処理を実装
@@ -83,6 +84,12 @@
 ---
 
 ## 🔄 更新履歴
+
+### 2025-09-01 (7)
+- GitHubリポジトリURLを正しいものに修正
+  - Unity Package ManagerのGit URLを修正 (iridescent-jp → murasaqi)
+  - コントリビューションセクションのリポジトリURLも修正
+  - 日本語版・英語版の両方を修正
 
 ### 2025-09-01 (6)
 - LTCTimelineSync.png画像をREADMEに追加

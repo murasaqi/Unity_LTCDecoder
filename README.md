@@ -27,7 +27,7 @@ Unity上でLinear Timecode (LTC/業務用音響・映像機器で使用される
 2. 「+」ボタンから「Add package from git URL...」を選択してください
 3. 以下のURLを入力してください:
 ```
-https://github.com/iridescent-jp/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
+https://github.com/murasaqi/Unity_LTCDecoder.git?path=jp.iridescent.ltcdecoder
 ```
 
 ### 手動インストール
@@ -156,7 +156,7 @@ MIT License
 
 ## 🤝 コントリビューション
 
-Issue報告やPull Requestは[GitHubリポジトリ](https://github.com/iridescent-jp/Unity_LTCDecoder)にお願いします。
+Issue報告やPull Requestは[GitHubリポジトリ](https://github.com/murasaqi/Unity_LTCDecoder)にお願いします。
 
 ## 📝 更新履歴
 
