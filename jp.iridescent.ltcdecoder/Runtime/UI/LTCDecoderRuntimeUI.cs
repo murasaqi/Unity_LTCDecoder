@@ -71,12 +71,12 @@ namespace jp.iridescent.ltcdecoder
                 sampleRateDropdown.onValueChanged.AddListener(OnSampleRateChanged);
             }
             
-            // ドロップフレームトグルの初期化
-            if (dropFrameToggle != null)
-            {
-                dropFrameToggle.isOn = ltcDecoder.DropFrame;
-                dropFrameToggle.onValueChanged.AddListener(OnDropFrameChanged);
-            }
+            // ドロップフレームトグルの初期化（現在は使用していない）
+            // if (dropFrameToggle != null)
+            // {
+            //     dropFrameToggle.isOn = ltcDecoder.DropFrame;
+            //     dropFrameToggle.onValueChanged.AddListener(OnDropFrameChanged);
+            // }
         }
         
         private void SetupFrameRateDropdown()
@@ -272,27 +272,28 @@ namespace jp.iridescent.ltcdecoder
             }
         }
         
-        private void OnDropFrameChanged(bool value)
-        {
-            if (ltcDecoder == null) return;
-            
-            // 29.97fpsの場合のみドロップフレーム設定を反映
-            var currentRate = ltcDecoder.FrameRate;
-            if (currentRate == LTCDecoder.LTCFrameRate.FPS_29_97_DF || 
-                currentRate == LTCDecoder.LTCFrameRate.FPS_29_97_NDF)
-            {
-                var newRate = value ? 
-                    LTCDecoder.LTCFrameRate.FPS_29_97_DF : 
-                    LTCDecoder.LTCFrameRate.FPS_29_97_NDF;
-                ltcDecoder.SetLTCFrameRate(newRate);
-                
-                // ドロップダウンも更新
-                if (frameRateDropdown != null)
-                {
-                    frameRateDropdown.value = GetFrameRateIndex(newRate);
-                }
-            }
-        }
+        // ドロップフレーム変更ハンドラー（現在は使用していない）
+        // private void OnDropFrameChanged(bool value)
+        // {
+        //     if (ltcDecoder == null) return;
+        //     
+        //     // 29.97fpsの場合のみドロップフレーム設定を反映
+        //     var currentRate = ltcDecoder.FrameRate;
+        //     if (currentRate == LTCDecoder.LTCFrameRate.FPS_29_97_DF || 
+        //         currentRate == LTCDecoder.LTCFrameRate.FPS_29_97_NDF)
+        //     {
+        //         var newRate = value ? 
+        //             LTCDecoder.LTCFrameRate.FPS_29_97_DF : 
+        //             LTCDecoder.LTCFrameRate.FPS_29_97_NDF;
+        //         ltcDecoder.SetLTCFrameRate(newRate);
+        //         
+        //         // ドロップダウンも更新
+        //         if (frameRateDropdown != null)
+        //         {
+        //             frameRateDropdown.value = GetFrameRateIndex(newRate);
+        //         }
+        //     }
+        // }
         
         #endregion
         

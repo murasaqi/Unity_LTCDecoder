@@ -278,10 +278,6 @@ namespace jp.iridescent.ltcdecoder.Editor
                 component.SetLTCFrameRate((LTCDecoder.LTCFrameRate)ltcFrameRateProp.enumValueIndex);
             }
             
-            // Drop Frame
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("useDropFrame"),
-                new GUIContent("Use Drop Frame", "Enable drop frame for 29.97 fps"));
-            
             // Sample Rate with dropdown
             EditorGUILayout.Space(5);
             int[] sampleRates = { 44100, 48000, 96000 };
@@ -415,31 +411,17 @@ namespace jp.iridescent.ltcdecoder.Editor
                 GUI.backgroundColor = Color.white;
                 EditorGUILayout.EndVertical();
                 
-                // Time Difference & Drop Frame
-                if (component.DropFrame || Mathf.Abs(component.TimeDifference) > 0.001f)
+                // Time Difference
+                if (Mathf.Abs(component.TimeDifference) > 0.001f)
                 {
-                    string statusInfo = "";
-                    
-                    if (component.DropFrame)
-                    {
-                        statusInfo = "Drop Frame Mode";
-                    }
-                    
-                    if (Mathf.Abs(component.TimeDifference) > 0.001f)
-                    {
-                        string diffText = component.TimeDifference > 0 
-                            ? $"Output: +{component.TimeDifference:F3}s" 
-                            : $"Output: {component.TimeDifference:F3}s";
-                        
-                        if (!string.IsNullOrEmpty(statusInfo))
-                            statusInfo += " | ";
-                        statusInfo += diffText;
-                    }
+                    string diffText = component.TimeDifference > 0 
+                        ? $"Output: +{component.TimeDifference:F3}s" 
+                        : $"Output: {component.TimeDifference:F3}s";
                     
                     MessageType msgType = Mathf.Abs(component.TimeDifference) > 0.1f 
                         ? MessageType.Warning 
                         : MessageType.Info;
-                    EditorGUILayout.HelpBox(statusInfo, msgType);
+                    EditorGUILayout.HelpBox(diffText, msgType);
                 }
                 
                 // Noise比較グラフ（Debug Info内に追加）
