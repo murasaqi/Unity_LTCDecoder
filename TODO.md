@@ -7,17 +7,6 @@
 
 ### ⏳ 待機中 (Pending)
 
-【Phase B: DF/NDF 厳密換算とフレーム基準化】
-7. [ ] 変換ユーティリティ追加: 文字列↔絶対フレーム（DF対応）
-   - 目的: 29.97DF を正しい規則で往復換算。
-   - 受け入れ基準: 1時間相当で往復誤差0フレームのテスト通過。
-   - 影響: 新規Utility or `LTCDecoder` 内部メソッド
-   - 参照: `Documents/ltc-priority-implementation-plan.md`, `Documents/ltc-drop-frame-conversion.md`
-8. [ ] 秒↔フレーム変換の窓口統一（内部はフレーム優先）
-   - 目的: 内部進行・比較は絶対フレーム基準へ。表示時のみ文字列化。
-   - 受け入れ基準: 既存API互換を保ちつつ内部置換が進む。
-   - 影響: `LTCDecoder.cs`（段階導入）
-   - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 【Phase C: 参照一本化とTimeline同期改善】
 9. [ ] `GetActualFrameRate()` 公開（または公開メソッドの追加）
@@ -66,6 +55,10 @@
    - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 ### ✅ 完了済み (Completed)
+【Phase B: DF/NDF 厳密換算とフレーム基準化（2025-09-03）】
+- [x] 変換ユーティリティ追加: 文字列↔絶対フレーム（DF対応）
+- [x] 秒↔フレーム変換の窓口統一（内部はフレーム優先）
+
 【Phase A: DSP時刻スタンプ導入（2025-09-03）】
 - [x] フィールド追加: `micStartDspTime/wrapCount/clipSamples/lastSegmentEndDsp`
 - [x] 較正ロジック実装: 録音開始直後に `micStartDspTime` を確定

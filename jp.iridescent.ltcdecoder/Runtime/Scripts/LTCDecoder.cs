@@ -1297,32 +1297,157 @@ namespace jp.iridescent.ltcdecoder
         #region Utility Methods
         
         /// <summary>
-        /// タイムコードを秒に変換
+        /// タイムコードを秒に変換（DropFrame対応版）
         /// </summary>
         private double TimecodeToSeconds(Timecode tc)
         {
             if (tc == null) return 0;
             
-            double totalSeconds = tc.Hour * 3600 + tc.Minute * 60 + tc.Second;
-            totalSeconds += tc.Frame / GetActualFrameRate();
+            // タイムコードを文字列に変換
+            string tcString = $"{tc.Hour:D2}:{tc.Minute:D2}:{tc.Second:D2}:{tc.Frame:D2}";
             
-            return totalSeconds;
+            // 絶対フレーム数に変換
+            long absoluteFrames = TimecodeToAbsoluteFrames(tcString, tc.DropFrame, GetNominalFrameRate());
+            
+            // 実フレームレートで秒に変換
+            return absoluteFrames / GetActualFrameRate();
         }
         
         /// <summary>
-        /// 秒をタイムコード文字列に変換
+        /// 秒をタイムコード文字列に変換（DropFrame対応版）
         /// </summary>
         private string SecondsToTimecode(double totalSeconds)
         {
             if (totalSeconds < 0) totalSeconds = 0;
             
-            int hours = (int)(totalSeconds / 3600);
-            int minutes = (int)((totalSeconds % 3600) / 60);
-            int seconds = (int)(totalSeconds % 60);
-            int frames = (int)((totalSeconds % 1.0) * GetActualFrameRate());
+            // 秒を絶対フレーム数に変換（実フレームレート使用）
+            long absoluteFrames = (long)(totalSeconds * GetActualFrameRate());
             
-            hours = hours % 24;
-            frames = Math.Min(frames, (int)GetActualFrameRate() - 1);
+            // 絶対フレーム数をタイムコード文字列に変換
+            return AbsoluteFramesToTimecode(absoluteFrames, useDropFrame, GetNominalFrameRate());
+        }
+        
+        /// <summary>
+        /// 名目上のフレームレートを取得（DF計算用）
+        /// </summary>
+        private float GetNominalFrameRate()
+        {
+            switch (ltcFrameRate)
+            {
+                case LTCFrameRate.FPS_24:
+                    return 24f;
+                case LTCFrameRate.FPS_25:
+                    return 25f;
+                case LTCFrameRate.FPS_29_97_DF:
+                case LTCFrameRate.FPS_29_97_NDF:
+                    return 30f;  // DFは名目30fpsで計算
+                case LTCFrameRate.FPS_30:
+                    return 30f;
+                default:
+                    return 30f;
+            }
+        }
+        
+        /// <summary>
+        /// タイムコード文字列を絶対フレーム数に変換（DropFrame対応）
+        /// </summary>
+        /// <param name="timecodeString">HH:MM:SS:FF形式のタイムコード</param>
+        /// <param name="isDropFrame">DropFrameモードかどうか</param>
+        /// <param name="frameRate">フレームレート（29.97DFの場合は30を指定）</param>
+        /// <returns>絶対フレーム数</returns>
+        public static long TimecodeToAbsoluteFrames(string timecodeString, bool isDropFrame, float frameRate)
+        {
+            if (string.IsNullOrEmpty(timecodeString))
+                return 0;
+                
+            string[] parts = timecodeString.Split(':');
+            if (parts.Length != 4)
+                return 0;
+                
+            if (!int.TryParse(parts[0], out int hours) ||
+                !int.TryParse(parts[1], out int minutes) ||
+                !int.TryParse(parts[2], out int seconds) ||
+                !int.TryParse(parts[3], out int frames))
+                return 0;
+                
+            // 29.97 DropFrameの場合
+            if (isDropFrame && Math.Abs(frameRate - 30f) < 0.1f)
+            {
+                int totalMinutes = hours * 60 + minutes;
+                int droppedFrames = 2 * (totalMinutes - (totalMinutes / 10));
+                long framesAt30 = ((long)hours * 3600 + minutes * 60 + seconds) * 30 + frames;
+                return framesAt30 - droppedFrames;
+            }
+            // 通常のフレームレート
+            else
+            {
+                return ((long)hours * 3600 + minutes * 60 + seconds) * (long)frameRate + frames;
+            }
+        }
+        
+        /// <summary>
+        /// 絶対フレーム数をタイムコード文字列に変換（DropFrame対応）
+        /// </summary>
+        /// <param name="absoluteFrames">絶対フレーム数</param>
+        /// <param name="isDropFrame">DropFrameモードかどうか</param>
+        /// <param name="frameRate">フレームレート（29.97DFの場合は30を指定）</param>
+        /// <returns>HH:MM:SS:FF形式のタイムコード</returns>
+        public static string AbsoluteFramesToTimecode(long absoluteFrames, bool isDropFrame, float frameRate)
+        {
+            if (absoluteFrames < 0)
+                absoluteFrames = 0;
+                
+            int hours, minutes, seconds, frames;
+            
+            // 29.97 DropFrameの場合
+            if (isDropFrame && Math.Abs(frameRate - 30f) < 0.1f)
+            {
+                const int framesPer10Min = 17982;  // 10分あたりの実フレーム数（DF）
+                const int framesPerMinNominal = 1800;  // 名目上の1分あたりフレーム数
+                
+                // 10分ブロックで切り出し
+                long tenMinBlocks = absoluteFrames / framesPer10Min;
+                long remainder = absoluteFrames % framesPer10Min;
+                
+                // 10分ブロック内での分を計算（簡易的な方法）
+                int minutesInBlock = 0;
+                if (remainder >= 1800)  // 最初の1分はドロップなし
+                {
+                    minutesInBlock = 1;
+                    remainder -= 1800;
+                    
+                    // 残りの分はドロップあり（1798フレーム/分）
+                    if (remainder > 0)
+                    {
+                        minutesInBlock += (int)(remainder / 1798);
+                        remainder = remainder % 1798;
+                    }
+                }
+                
+                // 時・分を決定
+                long totalMinutes = tenMinBlocks * 10 + minutesInBlock;
+                hours = (int)(totalMinutes / 60) % 24;
+                minutes = (int)(totalMinutes % 60);
+                
+                // 秒・フレームを決定
+                seconds = (int)(remainder / 30);
+                frames = (int)(remainder % 30);
+                
+                // ドロップフレームの補正（分の先頭2フレームがドロップされる）
+                if (minutesInBlock > 0 && seconds == 0 && frames < 2 && (minutes % 10) != 0)
+                {
+                    frames += 2;  // ドロップされたフレームを補正
+                }
+            }
+            // 通常のフレームレート
+            else
+            {
+                int frameRateInt = (int)Math.Round(frameRate);
+                hours = (int)(absoluteFrames / (3600 * frameRateInt)) % 24;
+                minutes = (int)((absoluteFrames / (60 * frameRateInt)) % 60);
+                seconds = (int)((absoluteFrames / frameRateInt) % 60);
+                frames = (int)(absoluteFrames % frameRateInt);
+            }
             
             return $"{hours:D2}:{minutes:D2}:{seconds:D2}:{frames:D2}";
         }
