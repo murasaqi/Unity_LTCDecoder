@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Playables;
 using System.Collections.Generic;
 
 namespace jp.iridescent.ltcdecoder
@@ -19,6 +20,14 @@ namespace jp.iridescent.ltcdecoder
         public Transform debugMessageContainer;
         public ScrollRect debugScrollRect;
         
+        [Header("Timeline Sync UI References")]
+        public GameObject timelineSyncSection;  // Timeline Syncセクション全体
+        public Text timelineSyncLTCText;  // LTC TC表示
+        public Text timelineSyncTimelineText;  // Timeline TC表示
+        public Text timelineSyncDiffText;  // 時間差表示
+        public Text timelineSyncStatusText;  // 同期ステータス表示
+        public Text timelineSyncThresholdText;  // 閾値/オフセット表示
+        
         [Header("Audio Settings UI")]
         public Dropdown deviceDropdown;
         public Dropdown frameRateDropdown;
@@ -27,6 +36,7 @@ namespace jp.iridescent.ltcdecoder
         [Header("Target Components")]
         [SerializeField] private LTCDecoder ltcDecoder;
         [SerializeField] private LTCEventDebugger ltcEventDebugger;
+        [SerializeField] private LTCTimelineSync ltcTimelineSync;  // オプショナル
         
         [Header("Debug Message Settings")]
         [SerializeField] private int maxDebugMessages = 100;
@@ -377,6 +387,9 @@ namespace jp.iridescent.ltcdecoder
             
             // シグナルレベル更新
             UpdateSignalLevel();
+            
+            // Timeline Sync情報更新（Timeline Syncがある場合のみ）
+            UpdateTimelineSyncDisplay();
         }
         
         /// <summary>
@@ -453,6 +466,209 @@ namespace jp.iridescent.ltcdecoder
         {
             // 互換性のため残すが、実際の処理はUpdateTimecodeDisplay()に統合
             // 個別のsignalLevelTextとsignalLevelBarは使用しない
+        }
+        
+        /// <summary>
+        /// Timeline Sync情報を更新
+        /// </summary>
+        private void UpdateTimelineSyncDisplay()
+        {
+            // Timeline Syncセクションが未設定の場合は何もしない
+            if (timelineSyncSection == null) return;
+            
+            // LTCTimelineSyncが未設定の場合は自動検索を試みる
+            if (ltcTimelineSync == null)
+            {
+                #if UNITY_2023_1_OR_NEWER
+                ltcTimelineSync = FindFirstObjectByType<LTCTimelineSync>();
+                #else
+                ltcTimelineSync = FindObjectOfType<LTCTimelineSync>();
+                #endif
+            }
+            
+            // LTCTimelineSyncがない場合はセクションを非表示
+            if (ltcTimelineSync == null)
+            {
+                if (timelineSyncSection.activeSelf)
+                {
+                    timelineSyncSection.SetActive(false);
+                }
+                return;
+            }
+            
+            // セクションを表示
+            if (!timelineSyncSection.activeSelf)
+            {
+                timelineSyncSection.SetActive(true);
+            }
+            
+            // PlayableDirectorの取得
+            var playableDirector = ltcTimelineSync.GetPlayableDirector();
+            if (playableDirector == null) return;
+            
+            // LTC TC表示
+            if (timelineSyncLTCText != null)
+            {
+                string ltcTC = ltcDecoder != null ? ltcDecoder.CurrentTimecode : "--:--:--:--";
+                timelineSyncLTCText.text = $"LTC:      {ltcTC}";
+                SetMonoFontIfNeeded(timelineSyncLTCText);
+            }
+            
+            // Timeline TC表示
+            if (timelineSyncTimelineText != null)
+            {
+                float timelineTime = (float)playableDirector.time;
+                string timelineTC = ConvertToTimecode(timelineTime, GetFrameRate());
+                timelineSyncTimelineText.text = $"Timeline: {timelineTC}";
+                SetMonoFontIfNeeded(timelineSyncTimelineText);
+            }
+            
+            // 時間差と同期ステータス表示
+            if (timelineSyncDiffText != null)
+            {
+                float timeDiff = ltcTimelineSync.TimeDifference;
+                string syncStatus = GetSyncStatus(ltcTimelineSync, ltcDecoder);
+                Color statusColor = GetSyncStatusColor(syncStatus);
+                string hexColor = ColorUtility.ToHtmlStringRGB(statusColor);
+                
+                timelineSyncDiffText.text = $"Diff: {timeDiff:F3}s <color=#{hexColor}>[{syncStatus}]</color>";
+            }
+            
+            // Play状態表示
+            if (timelineSyncStatusText != null)
+            {
+                string playState = GetPlayStateString(playableDirector.state);
+                Color playColor = playableDirector.state == PlayState.Playing ? Color.green : 
+                                 playableDirector.state == PlayState.Paused ? Color.yellow : Color.gray;
+                string hexColor = ColorUtility.ToHtmlStringRGB(playColor);
+                
+                timelineSyncStatusText.text = $"Status: <color=#{hexColor}>{playState}</color>";
+            }
+            
+            // 閾値とオフセット表示
+            if (timelineSyncThresholdText != null)
+            {
+                float threshold = ltcTimelineSync.SyncThreshold;
+                float offset = ltcTimelineSync.GetTimelineOffset();
+                timelineSyncThresholdText.text = $"Threshold: {threshold:F2}s | Offset: {offset:F2}s";
+            }
+        }
+        
+        /// <summary>
+        /// 秒数をタイムコード形式に変換
+        /// </summary>
+        private string ConvertToTimecode(float seconds, float frameRate)
+        {
+            if (seconds < 0) return "--:--:--:--";
+            
+            int totalFrames = Mathf.FloorToInt(seconds * frameRate);
+            int frames = totalFrames % Mathf.RoundToInt(frameRate);
+            int totalSeconds = totalFrames / Mathf.RoundToInt(frameRate);
+            int secs = totalSeconds % 60;
+            int mins = (totalSeconds / 60) % 60;
+            int hours = totalSeconds / 3600;
+            
+            return $"{hours:D2}:{mins:D2}:{secs:D2}:{frames:D2}";
+        }
+        
+        /// <summary>
+        /// フレームレートを取得
+        /// </summary>
+        private float GetFrameRate()
+        {
+            if (ltcDecoder == null) return 30f;
+            
+            switch (ltcDecoder.FrameRate)
+            {
+                case LTCDecoder.LTCFrameRate.FPS_24:
+                    return 24f;
+                case LTCDecoder.LTCFrameRate.FPS_25:
+                    return 25f;
+                case LTCDecoder.LTCFrameRate.FPS_29_97_DF:
+                case LTCDecoder.LTCFrameRate.FPS_29_97_NDF:
+                    return 29.97f;
+                case LTCDecoder.LTCFrameRate.FPS_30:
+                default:
+                    return 30f;
+            }
+        }
+        
+        /// <summary>
+        /// 同期ステータスを取得
+        /// </summary>
+        private string GetSyncStatus(LTCTimelineSync timelineSync, LTCDecoder decoder)
+        {
+            if (!timelineSync.IsPlaying)
+                return "Stopped";
+            
+            if (decoder == null)
+                return "No Decoder";
+            
+            switch (decoder.State)
+            {
+                case LTCDecoder.SyncState.NoSignal:
+                    return "No Signal";
+                case LTCDecoder.SyncState.Syncing:
+                    return "Syncing";
+                case LTCDecoder.SyncState.Locked:
+                    return "Locked";
+                case LTCDecoder.SyncState.Drifting:
+                    return "Drifting";
+                default:
+                    return "Unknown";
+            }
+        }
+        
+        /// <summary>
+        /// 同期ステータスの色を取得
+        /// </summary>
+        private Color GetSyncStatusColor(string status)
+        {
+            switch (status)
+            {
+                case "Locked":
+                    return Color.green;
+                case "Syncing":
+                    return Color.yellow;
+                case "Drifting":
+                    return new Color(1f, 0.5f, 0f); // オレンジ
+                case "No Signal":
+                case "Stopped":
+                    return Color.gray;
+                default:
+                    return Color.red;
+            }
+        }
+        
+        /// <summary>
+        /// PlayState文字列を取得
+        /// </summary>
+        private string GetPlayStateString(PlayState state)
+        {
+            switch (state)
+            {
+                case PlayState.Playing:
+                    return "Playing";
+                case PlayState.Paused:
+                    return "Paused";
+                default:
+                    return "Stopped";
+            }
+        }
+        
+        /// <summary>
+        /// 等幅フォントを設定（必要な場合のみ）
+        /// </summary>
+        private void SetMonoFontIfNeeded(Text text)
+        {
+            if (text != null && (text.font == null || !text.font.name.Contains("Consola")))
+            {
+                Font monoFont = Font.CreateDynamicFontFromOSFont("Consolas", text.fontSize);
+                if (monoFont != null)
+                {
+                    text.font = monoFont;
+                }
+            }
         }
         
         /// <summary>

@@ -172,7 +172,11 @@ namespace jp.iridescent.ltcdecoder.Editor
             fill.AddComponent<Image>().color = Color.clear;
             signalBar.SetActive(false);
             
-            // Control Buttons
+            // --- Timeline Sync Section (初期非表示、実行時に自動表示) ---
+            GameObject timelineSyncSection = CreateTimelineSyncSection(mainPanel);
+            timelineSyncSection.SetActive(false);  // デフォルトで非表示
+            
+            // Control Buttons (Timeline Syncセクションがある場合位置調整)
             CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -285), new Vector2(80, 35));
             CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -285), new Vector2(80, 35));
             CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -285), new Vector2(80, 35));
@@ -269,6 +273,49 @@ namespace jp.iridescent.ltcdecoder.Editor
             textComp.horizontalOverflow = HorizontalWrapMode.Overflow;
             
             return textObj;
+        }
+        
+        /// <summary>
+        /// Timeline Syncセクション作成
+        /// </summary>
+        private static GameObject CreateTimelineSyncSection(GameObject parent)
+        {
+            // セクションコンテナ
+            GameObject section = new GameObject("TimelineSyncSection");
+            section.transform.SetParent(parent.transform, false);
+            
+            RectTransform sectionRect = section.AddComponent<RectTransform>();
+            sectionRect.anchorMin = new Vector2(0, 1);
+            sectionRect.anchorMax = new Vector2(0, 1);
+            sectionRect.pivot = new Vector2(0, 1);
+            sectionRect.anchoredPosition = new Vector2(10, -210);
+            sectionRect.sizeDelta = new Vector2(360, 65);
+            
+            // セパレータライン
+            CreateTextAtPosition(section, "Separator", "─────── Timeline Sync ───────", 
+                new Vector2(180, -5), new Vector2(340, 15), 12, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), false);
+            
+            // LTC TC表示
+            CreateMonospaceTextAtPosition(section, "TimelineSyncLTC", "LTC:      --:--:--:--", 
+                new Vector2(180, -20), new Vector2(340, 15), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Timeline TC表示
+            CreateMonospaceTextAtPosition(section, "TimelineSyncTimeline", "Timeline: --:--:--:--", 
+                new Vector2(180, -35), new Vector2(340, 15), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // 時間差とステータス
+            CreateTextAtPosition(section, "TimelineSyncDiff", "Diff: 0.000s [Stopped]", 
+                new Vector2(90, -50), new Vector2(160, 15), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Play状態
+            CreateTextAtPosition(section, "TimelineSyncStatus", "Status: Stopped", 
+                new Vector2(270, -50), new Vector2(160, 15), 11, TextAnchor.MiddleLeft, Color.gray, false);
+            
+            // 閾値とオフセット
+            CreateTextAtPosition(section, "TimelineSyncThreshold", "Threshold: 0.50s | Offset: 0.00s", 
+                new Vector2(180, -65), new Vector2(340, 15), 10, TextAnchor.MiddleCenter, new Color(0.7f, 0.7f, 0.7f), false);
+            
+            return section;
         }
         
         /// <summary>
@@ -639,6 +686,14 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.deviceDropdown = mainPanel.transform.Find("DeviceDropdown")?.GetComponent<Dropdown>();
             controller.frameRateDropdown = mainPanel.transform.Find("FrameRateDropdown")?.GetComponent<Dropdown>();
             controller.sampleRateDropdown = mainPanel.transform.Find("SampleRateDropdown")?.GetComponent<Dropdown>();
+            
+            // Timeline Sync UIの参照を設定
+            controller.timelineSyncSection = mainPanel.transform.Find("TimelineSyncSection")?.gameObject;
+            controller.timelineSyncLTCText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncLTC")?.GetComponent<Text>();
+            controller.timelineSyncTimelineText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncTimeline")?.GetComponent<Text>();
+            controller.timelineSyncDiffText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncDiff")?.GetComponent<Text>();
+            controller.timelineSyncStatusText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncStatus")?.GetComponent<Text>();
+            controller.timelineSyncThresholdText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncThreshold")?.GetComponent<Text>();
             
             // LTCDecoderとLTCEventDebuggerを設定（参照設定後に）
             LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
