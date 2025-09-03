@@ -6,9 +6,72 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
-（なし）
+
+【Phase B: DF/NDF 厳密換算とフレーム基準化】
+7. [ ] 変換ユーティリティ追加: 文字列↔絶対フレーム（DF対応）
+   - 目的: 29.97DF を正しい規則で往復換算。
+   - 受け入れ基準: 1時間相当で往復誤差0フレームのテスト通過。
+   - 影響: 新規Utility or `LTCDecoder` 内部メソッド
+   - 参照: `Documents/ltc-priority-implementation-plan.md`, `Documents/ltc-drop-frame-conversion.md`
+8. [ ] 秒↔フレーム変換の窓口統一（内部はフレーム優先）
+   - 目的: 内部進行・比較は絶対フレーム基準へ。表示時のみ文字列化。
+   - 受け入れ基準: 既存API互換を保ちつつ内部置換が進む。
+   - 影響: `LTCDecoder.cs`（段階導入）
+   - 参照: `Documents/ltc-priority-implementation-plan.md`
+
+【Phase C: 参照一本化とTimeline同期改善】
+9. [ ] `GetActualFrameRate()` 公開（または公開メソッドの追加）
+   - 目的: 消費側が必ずDecoderの値を参照できるようにする。
+   - 受け入れ基準: `LTCTimelineSync` から呼び出し可能。
+   - 影響: `LTCDecoder.cs`
+   - 参照: `Documents/ltc-timeline-sync-improvement.md`
+10. [ ] `LTCTimelineSync` の30fps固定排除（Decoder参照化）
+   - 目的: `ParseTimecodeToSeconds` をDecoderのFPS/DFに準拠して換算。
+   - 受け入れ基準: 24/25/29.97DF/NDF/30 の各設定で±1フレーム以内に収束。
+   - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-timeline-sync-improvement.md`
+11. [ ] 駆動方式の見直し（DSPClock or 予約Evaluate）
+   - 目的: GameTime依存を緩和し、決定性を向上。
+   - 受け入れ基準: 1分再生で発散せず±1フレーム以内に収束。
+   - 影響: `LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-timeline-sync-improvement.md`
+
+【Phase D: イベントの決定化と最適化】
+12. [ ] 開始/停止イベントの単一ステートマシン化
+   - 目的: 二重発火や順序ぶれを排除（ヒステリシス導入）。
+   - 受け入れ基準: 断続試験で常に同一の発火回数・順序。
+   - 影響: `LTCDecoder.cs`
+   - 参照: `Documents/ltc-priority-implementation-plan.md`
+13. [ ] イベント判定のフレーム量子化（±許容フレーム）
+   - 目的: 秒ベース誤差を排し、DF/NDF問わず決定的判定。
+   - 受け入れ基準: 全設定で期待イベントが±許容フレーム内で発火。
+   - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCDecoderEvents.cs`
+   - 参照: `Documents/ltc-priority-implementation-plan.md`
+14. [ ] `LTCEventData` メタ拡張（dspTimestamp/absoluteFrame）
+   - 目的: 下流で決定的比較・同期が可能に。
+   - 受け入れ基準: ログ照合を `absoluteFrame` で実施可能。
+   - 影響: `LTCDecoderEvents.cs`, `LTCDecoder.cs`
+   - 参照: `Documents/ltc-priority-implementation-plan.md`, `Documents/ltc-sync-dsp-timestamp-plan.md`
+
+【Phase E: GC/ジッタ削減（安定化）】
+15. [ ] `AnalyzeBuffer` のLINQ除去（手書きループ化）
+   - 目的: アロケーションゼロ・ジッタ低減。
+   - 受け入れ基準: 10分連続で通常フレームのGC.Alloc=0B。
+   - 影響: `LTCDecoder.cs`
+   - 参照: `Documents/ltc-priority-implementation-plan.md`
+16. [ ] バッファを固定長リング化・先行確保
+   - 目的: 実行時再割り当てを防止。
+   - 受け入れ基準: 実行中の配列再確保が発生しない。
+   - 影響: `LTCDecoder.cs`
+   - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 ### ✅ 完了済み (Completed)
+【Phase A: DSP時刻スタンプ導入（2025-09-03）】
+- [x] フィールド追加: `micStartDspTime/wrapCount/clipSamples/lastSegmentEndDsp`
+- [x] 較正ロジック実装: 録音開始直後に `micStartDspTime` を確定
+- [x] ラップ検出と絶対サンプル番号: `wrapCount` 運用
+- [x] `ProcessAudioSegment`で `lastSegmentEndDsp` を更新
+- [x] デコード結果の刻印差し替え: `dspTime = lastSegmentEndDsp`
 - [x] READMEを日本語/英語版で更新（画像付き）
 - [x] README内の専門用語説明と文体を改善
 - [x] ビルド設定セクションの改善（マイクロフォン権限とサンプルレート説明）

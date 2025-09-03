@@ -159,6 +159,12 @@ namespace jp.iridescent.ltcdecoder
         private int lastSamplePosition;
         private Coroutine audioProcessingCoroutine;
         
+        // DSP時刻スタンプ管理（Phase A）
+        private double micStartDspTime = -1;  // マイク録音開始時のDSP時刻
+        private int wrapCount = 0;  // リングバッファのラップ回数
+        private int clipSamples = 0;  // AudioClipの総サンプル数
+        private double lastSegmentEndDsp = 0;  // 最後に処理したセグメント末端のDSP時刻
+        
         // LTCバッファリング
         private struct LTCSample
         {
@@ -838,7 +844,12 @@ namespace jp.iridescent.ltcdecoder
                 return;
             }
             
+            // DSP時刻管理の初期化
             lastSamplePosition = 0;
+            micStartDspTime = -1;  // 未較正状態
+            wrapCount = 0;
+            clipSamples = microphoneClip.samples;
+            lastSegmentEndDsp = 0;
             
             if (audioProcessingCoroutine != null)
                 StopCoroutine(audioProcessingCoroutine);
@@ -879,9 +890,24 @@ namespace jp.iridescent.ltcdecoder
             {
                 int currentPosition = Microphone.GetPosition(selectedDevice);
                 
+                // DSP時刻の較正（最初の1回のみ）
+                if (micStartDspTime < 0 && currentPosition > 0)
+                {
+                    // 現在のDSP時刻から、現在位置分のサンプル時間を引いて開始時刻を算出
+                    double currentDspTime = AudioSettings.dspTime;
+                    double elapsedSeconds = (double)currentPosition / sampleRate;
+                    micStartDspTime = currentDspTime - elapsedSeconds;
+                    LogDebug($"DSP calibration: micStartDspTime={micStartDspTime:F6}, currentPos={currentPosition}");
+                }
+                
+                // ラップ検出
                 if (currentPosition < lastSamplePosition)
                 {
-                    int samplesToRead = microphoneClip.samples - lastSamplePosition;
+                    // リングバッファがラップした
+                    wrapCount++;
+                    LogDebug($"Ring buffer wrapped: wrapCount={wrapCount}");
+                    
+                    int samplesToRead = clipSamples - lastSamplePosition;
                     if (samplesToRead > 0)
                     {
                         ProcessAudioSegment(lastSamplePosition, samplesToRead);
@@ -908,6 +934,17 @@ namespace jp.iridescent.ltcdecoder
             }
             
             microphoneClip.GetData(audioBuffer, startPosition);
+            
+            // DSP時刻の計算（Phase A-4）
+            if (micStartDspTime >= 0)
+            {
+                // セグメント終端の絶対サンプル番号を計算
+                int endPosition = startPosition + length;
+                long absoluteEndSample = (long)wrapCount * clipSamples + endPosition;
+                
+                // 終端サンプルのDSP時刻を計算
+                lastSegmentEndDsp = micStartDspTime + (double)absoluteEndSample / sampleRate;
+            }
             
             // 信号レベル検出
             float maxAmplitude = 0f;
@@ -1004,7 +1041,8 @@ namespace jp.iridescent.ltcdecoder
             
             var sample = new LTCSample
             {
-                dspTime = AudioSettings.dspTime,
+                // Phase A-5: サンプル由来のDSP時刻を使用（較正済みの場合）
+                dspTime = micStartDspTime >= 0 ? lastSegmentEndDsp : AudioSettings.dspTime,
                 timecode = tcString,
                 tcSeconds = TimecodeToSeconds(tc)
             };
