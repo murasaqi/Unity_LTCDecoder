@@ -174,6 +174,12 @@ namespace jp.iridescent.ltcdecoder
         }
         private Queue<LTCSample> ltcBuffer;
         
+        // Phase E-16: 固定長リングバッファ
+        private LTCSample[] ltcRingBuffer;
+        private int ltcRingBufferHead = 0;
+        private int ltcRingBufferCount = 0;
+        private const int LTC_RING_BUFFER_SIZE = 20;  // 固定サイズ
+        
         // 統計情報
         private int consecutiveStops = 0;
         private string lastDecodedTc = "";
@@ -402,7 +408,10 @@ namespace jp.iridescent.ltcdecoder
             
             decoder = new TimecodeDecoder();
             ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
-            audioBuffer = new float[bufferSize];
+            
+            // Phase E-16: バッファの事前確保
+            ltcRingBuffer = new LTCSample[LTC_RING_BUFFER_SIZE];
+            audioBuffer = new float[bufferSize * 2];  // 最大サイズを事前確保
             
             // ノイズ履歴バッファの初期化
             ltcNoiseHistory = new float[NoiseHistorySize];
@@ -938,9 +947,12 @@ namespace jp.iridescent.ltcdecoder
         
         private void ProcessAudioSegment(int startPosition, int length)
         {
+            // Phase E-16: 再割り当てを防止
             if (length > audioBuffer.Length)
             {
-                audioBuffer = new float[length];
+                // エラーログを出して、バッファサイズ内で処理
+                LogDebug($"Warning: Audio segment length {length} exceeds buffer size {audioBuffer.Length}");
+                length = audioBuffer.Length;
             }
             
             microphoneClip.GetData(audioBuffer, startPosition);
@@ -1075,6 +1087,9 @@ namespace jp.iridescent.ltcdecoder
                 ltcBuffer.Dequeue();
             }
             
+            // Phase E-16: リングバッファにも追加
+            AddToRingBuffer(sample);
+            
             // バッファ解析
             AnalyzeBuffer();
         }
@@ -1094,7 +1109,18 @@ namespace jp.iridescent.ltcdecoder
                 return;
             }
             
-            var samples = ltcBuffer.TakeLast(5).ToArray();
+            // Phase E-15: LINQ除去 - 手書きループで最後の5要素を取得
+            int takeCount = Math.Min(5, ltcBuffer.Count);
+            var samples = new LTCSample[takeCount];
+            int index = 0;
+            foreach (var sample in ltcBuffer)
+            {
+                if (ltcBuffer.Count - index <= takeCount)
+                {
+                    samples[index - (ltcBuffer.Count - takeCount)] = sample;
+                }
+                index++;
+            }
             
             // 停止検出
             if (DetectStop(samples))
@@ -1155,22 +1181,32 @@ namespace jp.iridescent.ltcdecoder
         {
             if (samples.Length < 3) return false;
             
-            var diffs = new List<double>();
-            for (int i = 1; i < samples.Length; i++)
+            // Phase E-15: LINQ除去 - 配列の事前確保とループ処理
+            const int maxDiffs = 10;  // 最大差分数
+            double[] diffs = new double[maxDiffs];
+            int diffCount = 0;
+            
+            for (int i = 1; i < samples.Length && diffCount < maxDiffs; i++)
             {
                 double timeDiff = samples[i].tcSeconds - samples[i - 1].tcSeconds;
                 double dspDiff = samples[i].dspTime - samples[i - 1].dspTime;
                 
                 if (dspDiff > 0)
                 {
-                    diffs.Add(Math.Abs(timeDiff - dspDiff));
+                    diffs[diffCount++] = Math.Abs(timeDiff - dspDiff);
                 }
             }
             
-            if (diffs.Count < 2) return false;
+            if (diffCount < 2) return false;
             
-            // 差分が全て閾値以内
-            return diffs.All(d => d < syncThreshold);
+            // 差分が全て閾値以内かチェック（手書きループ）
+            for (int i = 0; i < diffCount; i++)
+            {
+                if (diffs[i] >= syncThreshold)
+                    return false;
+            }
+            
+            return true;
         }
         
         #endregion
@@ -1287,6 +1323,41 @@ namespace jp.iridescent.ltcdecoder
             internalTcTime = target.tcSeconds + age;
             isRunning = true;
             lastSyncTime = currentDsp;
+        }
+        
+        #endregion
+        
+        #region Ring Buffer Methods
+        
+        /// <summary>
+        /// リングバッファにサンプルを追加（Phase E-16）
+        /// </summary>
+        private void AddToRingBuffer(LTCSample sample)
+        {
+            ltcRingBuffer[ltcRingBufferHead] = sample;
+            ltcRingBufferHead = (ltcRingBufferHead + 1) % LTC_RING_BUFFER_SIZE;
+            
+            if (ltcRingBufferCount < LTC_RING_BUFFER_SIZE)
+            {
+                ltcRingBufferCount++;
+            }
+        }
+        
+        /// <summary>
+        /// リングバッファから最後のN個のサンプルを取得（Phase E-16）
+        /// </summary>
+        private LTCSample[] GetLastSamplesFromRingBuffer(int count)
+        {
+            count = Math.Min(count, ltcRingBufferCount);
+            var samples = new LTCSample[count];
+            
+            int startIndex = (ltcRingBufferHead - count + LTC_RING_BUFFER_SIZE) % LTC_RING_BUFFER_SIZE;
+            for (int i = 0; i < count; i++)
+            {
+                samples[i] = ltcRingBuffer[(startIndex + i) % LTC_RING_BUFFER_SIZE];
+            }
+            
+            return samples;
         }
         
         #endregion

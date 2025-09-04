@@ -15,19 +15,14 @@
    - 参照: `Documents/ltc-timeline-sync-improvement.md`
 
 
-【Phase E: GC/ジッタ削減（安定化）】
-15. [ ] `AnalyzeBuffer` のLINQ除去（手書きループ化）
-   - 目的: アロケーションゼロ・ジッタ低減。
-   - 受け入れ基準: 10分連続で通常フレームのGC.Alloc=0B。
-   - 影響: `LTCDecoder.cs`
-   - 参照: `Documents/ltc-priority-implementation-plan.md`
-16. [ ] バッファを固定長リング化・先行確保
-   - 目的: 実行時再割り当てを防止。
-   - 受け入れ基準: 実行中の配列再確保が発生しない。
-   - 影響: `LTCDecoder.cs`
-   - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 ### ✅ 完了済み (Completed)
+【Phase E: GC/ジッタ削減（安定化）（2025-09-03）】
+- [x] `AnalyzeBuffer` のLINQ除去（手書きループ化）
+- [x] バッファを固定長リング化・先行確保
+- [x] audioBufferの最大サイズ事前確保（再割り当て防止）
+- [x] リングバッファ実装によるGC削減
+
 【Phase D: イベントの決定化と最適化（2025-09-03）】
 - [x] 開始/停止イベントの単一ステートマシン化（ヒステリシス導入）
 - [x] イベント判定のフレーム量子化（絶対フレーム基準）
