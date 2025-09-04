@@ -33,6 +33,10 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("Offset applied during Timeline sync (seconds) / Timeline同期時に適用するオフセット（秒）")]
     [SerializeField] private float timelineOffset = 0f;
     
+    [Header("Drive Mode")]
+    [Tooltip("Timeline drive mode / Timeline駆動モード")]
+    [SerializeField] private DirectorUpdateMode updateMode = DirectorUpdateMode.DSPClock;
+    
     [Header("Status")]
     [SerializeField] private bool isPlaying = false;
     [SerializeField] private float currentTimeDifference = 0f;
@@ -104,7 +108,8 @@ public class LTCTimelineSync : MonoBehaviour
         // 初期状態の設定
         if (playableDirector != null)
         {
-            playableDirector.timeUpdateMode = DirectorUpdateMode.GameTime;
+            // 設定された駆動モードを適用
+            playableDirector.timeUpdateMode = updateMode;
         }
     }
     
@@ -114,6 +119,23 @@ public class LTCTimelineSync : MonoBehaviour
         if (enableSync && ltcDecoder != null && playableDirector != null)
         {
             ProcessSync();
+        }
+    }
+    
+    private void LateUpdate()
+    {
+        // DSPClockモードの場合、フレーム末尾で微調整
+        if (enableSync && ltcDecoder != null && playableDirector != null && 
+            updateMode == DirectorUpdateMode.DSPClock && isPlaying)
+        {
+            // 微小なドリフトを補正（1フレーム以内の誤差）
+            float frameTime = 1f / ltcDecoder.GetActualFrameRate();
+            if (currentTimeDifference > 0 && currentTimeDifference < frameTime)
+            {
+                // スムーズな補正を適用
+                float correction = currentTimeDifference * 0.1f; // 10%ずつ補正
+                playableDirector.time += correction;
+            }
         }
     }
     
@@ -187,7 +209,12 @@ public class LTCTimelineSync : MonoBehaviour
                         {
                             // 指定時間以上ドリフトが継続 → 即座に同期
                             playableDirector.time = ltcTime;  // オフセット適用済みのltcTimeを使用
-                            playableDirector.Evaluate();
+                            
+                            // DSPClockモードの場合はEvaluateを呼ばない（自動更新されるため）
+                            if (updateMode != DirectorUpdateMode.DSPClock)
+                            {
+                                playableDirector.Evaluate();
+                            }
                             
                             LogDebug($"Drift persisted for {driftDuration:F1}s - Timeline jumped to {outputTC} ({ltcTime:F3}s with offset: {timelineOffset:F3}s)");
                             
@@ -264,9 +291,9 @@ public class LTCTimelineSync : MonoBehaviour
         playableDirector = director;
         if (director != null)
         {
-            playableDirector.timeUpdateMode = DirectorUpdateMode.GameTime;
+            playableDirector.timeUpdateMode = updateMode;
         }
-        LogDebug($"PlayableDirector set: {director != null}");
+        LogDebug($"PlayableDirector set: {director != null}, UpdateMode: {updateMode}");
     }
     
     /// <summary>
@@ -363,6 +390,27 @@ public class LTCTimelineSync : MonoBehaviour
     public float GetTimelineOffset()
     {
         return timelineOffset;
+    }
+    
+    /// <summary>
+    /// 駆動モードを設定
+    /// </summary>
+    public void SetUpdateMode(DirectorUpdateMode mode)
+    {
+        updateMode = mode;
+        if (playableDirector != null)
+        {
+            playableDirector.timeUpdateMode = mode;
+        }
+        LogDebug($"Update mode changed to: {mode}");
+    }
+    
+    /// <summary>
+    /// 駆動モードを取得
+    /// </summary>
+    public DirectorUpdateMode GetUpdateMode()
+    {
+        return updateMode;
     }
     
     /// <summary>

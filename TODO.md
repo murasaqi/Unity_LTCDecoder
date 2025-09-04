@@ -6,17 +6,17 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
-
-
-11. [ ] 駆動方式の見直し（DSPClock or 予約Evaluate）
-   - 目的: GameTime依存を緩和し、決定性を向上。
-   - 受け入れ基準: 1分再生で発散せず±1フレーム以内に収束。
-   - 影響: `LTCTimelineSync.cs`
-   - 参照: `Documents/ltc-timeline-sync-improvement.md`
+（なし）
 
 
 
 ### ✅ 完了済み (Completed)
+【駆動方式の見直し（2025-09-03）】
+- [x] DSPClockモード対応の実装
+- [x] DirectorUpdateMode選択可能に変更
+- [x] LateUpdateでの微調整処理追加（1フレーム以内の誤差補正）
+- [x] updateMode設定とメソッドの公開API追加
+
 【Phase E: GC/ジッタ削減（安定化）（2025-09-03）】
 - [x] `AnalyzeBuffer` のLINQ除去（手書きループ化）
 - [x] バッファを固定長リング化・先行確保
