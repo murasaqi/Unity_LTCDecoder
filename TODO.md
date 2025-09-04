@@ -8,17 +8,6 @@
 ### ⏳ 待機中 (Pending)
 
 
-【Phase C: 参照一本化とTimeline同期改善】
-9. [ ] `GetActualFrameRate()` 公開（または公開メソッドの追加）
-   - 目的: 消費側が必ずDecoderの値を参照できるようにする。
-   - 受け入れ基準: `LTCTimelineSync` から呼び出し可能。
-   - 影響: `LTCDecoder.cs`
-   - 参照: `Documents/ltc-timeline-sync-improvement.md`
-10. [ ] `LTCTimelineSync` の30fps固定排除（Decoder参照化）
-   - 目的: `ParseTimecodeToSeconds` をDecoderのFPS/DFに準拠して換算。
-   - 受け入れ基準: 24/25/29.97DF/NDF/30 の各設定で±1フレーム以内に収束。
-   - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCTimelineSync.cs`
-   - 参照: `Documents/ltc-timeline-sync-improvement.md`
 11. [ ] 駆動方式の見直し（DSPClock or 予約Evaluate）
    - 目的: GameTime依存を緩和し、決定性を向上。
    - 受け入れ基準: 1分再生で発散せず±1フレーム以内に収束。
@@ -55,6 +44,12 @@
    - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 ### ✅ 完了済み (Completed)
+【Phase C: 参照一本化とTimeline同期改善（2025-09-03）】
+- [x] `GetActualFrameRate()` 公開（公開メソッドの追加）
+- [x] `GetNominalFrameRate()` 公開（DF計算用）
+- [x] `IsDropFrame`/`FrameRateMode` プロパティ追加
+- [x] `LTCTimelineSync` の30fps固定排除（Decoder参照化）
+
 【Phase B: DF/NDF 厳密換算とフレーム基準化（2025-09-03）】
 - [x] 変換ユーティリティ追加: 文字列↔絶対フレーム（DF対応）
 - [x] 秒↔フレーム変換の窓口統一（内部はフレーム優先）

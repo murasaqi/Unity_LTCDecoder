@@ -222,6 +222,16 @@ namespace jp.iridescent.ltcdecoder
         public string SelectedDevice => selectedDevice;
         public string[] AvailableDevices => Microphone.devices;
         
+        /// <summary>
+        /// 現在のDropFrame設定を取得
+        /// </summary>
+        public bool IsDropFrame => useDropFrame;
+        
+        /// <summary>
+        /// 現在のフレームレート設定を取得
+        /// </summary>
+        public LTCFrameRate FrameRateMode => ltcFrameRate;
+        
         // C#標準のイベント（外部スクリプトから += で簡単に登録可能）
         public event System.Action LTCStarted;
         public event System.Action LTCStopped;
@@ -1330,7 +1340,7 @@ namespace jp.iridescent.ltcdecoder
         /// <summary>
         /// 名目上のフレームレートを取得（DF計算用）
         /// </summary>
-        private float GetNominalFrameRate()
+        public float GetNominalFrameRate()
         {
             switch (ltcFrameRate)
             {
@@ -1562,7 +1572,7 @@ namespace jp.iridescent.ltcdecoder
         /// <summary>
         /// 実際のフレームレート値を取得
         /// </summary>
-        private float GetActualFrameRate()
+        public float GetActualFrameRate()
         {
             switch (ltcFrameRate)
             {

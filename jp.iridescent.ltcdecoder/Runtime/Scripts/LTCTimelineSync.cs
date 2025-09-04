@@ -221,39 +221,26 @@ public class LTCTimelineSync : MonoBehaviour
     }
     
     /// <summary>
-    /// タイムコード文字列を秒に変換
+    /// タイムコード文字列を秒に変換（LTCDecoderのフレームレート設定を使用）
     /// </summary>
     private float ParseTimecodeToSeconds(string timecodeString)
     {
         if (string.IsNullOrEmpty(timecodeString))
             return -1f;
         
-        string[] parts = timecodeString.Split(':');
-        if (parts.Length != 4)
+        if (ltcDecoder == null)
             return -1f;
-        
-        if (int.TryParse(parts[0], out int hours) &&
-            int.TryParse(parts[1], out int minutes) &&
-            int.TryParse(parts[2], out int seconds) &&
-            int.TryParse(parts[3], out int frames))
-        {
-            // フレームレートは LTCDecoder側の設定を使用（通常30fps）
-            float frameRate = 30f;
-            if (ltcDecoder != null)
-            {
-                // 将来的にLTCDecoderからフレームレート情報を取得可能にする
-                frameRate = 30f;
-            }
             
-            float totalSeconds = hours * 3600f + 
-                               minutes * 60f + 
-                               seconds + 
-                               (frames / frameRate);
-            
-            return totalSeconds;
-        }
+        // LTCDecoderの変換ユーティリティを使用（DropFrame対応）
+        long absoluteFrames = LTCDecoder.TimecodeToAbsoluteFrames(
+            timecodeString, 
+            ltcDecoder.IsDropFrame, 
+            ltcDecoder.GetNominalFrameRate()
+        );
         
-        return -1f;
+        // 絶対フレーム数を実フレームレートで秒に変換
+        float actualFrameRate = ltcDecoder.GetActualFrameRate();
+        return absoluteFrames / actualFrameRate;
     }
     
     #endregion
