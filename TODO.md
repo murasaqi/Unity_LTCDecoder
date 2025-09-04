@@ -14,22 +14,6 @@
    - 影響: `LTCTimelineSync.cs`
    - 参照: `Documents/ltc-timeline-sync-improvement.md`
 
-【Phase D: イベントの決定化と最適化】
-12. [ ] 開始/停止イベントの単一ステートマシン化
-   - 目的: 二重発火や順序ぶれを排除（ヒステリシス導入）。
-   - 受け入れ基準: 断続試験で常に同一の発火回数・順序。
-   - 影響: `LTCDecoder.cs`
-   - 参照: `Documents/ltc-priority-implementation-plan.md`
-13. [ ] イベント判定のフレーム量子化（±許容フレーム）
-   - 目的: 秒ベース誤差を排し、DF/NDF問わず決定的判定。
-   - 受け入れ基準: 全設定で期待イベントが±許容フレーム内で発火。
-   - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCDecoderEvents.cs`
-   - 参照: `Documents/ltc-priority-implementation-plan.md`
-14. [ ] `LTCEventData` メタ拡張（dspTimestamp/absoluteFrame）
-   - 目的: 下流で決定的比較・同期が可能に。
-   - 受け入れ基準: ログ照合を `absoluteFrame` で実施可能。
-   - 影響: `LTCDecoderEvents.cs`, `LTCDecoder.cs`
-   - 参照: `Documents/ltc-priority-implementation-plan.md`, `Documents/ltc-sync-dsp-timestamp-plan.md`
 
 【Phase E: GC/ジッタ削減（安定化）】
 15. [ ] `AnalyzeBuffer` のLINQ除去（手書きループ化）
@@ -44,6 +28,10 @@
    - 参照: `Documents/ltc-priority-implementation-plan.md`
 
 ### ✅ 完了済み (Completed)
+【Phase D: イベントの決定化と最適化（2025-09-03）】
+- [x] 開始/停止イベントの単一ステートマシン化（ヒステリシス導入）
+- [x] イベント判定のフレーム量子化（絶対フレーム基準）
+- [x] `LTCEventData` メタ拡張（dspTimestamp/absoluteFrame追加）
 【Phase C: 参照一本化とTimeline同期改善（2025-09-03）】
 - [x] `GetActualFrameRate()` 公開（公開メソッドの追加）
 - [x] `GetNominalFrameRate()` 公開（DF計算用）

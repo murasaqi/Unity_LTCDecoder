@@ -189,7 +189,20 @@ namespace jp.iridescent.ltcdecoder
         private float lastNoiseUpdateTime = 0f;    // 最後のノイズ更新時刻
         private const float NoiseUpdateInterval = 0.1f;  // 100ms間隔で更新
         
-        // イベント管理用
+        // イベント管理用（Phase D-12: 単一ステートマシン化）
+        private enum LTCEventState
+        {
+            Stopped,      // LTC停止中
+            Starting,     // LTC開始検出中（ヒステリシス期間）
+            Running,      // LTC実行中
+            Stopping      // LTC停止検出中（ヒステリシス期間）
+        }
+        private LTCEventState eventState = LTCEventState.Stopped;
+        private float eventStateTimer = 0f;  // 状態遷移タイマー
+        private const float startHysteresis = 0.1f;  // 開始検出のヒステリシス時間（100ms）
+        private const float stopHysteresis = 0.5f;   // 停止検出のヒステリシス時間（500ms）
+        
+        // 旧フィールド（互換性のため残す）
         private bool wasReceivingLTC = false;      // 前フレームでLTC受信していたか
         private bool isDecodingLTC = false;        // 現在LTCをデコード中か
         private float lastDecodedTime = 0f;        // 最後にデコード成功した時刻
@@ -507,27 +520,14 @@ namespace jp.iridescent.ltcdecoder
                 if (timeSinceLastDecode > decodeTimeoutSeconds)
                 {
                     // デコードがタイムアウト = LTC停止
-                    isDecodingLTC = false;
                     hasSignal = false;
                     isRunning = false;
                     currentState = SyncState.NoSignal;
                     
                     LogDebug($"LTC decoding stopped - timeout after {timeSinceLastDecode:F2}s");
                     
-                    // LTC Stoppedイベントを発火
-                    var eventData = new LTCEventData(
-                        currentTimecode,
-                        (float)internalTcTime,
-                        false,
-                        0f
-                    );
-                    onLTCStopped?.Invoke();
-                    OnLTCStopped?.Invoke(eventData);
-                    LTCStopped?.Invoke();
-                    
-                    // デバッグメッセージ
-                    debugger?.AddDebugMessage($"LTC Decoding Stopped at {currentTimecode} (Timeout)", 
-                        DebugMessage.EVENT, UnityEngine.Color.yellow);
+                    // ステートマシンで停止イベント管理（Phase D-12）
+                    UpdateEventStateMachine(false);
                 }
             }
         }
@@ -1027,26 +1027,13 @@ namespace jp.iridescent.ltcdecoder
             hasSignal = true;
             lastDecodedTime = Time.realtimeSinceStartup; // デコード成功時刻を記録
             
-            // デコード開始/再開の検出
+            // ステートマシンによるイベント管理（Phase D-12）
+            UpdateEventStateMachine(true, tcString, tc);
+            
+            // 互換性のための旧フラグ更新
             if (!isDecodingLTC)
             {
                 isDecodingLTC = true;
-                LogDebug($"LTC decoding started/resumed - {tcString}");
-                
-                // LTC Startedイベントを発火
-                var eventData = new LTCEventData(
-                    tcString,
-                    (float)TimecodeToSeconds(tc),
-                    true,
-                    signalLevel
-                );
-                onLTCStarted?.Invoke();
-                OnLTCStarted?.Invoke(eventData);
-                LTCStarted?.Invoke();
-                
-                // デバッグメッセージ
-                debugger?.AddDebugMessage($"LTC Decoding Started at {tcString}", 
-                    DebugMessage.EVENT, UnityEngine.Color.green);
             }
             
             var sample = new LTCSample
@@ -1300,6 +1287,132 @@ namespace jp.iridescent.ltcdecoder
             internalTcTime = target.tcSeconds + age;
             isRunning = true;
             lastSyncTime = currentDsp;
+        }
+        
+        #endregion
+        
+        #region Event State Machine
+        
+        /// <summary>
+        /// イベントステートマシンの更新（Phase D-12）
+        /// </summary>
+        private void UpdateEventStateMachine(bool hasLTCSignal, string tcString = null, Timecode tc = null)
+        {
+            float currentTime = Time.realtimeSinceStartup;
+            
+            switch (eventState)
+            {
+                case LTCEventState.Stopped:
+                    if (hasLTCSignal)
+                    {
+                        // 開始検出開始
+                        eventState = LTCEventState.Starting;
+                        eventStateTimer = currentTime;
+                        LogDebug($"LTC signal detected, entering Starting state");
+                    }
+                    break;
+                    
+                case LTCEventState.Starting:
+                    if (!hasLTCSignal)
+                    {
+                        // 信号が消えたら停止状態に戻る
+                        eventState = LTCEventState.Stopped;
+                        LogDebug($"LTC signal lost during Starting state");
+                    }
+                    else if (currentTime - eventStateTimer >= startHysteresis)
+                    {
+                        // ヒステリシス期間経過 → Running状態へ
+                        eventState = LTCEventState.Running;
+                        FireLTCStartedEvent(tcString, tc);
+                        LogDebug($"LTC Started confirmed after {startHysteresis}s hysteresis");
+                    }
+                    break;
+                    
+                case LTCEventState.Running:
+                    if (!hasLTCSignal)
+                    {
+                        // 停止検出開始
+                        eventState = LTCEventState.Stopping;
+                        eventStateTimer = currentTime;
+                        LogDebug($"LTC signal lost, entering Stopping state");
+                    }
+                    break;
+                    
+                case LTCEventState.Stopping:
+                    if (hasLTCSignal)
+                    {
+                        // 信号が戻ったらRunning状態に戻る
+                        eventState = LTCEventState.Running;
+                        LogDebug($"LTC signal recovered during Stopping state");
+                    }
+                    else if (currentTime - eventStateTimer >= stopHysteresis)
+                    {
+                        // ヒステリシス期間経過 → Stopped状態へ
+                        eventState = LTCEventState.Stopped;
+                        FireLTCStoppedEvent();
+                        LogDebug($"LTC Stopped confirmed after {stopHysteresis}s hysteresis");
+                    }
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// LTC開始イベントを発火
+        /// </summary>
+        private void FireLTCStartedEvent(string tcString, Timecode tc)
+        {
+            if (tc != null)
+            {
+                // 絶対フレーム番号を計算
+                long absoluteFrames = TimecodeToAbsoluteFrames(tcString, useDropFrame, GetNominalFrameRate());
+                
+                // 拡張メタデータ付きイベントデータ（Phase D-14）
+                var eventData = new LTCEventData(
+                    tcString,
+                    (float)TimecodeToSeconds(tc),
+                    true,
+                    signalLevel,
+                    micStartDspTime >= 0 ? lastSegmentEndDsp : AudioSettings.dspTime,
+                    absoluteFrames,
+                    useDropFrame,
+                    GetActualFrameRate()
+                );
+                onLTCStarted?.Invoke();
+                OnLTCStarted?.Invoke(eventData);
+                LTCStarted?.Invoke();
+                
+                debugger?.AddDebugMessage($"LTC Started at {tcString} (Frame: {absoluteFrames})", 
+                    DebugMessage.EVENT, UnityEngine.Color.green);
+            }
+        }
+        
+        /// <summary>
+        /// LTC停止イベントを発火
+        /// </summary>
+        private void FireLTCStoppedEvent()
+        {
+            isDecodingLTC = false;
+            
+            // 絶対フレーム番号を計算
+            long absoluteFrames = TimecodeToAbsoluteFrames(currentTimecode, useDropFrame, GetNominalFrameRate());
+            
+            // 拡張メタデータ付きイベントデータ（Phase D-14）
+            var eventData = new LTCEventData(
+                currentTimecode,
+                (float)(internalTcTime),
+                false,
+                0f,
+                AudioSettings.dspTime,
+                absoluteFrames,
+                useDropFrame,
+                GetActualFrameRate()
+            );
+            onLTCStopped?.Invoke();
+            OnLTCStopped?.Invoke(eventData);
+            LTCStopped?.Invoke();
+            
+            debugger?.AddDebugMessage($"LTC Stopped at {currentTimecode} (Frame: {absoluteFrames})",
+                DebugMessage.EVENT, UnityEngine.Color.red);
         }
         
         #endregion

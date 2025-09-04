@@ -6,7 +6,7 @@ using UnityEngine.Events;
 namespace jp.iridescent.ltcdecoder
 {
     /// <summary>
-    /// LTCデコーダーのイベントデータ
+    /// LTCデコーダーのイベントデータ（Phase D-14: メタ拡張）
     /// </summary>
     [System.Serializable]
     public class LTCEventData
@@ -16,12 +16,22 @@ namespace jp.iridescent.ltcdecoder
         public bool hasSignal;             // 信号有無
         public float signalLevel;          // 信号レベル（0-1）
         
+        // Phase D-14: 拡張メタデータ
+        public double dspTimestamp;         // DSP時刻スタンプ
+        public long absoluteFrame;          // 絶対フレーム番号
+        public bool isDropFrame;            // DropFrameモードかどうか
+        public float frameRate;             // 実フレームレート
+        
         public LTCEventData()
         {
             currentTimecode = "00:00:00:00";
             timeInSeconds = 0f;
             hasSignal = false;
             signalLevel = 0f;
+            dspTimestamp = 0.0;
+            absoluteFrame = 0;
+            isDropFrame = false;
+            frameRate = 30f;
         }
         
         public LTCEventData(string tc, float time, bool signal, float level)
@@ -30,6 +40,26 @@ namespace jp.iridescent.ltcdecoder
             timeInSeconds = time;
             hasSignal = signal;
             signalLevel = level;
+            dspTimestamp = AudioSettings.dspTime;
+            absoluteFrame = 0;
+            isDropFrame = false;
+            frameRate = 30f;
+        }
+        
+        /// <summary>
+        /// 拡張コンストラクタ（メタデータ付き）
+        /// </summary>
+        public LTCEventData(string tc, float time, bool signal, float level, 
+                          double dspTime, long frame, bool dropFrame, float fps)
+        {
+            currentTimecode = tc;
+            timeInSeconds = time;
+            hasSignal = signal;
+            signalLevel = level;
+            dspTimestamp = dspTime;
+            absoluteFrame = frame;
+            isDropFrame = dropFrame;
+            frameRate = fps;
         }
     }
     
