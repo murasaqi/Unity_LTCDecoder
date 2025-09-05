@@ -3,12 +3,7 @@
 ## 📋 現在のタスク
 
 ### 🔥 進行中 (In Progress)
-【Phase G: Debug GUI レイアウト刷新】
-6. [ ] 解像度/要素追加の耐性テスト
-   - 目的: 画面サイズ変化・ログ増での破綻を未然に防ぐ。
-   - 内容: 複数解像度・ウィンドウリサイズで表示を確認、長時間運転で要素を追加し続けてスクロール/パフォーマンスを検証。
-   - 受け入れ基準: レイアウト崩れなし・スクロール正常・視認性を維持。
-   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`
+（なし）
 
 ### ⏳ 待機中 (Pending)
 （なし）
@@ -37,12 +32,15 @@
    - 新レイアウト構造（ScrollRect/Viewport/Content）に対応
    - Header内ボタン参照、Content内各UI要素参照を更新
 
-6. [ ] 解像度/要素追加の耐性テスト
-   - 目的: 画面サイズ変化・ログ増での破綻を未然に防ぐ。
-   - 内容: 複数解像度・ウィンドウリサイズで表示を確認、長時間運転で要素を追加し続けてスクロール/パフォーマンスを検証。
-   - 受け入れ基準: レイアウト崩れなし・スクロール正常・視認性を維持。
-   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`
-（なし）
+6. [x] Debug Message Boxのスクロール対応（2025-09-05）
+   - Debug Message Boxに200px固定高さ制限を設定
+   - ScrollRect/Viewport/Content構造で無制限な高さ増加を防止
+   - RectMask2Dで効率的な描画最適化
+
+7. [x] Inspector表示のクリーンアップ（2025-09-05）
+   - "Phase F"などの開発フェーズ表記を全て削除
+   - LTCTimelineSync, LTCDecoder, LTCDecoderEventsから計17箇所の不要な表記を削除
+   - プロフェッショナルな表示に改善
 
 ### ✅ 完了済み (Completed) - 改善
 【LTC再開時のタイミング改善（2025-09-05）】
