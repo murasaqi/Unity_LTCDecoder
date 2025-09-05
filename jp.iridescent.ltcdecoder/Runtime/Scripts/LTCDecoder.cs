@@ -55,7 +55,7 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField, Range(0.0001f, 0.01f)] private float stopThreshold = 0.001f;
         [SerializeField, Range(0.01f, 1.0f)] private float driftCorrection = 0.1f;
         
-        [Header("Signal Detection")]
+        [Tooltip("Signal detection threshold / 信号検出閾値")]
         [SerializeField, Range(0.001f, 0.1f)] private float signalThreshold = 0.01f;
         
         [Header("Status")]
@@ -101,7 +101,7 @@ namespace jp.iridescent.ltcdecoder
         [Tooltip("Reset events when timecode rewinds / タイムコード巻き戻し時にイベントをリセット")]
         [SerializeField] private bool resetOnRewind = true;
         
-        [Header("Signal Events")]
+        [Space(10)]
         [Tooltip("Fires when LTC signal reception starts / LTC信号の受信を開始した時に発火")]
         public UnityEvent onLTCStarted = new UnityEvent();
         
