@@ -114,75 +114,66 @@ namespace jp.iridescent.ltcdecoder.Editor
         }
         
         /// <summary>
-        /// 完全なUI作成（固定位置レイアウト）
+        /// 完全なUI作成（新レイアウト構造）
         /// </summary>
         private static GameObject CreateCompleteUI(GameObject canvas, GameObject ltcObject)
         {
-            // メインパネル作成（380x700）
+            // メインパネル作成（自動レイアウト）
             GameObject mainPanel = CreateMainPanel(canvas);
             
-            // ヘッダー（位置: 中央上部）
-            CreateTextAtPosition(mainPanel, "HeaderText", "LTC Decoder Debug UI", 
-                new Vector2(190, -30), new Vector2(360, 40), 24, TextAnchor.MiddleCenter, Color.cyan, true);
+            // ヘッダー（ツールバー）作成
+            GameObject header = CreateHeader(mainPanel);
             
-            // タイムコード表示（1段目 - 大きく表示）
-            CreateMonospaceTextAtPosition(mainPanel, "CurrentTimecodeText", "00:00:00:00", 
-                new Vector2(190, -70), new Vector2(360, 35), 28, TextAnchor.MiddleCenter, Color.white, true);
+            // セパレータライン
+            CreateSeparator(mainPanel);
             
-            // ステータス表示（2段目）
-            // フォーマット: Output TC: Stopped ░░░░░░░░░░ 000%
-            CreateTextAtPosition(mainPanel, "StatusLineText", "Output TC: Stopped ░░░░░░░░░░ 000%", 
-                new Vector2(190, -105), new Vector2(360, 25), 14, TextAnchor.MiddleCenter, Color.white, false);
+            // ScrollRect/Viewport/Content構造を作成
+            GameObject content = CreateScrollableContent(mainPanel);
             
-            // --- Audio Input Settings セクション（中段に配置） ---
-            CreateTextAtPosition(mainPanel, "AudioSettingsLabel", "Audio Input Settings", 
-                new Vector2(190, -145), new Vector2(360, 25), 16, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), true);
+            // --- Content内に各要素を追加 ---
             
-            // Device Dropdown
-            CreateTextAtPosition(mainPanel, "DeviceLabel", "Device:", 
-                new Vector2(50, -175), new Vector2(60, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "DeviceDropdown", new Vector2(220, -175), new Vector2(250, 25));
+            // タイムコードセクション
+            CreateSectionTitle(content, "LTC Timecode");
+            GameObject timecodeText = CreateContentText(content, "CurrentTimecodeText", "00:00:00:00", 24, true, true);
+            GameObject statusLine = CreateContentText(content, "StatusLineText", "Output TC: Stopped ░░░░░░░░░░ 000%", 14, false, false);
             
-            // Frame Rate Dropdown
-            CreateTextAtPosition(mainPanel, "FrameRateLabel", "Frame Rate:", 
-                new Vector2(60, -205), new Vector2(80, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "FrameRateDropdown", new Vector2(220, -205), new Vector2(250, 25));
+            // セパレータ
+            CreateContentSeparator(content);
             
-            // Sample Rate Dropdown
-            CreateTextAtPosition(mainPanel, "SampleRateLabel", "Sample Rate:", 
-                new Vector2(65, -235), new Vector2(90, 25), 12, TextAnchor.MiddleLeft, Color.white, false);
-            CreateDropdownAtPosition(mainPanel, "SampleRateDropdown", new Vector2(220, -235), new Vector2(250, 25));
+            // Audio Input Settings セクション
+            CreateSectionTitle(content, "Audio Input Settings");
             
-            // Timecode Displayラベル削除（タイムコードは最上部に移動済み）
+            // Device Dropdown行
+            GameObject deviceRow = CreateHorizontalGroup(content, "DeviceRow");
+            CreateLabelInRow(deviceRow, "Device:", 80);
+            CreateDropdownInRow(deviceRow, "DeviceDropdown", 200);
             
-            // 互換性のために残すが非表示（LTCUIControllerが参照する可能性があるため）
-            GameObject statusText = CreateTextAtPosition(mainPanel, "StatusText", "", 
-                new Vector2(-1000, -1000), new Vector2(1, 1), 1, TextAnchor.MiddleLeft, Color.clear, false);
-            statusText.SetActive(false);
+            // Frame Rate Dropdown行
+            GameObject frameRateRow = CreateHorizontalGroup(content, "FrameRateRow");
+            CreateLabelInRow(frameRateRow, "Frame Rate:", 80);
+            CreateDropdownInRow(frameRateRow, "FrameRateDropdown", 200);
             
-            GameObject signalLevelText = CreateTextAtPosition(mainPanel, "SignalLevelText", "", 
-                new Vector2(-1000, -1000), new Vector2(1, 1), 1, TextAnchor.MiddleLeft, Color.clear, false);
-            signalLevelText.SetActive(false);
+            // Sample Rate Dropdown行
+            GameObject sampleRateRow = CreateHorizontalGroup(content, "SampleRateRow");
+            CreateLabelInRow(sampleRateRow, "Sample Rate:", 80);
+            CreateDropdownInRow(sampleRateRow, "SampleRateDropdown", 200);
             
-            // シグナルバーも非表示で作成（互換性のため）
-            GameObject signalBar = new GameObject("SignalLevelBar");
-            signalBar.transform.SetParent(mainPanel.transform, false);
-            GameObject fill = new GameObject("Fill");
-            fill.transform.SetParent(signalBar.transform, false);
-            fill.AddComponent<Image>().color = Color.clear;
-            signalBar.SetActive(false);
+            // セパレータ
+            CreateContentSeparator(content);
             
-            // --- Timeline Sync Section (初期非表示、実行時に自動表示) ---
-            GameObject timelineSyncSection = CreateTimelineSyncSection(mainPanel);
-            timelineSyncSection.SetActive(false);  // デフォルトで非表示
+            // Timeline Sync Section（初期非表示、実行時に自動表示）
+            GameObject timelineSyncSection = CreateTimelineSyncSectionNew(content);
+            timelineSyncSection.SetActive(false);
             
-            // Control Buttons (位置を90px下へ移動)
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(80, -440), new Vector2(65, 28));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(155, -440), new Vector2(65, 28));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(230, -440), new Vector2(65, 28));
+            // セパレータ
+            CreateContentSeparator(content);
             
-            // Debug Message Area (位置を90px下へ移動、高さを微調整)
-            CreateDebugScrollView(mainPanel, new Vector2(10, -475), new Vector2(360, 310));
+            // Debug Messages セクション
+            CreateSectionTitle(content, "Debug Messages");
+            GameObject debugContainer = CreateDebugMessageContainer(content);
+            
+            // 互換性のために非表示要素を作成（LTCUIControllerが参照する可能性があるため）
+            CreateHiddenCompatibilityElements(mainPanel);
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -199,16 +190,750 @@ namespace jp.iridescent.ltcdecoder.Editor
             mainPanel.transform.SetParent(canvas.transform, false);
             
             RectTransform rect = mainPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0, 1);
-            rect.anchorMax = new Vector2(0, 1);
-            rect.pivot = new Vector2(0, 1);
-            rect.anchoredPosition = new Vector2(10, -10);
-            rect.sizeDelta = new Vector2(380, 800);  // 高さを700から800に拡張
+            // 画面右側に固定、縦方向は上下にストレッチ
+            rect.anchorMin = new Vector2(1, 0);
+            rect.anchorMax = new Vector2(1, 1);
+            rect.pivot = new Vector2(1, 1);
+            rect.anchoredPosition = new Vector2(-10, -10);
+            
+            // 横幅をビュー幅の30%で計算（最小320px、最大560px）
+            float viewWidth = Screen.width;
+            #if UNITY_EDITOR
+            if (UnityEditor.SceneView.lastActiveSceneView != null)
+            {
+                viewWidth = UnityEditor.SceneView.lastActiveSceneView.position.width;
+            }
+            #endif
+            float panelWidth = Mathf.Clamp(viewWidth * 0.3f, 320f, 560f);
+            rect.sizeDelta = new Vector2(panelWidth, 0);  // 縦はアンカーで追従
             
             Image panelImage = mainPanel.AddComponent<Image>();
-            panelImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+            panelImage.color = new Color(25f/255f, 25f/255f, 25f/255f, 0.92f);  // セミトーン背景
+            
+            // VerticalLayoutGroupを追加
+            VerticalLayoutGroup vlg = mainPanel.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(10, 10, 10, 10);
+            vlg.spacing = 6;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childScaleWidth = false;
+            vlg.childScaleHeight = false;
             
             return mainPanel;
+        }
+        
+        /// <summary>
+        /// ヘッダー（ツールバー）作成
+        /// </summary>
+        private static GameObject CreateHeader(GameObject parent)
+        {
+            GameObject header = new GameObject("Header");
+            header.transform.SetParent(parent.transform, false);
+            
+            // LayoutElementで高さを固定
+            LayoutElement headerLayout = header.AddComponent<LayoutElement>();
+            headerLayout.preferredHeight = 30;
+            headerLayout.minHeight = 30;
+            
+            // HorizontalLayoutGroupを追加
+            HorizontalLayoutGroup hlg = header.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 6;
+            hlg.padding = new RectOffset(5, 5, 2, 2);
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = true;
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            
+            // タイトルテキスト
+            GameObject titleObj = new GameObject("Title");
+            titleObj.transform.SetParent(header.transform, false);
+            Text titleText = titleObj.AddComponent<Text>();
+            titleText.text = "LTC Debug UI";
+            titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            titleText.fontSize = 18;
+            titleText.fontStyle = FontStyle.Bold;
+            titleText.color = Color.white;
+            titleText.alignment = TextAnchor.MiddleLeft;
+            LayoutElement titleLayout = titleObj.AddComponent<LayoutElement>();
+            titleLayout.preferredWidth = 120;
+            
+            // Flexible Space（ボタンを右寄せにする）
+            GameObject spacer = new GameObject("Spacer");
+            spacer.transform.SetParent(header.transform, false);
+            LayoutElement spacerLayout = spacer.AddComponent<LayoutElement>();
+            spacerLayout.flexibleWidth = 1;
+            
+            // Clear Button
+            GameObject clearBtn = CreateHeaderButton(header, "ClearButton", "Clear", null);
+            
+            // Export Button
+            GameObject exportBtn = CreateHeaderButton(header, "ExportButton", "Export", null);
+            
+            // Copy Button
+            GameObject copyBtn = CreateHeaderButton(header, "CopyButton", "Copy", null);
+            
+            return header;
+        }
+        
+        /// <summary>
+        /// ヘッダー用ボタン作成
+        /// </summary>
+        private static GameObject CreateHeaderButton(GameObject parent, string name, string text, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject buttonObj = new GameObject(name);
+            buttonObj.transform.SetParent(parent.transform, false);
+            
+            // LayoutElementで幅と高さを設定
+            LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = 72;
+            layout.preferredHeight = 26;
+            layout.minWidth = 64;
+            layout.minHeight = 26;
+            
+            // ボタン背景
+            Image buttonImage = buttonObj.AddComponent<Image>();
+            buttonImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+            
+            // ボタンコンポーネント
+            Button button = buttonObj.AddComponent<Button>();
+            button.targetGraphic = buttonImage;
+            if (onClick != null) button.onClick.AddListener(onClick);
+            
+            // ボタンテキスト
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(buttonObj.transform, false);
+            
+            RectTransform textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            textRect.offsetMin = new Vector2(8, 0);  // パディング
+            textRect.offsetMax = new Vector2(-8, 0);
+            
+            Text buttonText = textObj.AddComponent<Text>();
+            buttonText.text = text;
+            buttonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            buttonText.fontSize = 14;
+            buttonText.color = Color.white;
+            buttonText.alignment = TextAnchor.MiddleCenter;
+            
+            return buttonObj;
+        }
+        
+        /// <summary>
+        /// セパレータライン作成
+        /// </summary>
+        private static GameObject CreateSeparator(GameObject parent)
+        {
+            GameObject separator = new GameObject("Separator");
+            separator.transform.SetParent(parent.transform, false);
+            
+            LayoutElement layout = separator.AddComponent<LayoutElement>();
+            layout.preferredHeight = 2;
+            layout.minHeight = 2;
+            
+            Image image = separator.AddComponent<Image>();
+            image.color = new Color(128f/255f, 128f/255f, 128f/255f, 0.5f);
+            
+            return separator;
+        }
+        
+        /// <summary>
+        /// ScrollRect/Viewport/Content構造を作成
+        /// </summary>
+        private static GameObject CreateScrollableContent(GameObject parent)
+        {
+            // ScrollRect作成
+            GameObject scrollRectObj = new GameObject("ScrollRect");
+            scrollRectObj.transform.SetParent(parent.transform, false);
+            
+            // LayoutElementで残りの高さを占有
+            LayoutElement scrollLayout = scrollRectObj.AddComponent<LayoutElement>();
+            scrollLayout.flexibleHeight = 1;
+            scrollLayout.flexibleWidth = 1;
+            
+            // ScrollRectコンポーネント
+            ScrollRect scrollRect = scrollRectObj.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+            scrollRect.scrollSensitivity = 20;
+            
+            // Viewport作成
+            GameObject viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(scrollRectObj.transform, false);
+            
+            RectTransform viewportRect = viewport.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.sizeDelta = Vector2.zero;
+            viewportRect.pivot = new Vector2(0.5f, 0.5f);
+            
+            // ViewportにMaskとImage（透明）を追加
+            viewport.AddComponent<RectMask2D>();
+            Image viewportImage = viewport.AddComponent<Image>();
+            viewportImage.color = new Color(0, 0, 0, 0);  // 透明
+            
+            // Content作成
+            GameObject content = new GameObject("Content");
+            content.transform.SetParent(viewport.transform, false);
+            
+            RectTransform contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, 0);
+            
+            // ContentにVerticalLayoutGroupを追加
+            VerticalLayoutGroup contentVLG = content.AddComponent<VerticalLayoutGroup>();
+            contentVLG.padding = new RectOffset(10, 10, 10, 10);
+            contentVLG.spacing = 5;
+            contentVLG.childForceExpandWidth = true;
+            contentVLG.childForceExpandHeight = false;
+            contentVLG.childControlWidth = true;
+            contentVLG.childControlHeight = true;
+            
+            // ContentSizeFitterを追加
+            ContentSizeFitter csf = content.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            
+            // ScrollRectに参照を設定
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+            
+            // 垂直スクロールバー作成（オプション）
+            GameObject scrollbarObj = new GameObject("Scrollbar Vertical");
+            scrollbarObj.transform.SetParent(scrollRectObj.transform, false);
+            
+            RectTransform scrollbarRect = scrollbarObj.AddComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1, 0);
+            scrollbarRect.anchorMax = new Vector2(1, 1);
+            scrollbarRect.pivot = new Vector2(1, 0.5f);
+            scrollbarRect.anchoredPosition = new Vector2(0, 0);
+            scrollbarRect.sizeDelta = new Vector2(10, 0);
+            
+            Image scrollbarBg = scrollbarObj.AddComponent<Image>();
+            scrollbarBg.color = new Color(0.1f, 0.1f, 0.1f, 0.5f);
+            
+            Scrollbar scrollbar = scrollbarObj.AddComponent<Scrollbar>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            
+            // スクロールバーのハンドル
+            GameObject handleObj = new GameObject("Handle");
+            handleObj.transform.SetParent(scrollbarObj.transform, false);
+            
+            RectTransform handleRect = handleObj.AddComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.sizeDelta = new Vector2(-4, -4);
+            handleRect.anchoredPosition = Vector2.zero;
+            
+            Image handleImage = handleObj.AddComponent<Image>();
+            handleImage.color = new Color(0.4f, 0.4f, 0.4f, 0.8f);
+            
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleImage;
+            
+            // ScrollRectにスクロールバーを設定
+            scrollRect.verticalScrollbar = scrollbar;
+            
+            return content;  // Contentを返す（ここに要素を追加する）
+        }
+        
+        /// <summary>
+        /// Contentにセクションタイトルを作成
+        /// </summary>
+        private static GameObject CreateSectionTitle(GameObject parent, string title)
+        {
+            GameObject titleObj = new GameObject("SectionTitle_" + title);
+            titleObj.transform.SetParent(parent.transform, false);
+            
+            Text text = titleObj.AddComponent<Text>();
+            text.text = title;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 16;
+            text.fontStyle = FontStyle.Bold;
+            text.color = new Color(0.5f, 0.8f, 1f);
+            text.alignment = TextAnchor.MiddleLeft;
+            
+            LayoutElement layout = titleObj.AddComponent<LayoutElement>();
+            layout.preferredHeight = 24;
+            layout.minHeight = 24;
+            
+            return titleObj;
+        }
+        
+        /// <summary>
+        /// Contentに通常テキストを作成
+        /// </summary>
+        private static GameObject CreateContentText(GameObject parent, string name, string text, int fontSize, bool bold, bool monospace)
+        {
+            GameObject textObj = new GameObject(name);
+            textObj.transform.SetParent(parent.transform, false);
+            
+            Text textComp = textObj.AddComponent<Text>();
+            textComp.text = text;
+            
+            if (monospace)
+            {
+                textComp.font = Font.CreateDynamicFontFromOSFont("Consolas", fontSize);
+                if (textComp.font == null)
+                {
+                    textComp.font = Font.CreateDynamicFontFromOSFont("Courier New", fontSize);
+                }
+                if (textComp.font == null)
+                {
+                    textComp.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                }
+            }
+            else
+            {
+                textComp.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            }
+            
+            textComp.fontSize = fontSize;
+            textComp.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+            textComp.color = Color.white;
+            textComp.alignment = TextAnchor.MiddleCenter;
+            textComp.horizontalOverflow = HorizontalWrapMode.Wrap;
+            textComp.verticalOverflow = VerticalWrapMode.Truncate;
+            
+            LayoutElement layout = textObj.AddComponent<LayoutElement>();
+            layout.minHeight = fontSize + 8;
+            layout.preferredHeight = fontSize + 8;
+            
+            return textObj;
+        }
+        
+        /// <summary>
+        /// Content内にセパレータを作成
+        /// </summary>
+        private static GameObject CreateContentSeparator(GameObject parent)
+        {
+            GameObject separator = new GameObject("ContentSeparator");
+            separator.transform.SetParent(parent.transform, false);
+            
+            LayoutElement layout = separator.AddComponent<LayoutElement>();
+            layout.preferredHeight = 1;
+            layout.minHeight = 1;
+            
+            Image image = separator.AddComponent<Image>();
+            image.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+            
+            return separator;
+        }
+        
+        /// <summary>
+        /// 水平レイアウトグループを作成
+        /// </summary>
+        private static GameObject CreateHorizontalGroup(GameObject parent, string name)
+        {
+            GameObject group = new GameObject(name);
+            group.transform.SetParent(parent.transform, false);
+            
+            HorizontalLayoutGroup hlg = group.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 5;
+            hlg.padding = new RectOffset(0, 0, 2, 2);
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            
+            LayoutElement layout = group.AddComponent<LayoutElement>();
+            layout.preferredHeight = 28;
+            layout.minHeight = 28;
+            
+            return group;
+        }
+        
+        /// <summary>
+        /// 行内にラベルを作成
+        /// </summary>
+        private static GameObject CreateLabelInRow(GameObject parent, string text, float width)
+        {
+            GameObject labelObj = new GameObject("Label");
+            labelObj.transform.SetParent(parent.transform, false);
+            
+            Text label = labelObj.AddComponent<Text>();
+            label.text = text;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 14;
+            label.color = Color.white;
+            label.alignment = TextAnchor.MiddleLeft;
+            
+            LayoutElement layout = labelObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = width;
+            layout.minWidth = width;
+            
+            return labelObj;
+        }
+        
+        /// <summary>
+        /// 行内にドロップダウンを作成
+        /// </summary>
+        private static GameObject CreateDropdownInRow(GameObject parent, string name, float width)
+        {
+            GameObject dropdownObj = new GameObject(name);
+            dropdownObj.transform.SetParent(parent.transform, false);
+            
+            Image bgImage = dropdownObj.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+            
+            Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
+            
+            // テンプレートを作成
+            GameObject template = new GameObject("Template");
+            template.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform templateRect = template.AddComponent<RectTransform>();
+            templateRect.anchorMin = new Vector2(0, 0);
+            templateRect.anchorMax = new Vector2(1, 0);
+            templateRect.pivot = new Vector2(0.5f, 1);
+            templateRect.anchoredPosition = new Vector2(0, 2);
+            templateRect.sizeDelta = new Vector2(0, 150);
+            
+            template.AddComponent<Image>().color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+            template.AddComponent<ScrollRect>();
+            
+            GameObject viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(template.transform, false);
+            RectTransform viewportRect = viewport.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.sizeDelta = Vector2.zero;
+            viewportRect.pivot = new Vector2(0.5f, 0.5f);
+            viewport.AddComponent<Mask>().showMaskGraphic = false;
+            viewport.AddComponent<Image>().color = Color.white;
+            
+            GameObject content = new GameObject("Content");
+            content.transform.SetParent(viewport.transform, false);
+            RectTransform contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, 28);
+            
+            GameObject item = new GameObject("Item");
+            item.transform.SetParent(content.transform, false);
+            
+            RectTransform itemRect = item.AddComponent<RectTransform>();
+            itemRect.anchorMin = new Vector2(0, 0.5f);
+            itemRect.anchorMax = new Vector2(1, 0.5f);
+            itemRect.sizeDelta = new Vector2(0, 20);
+            
+            Toggle itemToggle = item.AddComponent<Toggle>();
+            itemToggle.targetGraphic = item.AddComponent<Image>();
+            itemToggle.targetGraphic.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+            
+            GameObject itemLabel = new GameObject("Item Label");
+            itemLabel.transform.SetParent(item.transform, false);
+            
+            RectTransform itemLabelRect = itemLabel.AddComponent<RectTransform>();
+            itemLabelRect.anchorMin = Vector2.zero;
+            itemLabelRect.anchorMax = Vector2.one;
+            itemLabelRect.sizeDelta = new Vector2(-20, -2);
+            itemLabelRect.anchoredPosition = new Vector2(10, 0);
+            
+            Text itemText = itemLabel.AddComponent<Text>();
+            itemText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            itemText.fontSize = 12;
+            itemText.color = Color.white;
+            itemText.alignment = TextAnchor.MiddleLeft;
+            
+            dropdown.template = templateRect;
+            dropdown.itemText = itemText;
+            
+            // Label (selected value display)
+            GameObject label = new GameObject("Label");
+            label.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform labelRect = label.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.sizeDelta = new Vector2(-30, 0);
+            labelRect.anchoredPosition = new Vector2(-5, 0);
+            
+            Text labelText = label.AddComponent<Text>();
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 12;
+            labelText.color = Color.white;
+            labelText.alignment = TextAnchor.MiddleLeft;
+            
+            dropdown.captionText = labelText;
+            
+            // Arrow
+            GameObject arrow = new GameObject("Arrow");
+            arrow.transform.SetParent(dropdownObj.transform, false);
+            
+            RectTransform arrowRect = arrow.AddComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(1, 0.5f);
+            arrowRect.anchorMax = new Vector2(1, 0.5f);
+            arrowRect.sizeDelta = new Vector2(20, 20);
+            arrowRect.anchoredPosition = new Vector2(-10, 0);
+            
+            Text arrowText = arrow.AddComponent<Text>();
+            arrowText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            arrowText.text = "▼";
+            arrowText.fontSize = 10;
+            arrowText.color = Color.white;
+            arrowText.alignment = TextAnchor.MiddleCenter;
+            
+            template.SetActive(false);
+            
+            LayoutElement layout = dropdownObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = width;
+            layout.minWidth = width;
+            layout.preferredHeight = 24;
+            
+            return dropdownObj;
+        }
+        
+        /// <summary>
+        /// Timeline Syncセクション作成（新レイアウト版）
+        /// </summary>
+        private static GameObject CreateTimelineSyncSectionNew(GameObject parent)
+        {
+            GameObject section = new GameObject("TimelineSyncSection");
+            section.transform.SetParent(parent.transform, false);
+            
+            VerticalLayoutGroup vlg = section.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 3;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            
+            // セクションタイトル
+            CreateSectionTitle(section, "Timeline Sync");
+            
+            // LTC TC行
+            GameObject ltcRow = CreateContentText(section, "TimelineSyncLTC", "LTC:      --:--:--:--", 14, false, true);
+            
+            // Timeline TC行
+            GameObject timelineRow = CreateContentText(section, "TimelineSyncTimeline", "Timeline: --:--:--:--", 14, false, true);
+            
+            // Diff行
+            GameObject diffRow = CreateContentText(section, "TimelineSyncDiff", "Diff: 0.000s [Waiting]", 14, false, false);
+            
+            // Status行
+            GameObject statusRow = CreateContentText(section, "TimelineSyncStatus", "Status: Stopped", 14, false, false);
+            
+            // Threshold行
+            GameObject thresholdRow = CreateContentText(section, "TimelineSyncThreshold", "Threshold: 0.10s | Offset: 0.00s", 14, false, false);
+            
+            // Sync Settings サブセクション
+            CreateSectionTitle(section, "Sync Settings");
+            
+            // Sync Threshold行
+            GameObject syncThresholdRow = CreateHorizontalGroup(section, "SyncThresholdRow");
+            CreateLabelInRow(syncThresholdRow, "Sync Threshold:", 120);
+            CreateInputFieldInRow(syncThresholdRow, "SyncThresholdInput", "0.033", 80);
+            
+            // Observation Time行
+            GameObject observationRow = CreateHorizontalGroup(section, "ObservationTimeRow");
+            CreateLabelInRow(observationRow, "Observation Time:", 120);
+            CreateInputFieldInRow(observationRow, "ObservationTimeInput", "0.1", 80);
+            
+            // Timeline Offset行
+            GameObject offsetRow = CreateHorizontalGroup(section, "TimelineOffsetRow");
+            CreateLabelInRow(offsetRow, "Timeline Offset:", 120);
+            CreateInputFieldInRow(offsetRow, "TimelineOffsetInput", "0.0", 80);
+            
+            // Enable Syncトグル行
+            GameObject enableSyncRow = CreateHorizontalGroup(section, "EnableSyncRow");
+            CreateToggleInRow(enableSyncRow, "EnableSyncToggle", "Enable Sync", true);
+            
+            // Snap to FPSトグル行
+            GameObject snapToFpsRow = CreateHorizontalGroup(section, "SnapToFpsRow");
+            CreateToggleInRow(snapToFpsRow, "SnapToFpsToggle", "Snap to Timeline FPS", true);
+            
+            return section;
+        }
+        
+        /// <summary>
+        /// 行内に入力フィールドを作成
+        /// </summary>
+        private static GameObject CreateInputFieldInRow(GameObject parent, string name, string defaultText, float width)
+        {
+            GameObject inputObj = new GameObject(name);
+            inputObj.transform.SetParent(parent.transform, false);
+            
+            Image bgImage = inputObj.AddComponent<Image>();
+            bgImage.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+            
+            InputField inputField = inputObj.AddComponent<InputField>();
+            
+            // Text Component
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(inputObj.transform, false);
+            
+            RectTransform textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = new Vector2(-10, 0);
+            textRect.anchoredPosition = new Vector2(5, 0);
+            
+            Text text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 12;
+            text.color = Color.white;
+            text.supportRichText = false;
+            text.alignment = TextAnchor.MiddleLeft;
+            
+            inputField.textComponent = text;
+            inputField.text = defaultText;
+            
+            // Placeholder
+            GameObject placeholderObj = new GameObject("Placeholder");
+            placeholderObj.transform.SetParent(inputObj.transform, false);
+            
+            RectTransform placeholderRect = placeholderObj.AddComponent<RectTransform>();
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.sizeDelta = new Vector2(-10, 0);
+            placeholderRect.anchoredPosition = new Vector2(5, 0);
+            
+            Text placeholderText = placeholderObj.AddComponent<Text>();
+            placeholderText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            placeholderText.fontSize = 12;
+            placeholderText.fontStyle = FontStyle.Italic;
+            placeholderText.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            placeholderText.text = "Enter value...";
+            placeholderText.alignment = TextAnchor.MiddleLeft;
+            
+            inputField.placeholder = placeholderText;
+            
+            LayoutElement layout = inputObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = width;
+            layout.minWidth = width;
+            layout.preferredHeight = 20;
+            
+            return inputObj;
+        }
+        
+        /// <summary>
+        /// 行内にトグルを作成
+        /// </summary>
+        private static GameObject CreateToggleInRow(GameObject parent, string name, string label, bool defaultValue)
+        {
+            GameObject toggleObj = new GameObject(name);
+            toggleObj.transform.SetParent(parent.transform, false);
+            
+            Toggle toggle = toggleObj.AddComponent<Toggle>();
+            toggle.isOn = defaultValue;
+            
+            // Background
+            GameObject background = new GameObject("Background");
+            background.transform.SetParent(toggleObj.transform, false);
+            
+            RectTransform bgRect = background.AddComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0, 0.5f);
+            bgRect.anchorMax = new Vector2(0, 0.5f);
+            bgRect.sizeDelta = new Vector2(20, 20);
+            bgRect.anchoredPosition = new Vector2(10, 0);
+            
+            Image bgImage = background.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+            
+            // Checkmark
+            GameObject checkmark = new GameObject("Checkmark");
+            checkmark.transform.SetParent(background.transform, false);
+            
+            RectTransform checkRect = checkmark.AddComponent<RectTransform>();
+            checkRect.anchorMin = Vector2.zero;
+            checkRect.anchorMax = Vector2.one;
+            checkRect.sizeDelta = new Vector2(-4, -4);
+            checkRect.anchoredPosition = Vector2.zero;
+            
+            Image checkImage = checkmark.AddComponent<Image>();
+            checkImage.color = new Color(0.4f, 0.8f, 0.4f, 1f);
+            
+            toggle.targetGraphic = bgImage;
+            toggle.graphic = checkImage;
+            
+            // Label
+            GameObject labelObj = new GameObject("Label");
+            labelObj.transform.SetParent(toggleObj.transform, false);
+            
+            RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0, 0.5f);
+            labelRect.anchorMax = new Vector2(1, 0.5f);
+            labelRect.sizeDelta = new Vector2(-35, 20);
+            labelRect.anchoredPosition = new Vector2(35, 0);
+            
+            Text labelText = labelObj.AddComponent<Text>();
+            labelText.text = label;
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 14;
+            labelText.color = Color.white;
+            labelText.alignment = TextAnchor.MiddleLeft;
+            
+            LayoutElement layout = toggleObj.AddComponent<LayoutElement>();
+            layout.preferredHeight = 24;
+            layout.flexibleWidth = 1;
+            
+            return toggleObj;
+        }
+        
+        /// <summary>
+        /// デバッグメッセージコンテナを作成
+        /// </summary>
+        private static GameObject CreateDebugMessageContainer(GameObject parent)
+        {
+            GameObject container = new GameObject("DebugMessageContainer");
+            container.transform.SetParent(parent.transform, false);
+            
+            VerticalLayoutGroup vlg = container.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 2;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            
+            LayoutElement layout = container.AddComponent<LayoutElement>();
+            layout.minHeight = 100;
+            layout.flexibleHeight = 1;
+            
+            return container;
+        }
+        
+        /// <summary>
+        /// 互換性のための非表示要素を作成
+        /// </summary>
+        private static void CreateHiddenCompatibilityElements(GameObject parent)
+        {
+            // StatusText（非表示）
+            GameObject statusText = new GameObject("StatusText");
+            statusText.transform.SetParent(parent.transform, false);
+            statusText.AddComponent<Text>();
+            statusText.SetActive(false);
+            
+            // SignalLevelText（非表示）
+            GameObject signalLevelText = new GameObject("SignalLevelText");
+            signalLevelText.transform.SetParent(parent.transform, false);
+            signalLevelText.AddComponent<Text>();
+            signalLevelText.SetActive(false);
+            
+            // SignalLevelBar（非表示）
+            GameObject signalBar = new GameObject("SignalLevelBar");
+            signalBar.transform.SetParent(parent.transform, false);
+            GameObject fill = new GameObject("Fill");
+            fill.transform.SetParent(signalBar.transform, false);
+            fill.AddComponent<Image>();
+            signalBar.SetActive(false);
+            
+            // HeaderText（非表示）- 新レイアウトではHeader内のTitleに移動
+            GameObject headerText = new GameObject("HeaderText");
+            headerText.transform.SetParent(parent.transform, false);
+            headerText.AddComponent<Text>();
+            headerText.SetActive(false);
         }
         
         /// <summary>
@@ -772,27 +1497,41 @@ namespace jp.iridescent.ltcdecoder.Editor
             // LTCUIControllerを追加
             LTCUIController controller = mainPanel.AddComponent<LTCUIController>();
             
+            // ScrollRectのContent内を検索するヘルパー
+            Transform scrollContent = mainPanel.transform.Find("ScrollRect/Viewport/Content");
+            
             // UI要素の参照を先に設定（Setupより前に）
-            controller.currentTimecodeText = mainPanel.transform.Find("CurrentTimecodeText")?.GetComponent<Text>();
-            controller.statusLineText = mainPanel.transform.Find("StatusLineText")?.GetComponent<Text>();
+            controller.currentTimecodeText = scrollContent?.Find("CurrentTimecodeText")?.GetComponent<Text>();
+            controller.statusLineText = scrollContent?.Find("StatusLineText")?.GetComponent<Text>();
+            
+            // 互換性のための非表示要素
             controller.statusText = mainPanel.transform.Find("StatusText")?.GetComponent<Text>();
             controller.signalLevelText = mainPanel.transform.Find("SignalLevelText")?.GetComponent<Text>();
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
-            controller.debugMessageContainer = mainPanel.transform.Find("DebugScrollView/Viewport/DebugMessageContainer");
-            controller.debugScrollRect = mainPanel.transform.Find("DebugScrollView")?.GetComponent<ScrollRect>();
             
-            // Audio Settings UIの参照を設定
-            controller.deviceDropdown = mainPanel.transform.Find("DeviceDropdown")?.GetComponent<Dropdown>();
-            controller.frameRateDropdown = mainPanel.transform.Find("FrameRateDropdown")?.GetComponent<Dropdown>();
-            controller.sampleRateDropdown = mainPanel.transform.Find("SampleRateDropdown")?.GetComponent<Dropdown>();
+            // デバッグメッセージコンテナ
+            controller.debugMessageContainer = scrollContent?.Find("DebugMessageContainer");
+            controller.debugScrollRect = mainPanel.transform.Find("ScrollRect")?.GetComponent<ScrollRect>();
+            
+            // Audio Settings UIの参照を設定（新レイアウトではContent内の各行から取得）
+            controller.deviceDropdown = scrollContent?.Find("DeviceRow/DeviceDropdown")?.GetComponent<Dropdown>();
+            controller.frameRateDropdown = scrollContent?.Find("FrameRateRow/FrameRateDropdown")?.GetComponent<Dropdown>();
+            controller.sampleRateDropdown = scrollContent?.Find("SampleRateRow/SampleRateDropdown")?.GetComponent<Dropdown>();
             
             // Timeline Sync UIの参照を設定
-            controller.timelineSyncSection = mainPanel.transform.Find("TimelineSyncSection")?.gameObject;
-            controller.timelineSyncLTCText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncLTC")?.GetComponent<Text>();
-            controller.timelineSyncTimelineText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncTimeline")?.GetComponent<Text>();
-            controller.timelineSyncDiffText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncDiff")?.GetComponent<Text>();
-            controller.timelineSyncStatusText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncStatus")?.GetComponent<Text>();
-            controller.timelineSyncThresholdText = mainPanel.transform.Find("TimelineSyncSection/TimelineSyncThreshold")?.GetComponent<Text>();
+            controller.timelineSyncSection = scrollContent?.Find("TimelineSyncSection")?.gameObject;
+            controller.timelineSyncLTCText = scrollContent?.Find("TimelineSyncSection/TimelineSyncLTC")?.GetComponent<Text>();
+            controller.timelineSyncTimelineText = scrollContent?.Find("TimelineSyncSection/TimelineSyncTimeline")?.GetComponent<Text>();
+            controller.timelineSyncDiffText = scrollContent?.Find("TimelineSyncSection/TimelineSyncDiff")?.GetComponent<Text>();
+            controller.timelineSyncStatusText = scrollContent?.Find("TimelineSyncSection/TimelineSyncStatus")?.GetComponent<Text>();
+            controller.timelineSyncThresholdText = scrollContent?.Find("TimelineSyncSection/TimelineSyncThreshold")?.GetComponent<Text>();
+            
+            // Sync Settings UIの参照を設定
+            controller.syncThresholdInput = scrollContent?.Find("TimelineSyncSection/SyncThresholdRow/SyncThresholdInput")?.GetComponent<InputField>();
+            controller.observationTimeInput = scrollContent?.Find("TimelineSyncSection/ObservationTimeRow/ObservationTimeInput")?.GetComponent<InputField>();
+            controller.timelineOffsetInput = scrollContent?.Find("TimelineSyncSection/TimelineOffsetRow/TimelineOffsetInput")?.GetComponent<InputField>();
+            controller.enableSyncToggle = scrollContent?.Find("TimelineSyncSection/EnableSyncRow/EnableSyncToggle")?.GetComponent<Toggle>();
+            controller.snapToFpsToggle = scrollContent?.Find("TimelineSyncSection/SnapToFpsRow/SnapToFpsToggle")?.GetComponent<Toggle>();
             
             // LTCDecoderとLTCEventDebuggerを設定（参照設定後に）
             LTCDecoder decoder = ltcObject.GetComponent<LTCDecoder>();
@@ -807,10 +1546,10 @@ namespace jp.iridescent.ltcdecoder.Editor
             // Setupを呼び出し
             controller.Setup(decoder, debugger);
             
-            // ボタンのイベント設定
-            Button clearButton = mainPanel.transform.Find("ClearButton")?.GetComponent<Button>();
-            Button exportButton = mainPanel.transform.Find("ExportButton")?.GetComponent<Button>();
-            Button copyButton = mainPanel.transform.Find("CopyButton")?.GetComponent<Button>();
+            // ボタンのイベント設定（新レイアウトではHeader内のボタンを参照）
+            Button clearButton = mainPanel.transform.Find("Header/ClearButton")?.GetComponent<Button>();
+            Button exportButton = mainPanel.transform.Find("Header/ExportButton")?.GetComponent<Button>();
+            Button copyButton = mainPanel.transform.Find("Header/CopyButton")?.GetComponent<Button>();
             
             if (clearButton) clearButton.onClick.AddListener(() => 
             {

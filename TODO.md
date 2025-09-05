@@ -3,9 +3,45 @@
 ## 📋 現在のタスク
 
 ### 🔥 進行中 (In Progress)
-（なし）
+【Phase G: Debug GUI レイアウト刷新】
+6. [ ] 解像度/要素追加の耐性テスト
+   - 目的: 画面サイズ変化・ログ増での破綻を未然に防ぐ。
+   - 内容: 複数解像度・ウィンドウリサイズで表示を確認、長時間運転で要素を追加し続けてスクロール/パフォーマンスを検証。
+   - 受け入れ基準: レイアウト崩れなし・スクロール正常・視認性を維持。
+   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`
 
 ### ⏳ 待機中 (Pending)
+（なし）
+
+### ✅ 完了済み（Phase G: Debug GUI レイアウト刷新）（2025-09-05）
+1. [x] パネルのアンカー/ピボット/横幅計算の適用
+   - 目的: 画面右固定・縦ストレッチで高さ追従、横幅はビュー幅比（30%）で決定。
+   - 内容: Panel RectTransform を `anchorMin(1,0) / anchorMax(1,1) / pivot(1,1)` に設定。生成時に `sizeDelta.x = clamp(viewWidth*0.3, 320, 560)` を計算して適用。
+   - 受け入れ基準: ウィンドウ高さに追従し、横幅が最小/最大の範囲で適切に決定される。
+   - 影響: `jp.iridescent.ltcdecoder/Editor/LTCTimelineSyncDebugSetup.cs`
+   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`
+
+2. [x] Header（ツールバー）実装とボタン最適化
+   - Clear/Export/Copy をコンパクトに右寄せ配置
+   - HorizontalLayoutGroupでTitle + Flexible Space + ボタン配置
+
+3. [x] ScrollRect/Viewport/Content 構造への再構成
+   - Panel直下にScrollRect配置、Viewport（Mask+Image）とContent（VLG+CSF）構造
+   - 長文/多数要素でも縦スクロール可能
+
+4. [x] CreateCompleteUIメソッドを新レイアウト構造に更新
+   - Content内に各セクション（Timecode、Audio Settings、Timeline Sync、Debug）を配置
+   - セクションタイトル、セパレータ、水平グループレイアウト実装
+
+5. [x] SetupUIControllerの参照更新
+   - 新レイアウト構造（ScrollRect/Viewport/Content）に対応
+   - Header内ボタン参照、Content内各UI要素参照を更新
+
+6. [ ] 解像度/要素追加の耐性テスト
+   - 目的: 画面サイズ変化・ログ増での破綻を未然に防ぐ。
+   - 内容: 複数解像度・ウィンドウリサイズで表示を確認、長時間運転で要素を追加し続けてスクロール/パフォーマンスを検証。
+   - 受け入れ基準: レイアウト崩れなし・スクロール正常・視認性を維持。
+   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`
 （なし）
 
 ### ✅ 完了済み (Completed) - 改善
