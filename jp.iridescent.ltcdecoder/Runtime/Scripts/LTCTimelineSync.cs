@@ -45,7 +45,7 @@ public class LTCTimelineSync : MonoBehaviour
     [SerializeField] private bool useDspGateOnStart = false;
     
     [Tooltip("Snap to Timeline FPS boundaries / TimelineのFPS境界にスナップ")]
-    [SerializeField] private bool snapToTimelineFps = false;
+    [SerializeField] private bool snapToTimelineFps = true;
     
     [Header("Status")]
     [SerializeField] private bool isPlaying = false;

@@ -28,6 +28,13 @@ namespace jp.iridescent.ltcdecoder
         public Text timelineSyncStatusText;  // 同期ステータス表示
         public Text timelineSyncThresholdText;  // 閾値/オフセット表示
         
+        // Sync Settings UI要素
+        public InputField syncThresholdInput;    // Sync Threshold入力
+        public InputField observationTimeInput;  // Observation Time入力
+        public InputField timelineOffsetInput;   // Timeline Offset入力
+        public Toggle enableSyncToggle;          // Enable Syncトグル
+        public Toggle snapToFpsToggle;           // Snap to FPSトグル
+        
         [Header("Audio Settings UI")]
         public Dropdown deviceDropdown;
         public Dropdown frameRateDropdown;
@@ -73,6 +80,9 @@ namespace jp.iridescent.ltcdecoder
             
             // Audio Settings UIの初期化
             InitializeAudioSettingsUI();
+            
+            // Sync Settings UIの初期化
+            InitializeSyncSettingsUI();
         }
         
         /// <summary>
@@ -552,6 +562,9 @@ namespace jp.iridescent.ltcdecoder
                 float offset = ltcTimelineSync.GetTimelineOffset();
                 timelineSyncThresholdText.text = $"Threshold: {threshold:F2}s | Offset: {offset:F2}s";
             }
+            
+            // Sync Settings UIの更新
+            UpdateSyncSettingsUI();
         }
         
         /// <summary>
@@ -916,5 +929,211 @@ namespace jp.iridescent.ltcdecoder
             }
         }
         #endif
+        
+        /// <summary>
+        /// Sync Settings UIの初期化
+        /// </summary>
+        private void InitializeSyncSettingsUI()
+        {
+            if (ltcTimelineSync == null)
+            {
+                #if UNITY_2023_1_OR_NEWER
+                ltcTimelineSync = FindFirstObjectByType<LTCTimelineSync>();
+                #else
+                ltcTimelineSync = FindObjectOfType<LTCTimelineSync>();
+                #endif
+            }
+            
+            if (ltcTimelineSync == null) return;
+            
+            // Sync Threshold入力フィールドの初期化
+            if (syncThresholdInput != null)
+            {
+                syncThresholdInput.text = ltcTimelineSync.SyncThreshold.ToString("F3");
+                syncThresholdInput.onEndEdit.RemoveListener(OnSyncThresholdChanged);
+                syncThresholdInput.onEndEdit.AddListener(OnSyncThresholdChanged);
+            }
+            
+            // Observation Time入力フィールドの初期化
+            if (observationTimeInput != null)
+            {
+                observationTimeInput.text = ltcTimelineSync.ContinuousObservationTime.ToString("F2");
+                observationTimeInput.onEndEdit.RemoveListener(OnObservationTimeChanged);
+                observationTimeInput.onEndEdit.AddListener(OnObservationTimeChanged);
+            }
+            
+            // Timeline Offset入力フィールドの初期化
+            if (timelineOffsetInput != null)
+            {
+                float offset = ltcTimelineSync.GetTimelineOffset();
+                timelineOffsetInput.text = offset.ToString("F2");
+                timelineOffsetInput.onEndEdit.RemoveListener(OnTimelineOffsetChanged);
+                timelineOffsetInput.onEndEdit.AddListener(OnTimelineOffsetChanged);
+            }
+            
+            // Enable Syncトグルの初期化
+            if (enableSyncToggle != null)
+            {
+                enableSyncToggle.isOn = ltcTimelineSync.enabled;
+                enableSyncToggle.onValueChanged.RemoveListener(OnEnableSyncChanged);
+                enableSyncToggle.onValueChanged.AddListener(OnEnableSyncChanged);
+            }
+            
+            // Snap to FPSトグルの初期化
+            if (snapToFpsToggle != null)
+            {
+                snapToFpsToggle.isOn = ltcTimelineSync.SnapToTimelineFps;
+                snapToFpsToggle.onValueChanged.RemoveListener(OnSnapToFpsChanged);
+                snapToFpsToggle.onValueChanged.AddListener(OnSnapToFpsChanged);
+            }
+        }
+        
+        /// <summary>
+        /// Sync Settings UIの更新
+        /// </summary>
+        private void UpdateSyncSettingsUI()
+        {
+            if (ltcTimelineSync == null) return;
+            
+            // コードからの更新中はイベントハンドラを無視
+            isUpdatingFromCode = true;
+            
+            // Sync Threshold入力フィールドの更新
+            if (syncThresholdInput != null)
+            {
+                string currentText = ltcTimelineSync.SyncThreshold.ToString("F3");
+                if (syncThresholdInput.text != currentText && !syncThresholdInput.isFocused)
+                {
+                    syncThresholdInput.text = currentText;
+                }
+            }
+            
+            // Observation Time入力フィールドの更新
+            if (observationTimeInput != null)
+            {
+                string currentText = ltcTimelineSync.ContinuousObservationTime.ToString("F2");
+                if (observationTimeInput.text != currentText && !observationTimeInput.isFocused)
+                {
+                    observationTimeInput.text = currentText;
+                }
+            }
+            
+            // Timeline Offset入力フィールドの更新
+            if (timelineOffsetInput != null)
+            {
+                float offset = ltcTimelineSync.GetTimelineOffset();
+                string currentText = offset.ToString("F2");
+                if (timelineOffsetInput.text != currentText && !timelineOffsetInput.isFocused)
+                {
+                    timelineOffsetInput.text = currentText;
+                }
+            }
+            
+            // Enable Syncトグルの更新
+            if (enableSyncToggle != null && enableSyncToggle.isOn != ltcTimelineSync.enabled)
+            {
+                enableSyncToggle.isOn = ltcTimelineSync.enabled;
+            }
+            
+            // Snap to FPSトグルの更新
+            if (snapToFpsToggle != null && snapToFpsToggle.isOn != ltcTimelineSync.SnapToTimelineFps)
+            {
+                snapToFpsToggle.isOn = ltcTimelineSync.SnapToTimelineFps;
+            }
+            
+            isUpdatingFromCode = false;
+        }
+        
+        /// <summary>
+        /// Sync Threshold変更時のイベントハンドラ
+        /// </summary>
+        private void OnSyncThresholdChanged(string value)
+        {
+            if (isUpdatingFromCode || ltcTimelineSync == null) return;
+            
+            if (float.TryParse(value, out float threshold))
+            {
+                // 範囲を0.01〜2.0に制限
+                threshold = Mathf.Clamp(threshold, 0.01f, 2.0f);
+                ltcTimelineSync.SyncThreshold = threshold;
+                syncThresholdInput.text = threshold.ToString("F3");
+                
+                Debug.Log($"[LTCUIController] Sync Threshold changed to: {threshold:F3}s");
+            }
+            else
+            {
+                // 無効な入力の場合、現在の値に戻す
+                syncThresholdInput.text = ltcTimelineSync.SyncThreshold.ToString("F3");
+            }
+        }
+        
+        /// <summary>
+        /// Observation Time変更時のイベントハンドラ
+        /// </summary>
+        private void OnObservationTimeChanged(string value)
+        {
+            if (isUpdatingFromCode || ltcTimelineSync == null) return;
+            
+            if (float.TryParse(value, out float time))
+            {
+                // 範囲を0.01〜5.0に制限
+                time = Mathf.Clamp(time, 0.01f, 5.0f);
+                ltcTimelineSync.ContinuousObservationTime = time;
+                observationTimeInput.text = time.ToString("F2");
+                
+                Debug.Log($"[LTCUIController] Continuous Observation Time changed to: {time:F2}s");
+            }
+            else
+            {
+                // 無効な入力の場合、現在の値に戻す
+                observationTimeInput.text = ltcTimelineSync.ContinuousObservationTime.ToString("F2");
+            }
+        }
+        
+        /// <summary>
+        /// Timeline Offset変更時のイベントハンドラ
+        /// </summary>
+        private void OnTimelineOffsetChanged(string value)
+        {
+            if (isUpdatingFromCode || ltcTimelineSync == null) return;
+            
+            if (float.TryParse(value, out float offset))
+            {
+                // 範囲を-10.0〜10.0に制限
+                offset = Mathf.Clamp(offset, -10.0f, 10.0f);
+                ltcTimelineSync.SetTimelineOffset(offset);
+                timelineOffsetInput.text = offset.ToString("F2");
+                
+                Debug.Log($"[LTCUIController] Timeline Offset changed to: {offset:F2}s");
+            }
+            else
+            {
+                // 無効な入力の場合、現在の値に戻す
+                float currentOffset = ltcTimelineSync.GetTimelineOffset();
+                timelineOffsetInput.text = currentOffset.ToString("F2");
+            }
+        }
+        
+        /// <summary>
+        /// Enable Sync変更時のイベントハンドラ
+        /// </summary>
+        private void OnEnableSyncChanged(bool enabled)
+        {
+            if (isUpdatingFromCode || ltcTimelineSync == null) return;
+            
+            ltcTimelineSync.enabled = enabled;
+            Debug.Log($"[LTCUIController] Timeline Sync {(enabled ? "enabled" : "disabled")}");
+        }
+        
+        /// <summary>
+        /// Snap to FPS変更時のイベントハンドラ
+        /// </summary>
+        private void OnSnapToFpsChanged(bool enabled)
+        {
+            if (isUpdatingFromCode || ltcTimelineSync == null) return;
+            
+            ltcTimelineSync.SnapToTimelineFps = enabled;
+            Debug.Log($"[LTCUIController] Snap to Timeline FPS {(enabled ? "enabled" : "disabled")}");
+        }
     }
 }

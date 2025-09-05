@@ -176,13 +176,13 @@ namespace jp.iridescent.ltcdecoder.Editor
             GameObject timelineSyncSection = CreateTimelineSyncSection(mainPanel);
             timelineSyncSection.SetActive(false);  // デフォルトで非表示
             
-            // Control Buttons (サイズを縮小し位置を再調整)
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(80, -350), new Vector2(65, 28));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(155, -350), new Vector2(65, 28));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(230, -350), new Vector2(65, 28));
+            // Control Buttons (位置を90px下へ移動)
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(80, -440), new Vector2(65, 28));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(155, -440), new Vector2(65, 28));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(230, -440), new Vector2(65, 28));
             
-            // Debug Message Area (ボタン位置変更に合わせて調整)
-            CreateDebugScrollView(mainPanel, new Vector2(10, -385), new Vector2(360, 300));
+            // Debug Message Area (位置を90px下へ移動、高さを微調整)
+            CreateDebugScrollView(mainPanel, new Vector2(10, -475), new Vector2(360, 310));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -203,7 +203,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             rect.anchorMax = new Vector2(0, 1);
             rect.pivot = new Vector2(0, 1);
             rect.anchoredPosition = new Vector2(10, -10);
-            rect.sizeDelta = new Vector2(380, 700);
+            rect.sizeDelta = new Vector2(380, 800);  // 高さを700から800に拡張
             
             Image panelImage = mainPanel.AddComponent<Image>();
             panelImage.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
@@ -289,7 +289,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             sectionRect.anchorMax = new Vector2(0, 1);
             sectionRect.pivot = new Vector2(0, 1);
             sectionRect.anchoredPosition = new Vector2(10, -260);
-            sectionRect.sizeDelta = new Vector2(360, 65);
+            sectionRect.sizeDelta = new Vector2(360, 200);  // 高さを65から200に拡張
             
             // セパレータライン
             CreateTextAtPosition(section, "Separator", "─────── Timeline Sync ───────", 
@@ -314,6 +314,41 @@ namespace jp.iridescent.ltcdecoder.Editor
             // 閾値とオフセット
             CreateTextAtPosition(section, "TimelineSyncThreshold", "Threshold: 0.50s | Offset: 0.00s", 
                 new Vector2(180, -65), new Vector2(340, 15), 10, TextAnchor.MiddleCenter, new Color(0.7f, 0.7f, 0.7f), false);
+            
+            
+            // Sync Settingsセクション追加
+            CreateTextAtPosition(section, "SyncSettingsLabel", "─────── Sync Settings ───────", 
+                new Vector2(180, -85), new Vector2(340, 15), 12, TextAnchor.MiddleCenter, new Color(0.5f, 0.8f, 1f), false);
+            
+            // Sync Threshold入力
+            CreateTextAtPosition(section, "SyncThresholdLabel", "Sync Threshold:", 
+                new Vector2(80, -105), new Vector2(120, 20), 11, TextAnchor.MiddleRight, Color.white, false);
+            CreateInputFieldAtPosition(section, "SyncThresholdInput", "0.033", 
+                new Vector2(230, -105), new Vector2(80, 20));
+            CreateTextAtPosition(section, "SyncThresholdUnit", "s", 
+                new Vector2(280, -105), new Vector2(20, 20), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Observation Time入力
+            CreateTextAtPosition(section, "ObservationTimeLabel", "Observation Time:", 
+                new Vector2(80, -130), new Vector2(120, 20), 11, TextAnchor.MiddleRight, Color.white, false);
+            CreateInputFieldAtPosition(section, "ObservationTimeInput", "0.1", 
+                new Vector2(230, -130), new Vector2(80, 20));
+            CreateTextAtPosition(section, "ObservationTimeUnit", "s", 
+                new Vector2(280, -130), new Vector2(20, 20), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Timeline Offset入力
+            CreateTextAtPosition(section, "TimelineOffsetLabel", "Timeline Offset:", 
+                new Vector2(80, -155), new Vector2(120, 20), 11, TextAnchor.MiddleRight, Color.white, false);
+            CreateInputFieldAtPosition(section, "TimelineOffsetInput", "0.0", 
+                new Vector2(230, -155), new Vector2(80, 20));
+            CreateTextAtPosition(section, "TimelineOffsetUnit", "s", 
+                new Vector2(280, -155), new Vector2(20, 20), 11, TextAnchor.MiddleLeft, Color.white, false);
+            
+            // Enable Syncトグル
+            CreateTextAtPosition(section, "EnableSyncLabel", "Enable Sync:", 
+                new Vector2(80, -180), new Vector2(120, 20), 11, TextAnchor.MiddleRight, Color.white, false);
+            CreateToggleAtPosition(section, "EnableSyncToggle", 
+                new Vector2(160, -180), new Vector2(20, 20));
             
             return section;
         }
@@ -518,6 +553,70 @@ namespace jp.iridescent.ltcdecoder.Editor
             template.SetActive(false);
             
             return dropdownObj;
+        }
+        
+        /// <summary>
+        /// 固定位置にInputField作成
+        /// </summary>
+        private static GameObject CreateInputFieldAtPosition(GameObject parent, string name, string defaultValue, 
+            Vector2 position, Vector2 size)
+        {
+            GameObject inputObj = new GameObject(name);
+            inputObj.transform.SetParent(parent.transform, false);
+            
+            RectTransform rect = inputObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            
+            Image image = inputObj.AddComponent<Image>();
+            image.color = new Color(0.2f, 0.2f, 0.2f, 1);
+            
+            InputField inputField = inputObj.AddComponent<InputField>();
+            
+            // Textコンポーネント
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(inputObj.transform, false);
+            
+            RectTransform textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(5, 2);
+            textRect.offsetMax = new Vector2(-5, -2);
+            
+            Text text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 12;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.supportRichText = false;
+            
+            // Placeholder
+            GameObject placeholderObj = new GameObject("Placeholder");
+            placeholderObj.transform.SetParent(inputObj.transform, false);
+            
+            RectTransform placeholderRect = placeholderObj.AddComponent<RectTransform>();
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.offsetMin = new Vector2(5, 2);
+            placeholderRect.offsetMax = new Vector2(-5, -2);
+            
+            Text placeholderText = placeholderObj.AddComponent<Text>();
+            placeholderText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            placeholderText.fontSize = 12;
+            placeholderText.fontStyle = FontStyle.Italic;
+            placeholderText.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            placeholderText.alignment = TextAnchor.MiddleLeft;
+            placeholderText.text = "";
+            
+            inputField.textComponent = text;
+            inputField.placeholder = placeholderText;
+            inputField.text = defaultValue;
+            inputField.characterLimit = 10;
+            
+            return inputObj;
         }
         
         /// <summary>
