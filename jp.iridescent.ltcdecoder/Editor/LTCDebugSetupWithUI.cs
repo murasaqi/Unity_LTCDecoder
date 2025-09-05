@@ -177,12 +177,12 @@ namespace jp.iridescent.ltcdecoder.Editor
             timelineSyncSection.SetActive(false);  // デフォルトで非表示
             
             // Control Buttons (Timeline Syncセクションがある場合位置調整)
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -320), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -320), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -320), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -340), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -340), new Vector2(80, 35));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -340), new Vector2(80, 35));
             
             // Debug Message Area
-            CreateDebugScrollView(mainPanel, new Vector2(10, -370), new Vector2(360, 320));
+            CreateDebugScrollView(mainPanel, new Vector2(10, -390), new Vector2(360, 300));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
@@ -288,7 +288,7 @@ namespace jp.iridescent.ltcdecoder.Editor
             sectionRect.anchorMin = new Vector2(0, 1);
             sectionRect.anchorMax = new Vector2(0, 1);
             sectionRect.pivot = new Vector2(0, 1);
-            sectionRect.anchoredPosition = new Vector2(10, -240);
+            sectionRect.anchoredPosition = new Vector2(10, -260);
             sectionRect.sizeDelta = new Vector2(360, 65);
             
             // セパレータライン
