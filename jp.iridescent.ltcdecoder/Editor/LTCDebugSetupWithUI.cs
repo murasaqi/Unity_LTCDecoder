@@ -906,25 +906,109 @@ namespace jp.iridescent.ltcdecoder.Editor
         }
         
         /// <summary>
-        /// デバッグメッセージコンテナを作成
+        /// デバッグメッセージコンテナを作成（スクロール可能）
         /// </summary>
         private static GameObject CreateDebugMessageContainer(GameObject parent)
         {
-            GameObject container = new GameObject("DebugMessageContainer");
-            container.transform.SetParent(parent.transform, false);
+            // 外枠コンテナ（高さ制限付き）
+            GameObject outerContainer = new GameObject("DebugMessageSection");
+            outerContainer.transform.SetParent(parent.transform, false);
             
-            VerticalLayoutGroup vlg = container.AddComponent<VerticalLayoutGroup>();
+            LayoutElement outerLayout = outerContainer.AddComponent<LayoutElement>();
+            outerLayout.preferredHeight = 200;  // 固定高さ
+            outerLayout.minHeight = 150;
+            
+            // ScrollRect作成
+            ScrollRect scrollRect = outerContainer.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.scrollSensitivity = 20;
+            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+            
+            // 背景
+            Image bgImage = outerContainer.AddComponent<Image>();
+            bgImage.color = new Color(0.05f, 0.05f, 0.05f, 0.8f);
+            
+            // Viewport作成
+            GameObject viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(outerContainer.transform, false);
+            
+            RectTransform viewportRect = viewport.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.sizeDelta = new Vector2(-10, -10);  // パディング
+            viewportRect.anchoredPosition = Vector2.zero;
+            
+            viewport.AddComponent<RectMask2D>();
+            Image viewportImage = viewport.AddComponent<Image>();
+            viewportImage.color = new Color(0, 0, 0, 0);  // 透明
+            
+            // Content（実際のメッセージコンテナ）
+            GameObject content = new GameObject("DebugMessageContainer");
+            content.transform.SetParent(viewport.transform, false);
+            
+            RectTransform contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0, 0);
+            
+            // ContentにVerticalLayoutGroup
+            VerticalLayoutGroup vlg = content.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 2;
+            vlg.padding = new RectOffset(5, 5, 5, 5);
             vlg.childForceExpandWidth = true;
             vlg.childForceExpandHeight = false;
             vlg.childControlWidth = true;
             vlg.childControlHeight = true;
             
-            LayoutElement layout = container.AddComponent<LayoutElement>();
-            layout.minHeight = 100;
-            layout.flexibleHeight = 1;
+            // ContentSizeFitter
+            ContentSizeFitter csf = content.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             
-            return container;
+            // ScrollRectの参照設定
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+            
+            // 垂直スクロールバー作成
+            GameObject scrollbarObj = new GameObject("Scrollbar");
+            scrollbarObj.transform.SetParent(outerContainer.transform, false);
+            
+            RectTransform scrollbarRect = scrollbarObj.AddComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1, 0);
+            scrollbarRect.anchorMax = new Vector2(1, 1);
+            scrollbarRect.pivot = new Vector2(1, 0.5f);
+            scrollbarRect.anchoredPosition = new Vector2(-2, 0);
+            scrollbarRect.sizeDelta = new Vector2(6, -10);
+            
+            Image scrollbarBg = scrollbarObj.AddComponent<Image>();
+            scrollbarBg.color = new Color(0.15f, 0.15f, 0.15f, 0.5f);
+            
+            Scrollbar scrollbar = scrollbarObj.AddComponent<Scrollbar>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            
+            // スクロールバーハンドル
+            GameObject handleObj = new GameObject("Handle");
+            handleObj.transform.SetParent(scrollbarObj.transform, false);
+            
+            RectTransform handleRect = handleObj.AddComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.sizeDelta = new Vector2(-2, -2);
+            handleRect.anchoredPosition = Vector2.zero;
+            
+            Image handleImage = handleObj.AddComponent<Image>();
+            handleImage.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+            
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleImage;
+            
+            // ScrollRectにスクロールバーを設定
+            scrollRect.verticalScrollbar = scrollbar;
+            
+            return content;  // 実際のメッセージコンテナを返す
         }
         
         /// <summary>
@@ -1532,9 +1616,9 @@ namespace jp.iridescent.ltcdecoder.Editor
             controller.signalLevelText = mainPanel.transform.Find("SignalLevelText")?.GetComponent<Text>();
             controller.signalLevelBar = mainPanel.transform.Find("SignalLevelBar/Fill")?.GetComponent<Image>();
             
-            // デバッグメッセージコンテナ
-            controller.debugMessageContainer = scrollContent?.Find("DebugMessageContainer");
-            controller.debugScrollRect = mainPanel.transform.Find("ScrollRect")?.GetComponent<ScrollRect>();
+            // デバッグメッセージコンテナ（DebugMessageSection内のViewport/DebugMessageContainer）
+            controller.debugMessageContainer = scrollContent?.Find("DebugMessageSection/Viewport/DebugMessageContainer");
+            controller.debugScrollRect = scrollContent?.Find("DebugMessageSection")?.GetComponent<ScrollRect>();
             
             // Audio Settings UIの参照を設定（新レイアウトではContent内の各行から取得）
             controller.deviceDropdown = scrollContent?.Find("DeviceRow/DeviceDropdown")?.GetComponent<Dropdown>();
