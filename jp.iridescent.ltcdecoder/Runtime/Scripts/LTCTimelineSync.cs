@@ -37,6 +37,16 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("Timeline drive mode / Timeline駆動モード")]
     [SerializeField] private DirectorUpdateMode updateMode = DirectorUpdateMode.DSPClock;
     
+    [Header("Hard Resync Settings (Phase F)")]
+    [Tooltip("Enable hard resync when LTC playback restarts / LTC再生再開時のハード同期を有効にする")]
+    [SerializeField] private bool hardResyncOnLTCStart = true;
+    
+    [Tooltip("Use DSP gate scheduling for synchronized start (experimental) / 同期開始のためのDSPゲートスケジューリングを使用（実験的）")]
+    [SerializeField] private bool useDspGateOnStart = false;
+    
+    [Tooltip("Snap to Timeline FPS boundaries / TimelineのFPS境界にスナップ")]
+    [SerializeField] private bool snapToTimelineFps = false;
+    
     [Header("Status")]
     [SerializeField] private bool isPlaying = false;
     [SerializeField] private float currentTimeDifference = 0f;
@@ -46,6 +56,7 @@ public class LTCTimelineSync : MonoBehaviour
     
     [Header("Debug")]
     [SerializeField] private bool enableDebugLog = false;
+    [SerializeField] private bool enableMeasurementLog = false;  // Phase F: 測定用ログ
     
     // Private fields
     private float driftStartTime = 0f;
@@ -69,6 +80,21 @@ public class LTCTimelineSync : MonoBehaviour
     {
         get => continuousObservationTime;
         set => continuousObservationTime = Mathf.Max(0.1f, value);
+    }
+    public bool HardResyncOnLTCStart
+    {
+        get => hardResyncOnLTCStart;
+        set => hardResyncOnLTCStart = value;
+    }
+    public bool UseDspGateOnStart
+    {
+        get => useDspGateOnStart;
+        set => useDspGateOnStart = value;
+    }
+    public bool SnapToTimelineFps
+    {
+        get => snapToTimelineFps;
+        set => snapToTimelineFps = value;
     }
     
     #region Unity Lifecycle
@@ -154,17 +180,58 @@ public class LTCTimelineSync : MonoBehaviour
         // LTC開始時の処理
         if (isReceivingLTC && !wasReceivingLTC)
         {
-            // LTC開始 → TimelineをOutputTCに合わせて再生開始
-            string outputTC = ltcDecoder.CurrentTimecode;
-            float targetTime = ParseTimecodeToSeconds(outputTC) + timelineOffset;
-            
-            if (targetTime >= 0)
+            // Phase F: ハード同期の実装
+            if (hardResyncOnLTCStart)
             {
-                playableDirector.time = targetTime;
-                playableDirector.Play();
-                isPlaying = true;
+                // DecodedTimecodeを優先して使用（より正確なLTC時刻）
+                string targetTC = !string.IsNullOrEmpty(ltcDecoder.DecodedTimecode) 
+                    ? ltcDecoder.DecodedTimecode 
+                    : ltcDecoder.CurrentTimecode;
                 
-                LogDebug($"LTC Started - Timeline synced to {outputTC} ({targetTime:F3}s) and playing");
+                float targetTime = ParseTimecodeToSeconds(targetTC) + timelineOffset;
+                
+                if (targetTime >= 0)
+                {
+                    // TL-FPSスナップ（任意）
+                    if (snapToTimelineFps)
+                    {
+                        float timelineFps = GetTimelineFps();
+                        if (timelineFps > 0)
+                        {
+                            float dt = 1f / timelineFps;
+                            targetTime = Mathf.Round(targetTime / dt) * dt;
+                            LogDebug($"Snapped to Timeline FPS boundary: {targetTime:F3}s (FPS: {timelineFps})");
+                        }
+                    }
+                    
+                    // DSPゲートスケジューリング（将来実装）
+                    if (useDspGateOnStart && updateMode == DirectorUpdateMode.DSPClock)
+                    {
+                        // TODO: Phase F-3: DSPゲートスケジューリングの実装
+                        // 現在は通常のハード同期を実行
+                        PerformHardSync(targetTime, targetTC);
+                    }
+                    else
+                    {
+                        // 通常のハード同期
+                        PerformHardSync(targetTime, targetTC);
+                    }
+                }
+            }
+            else
+            {
+                // 従来の動作（ハード同期なし）
+                string outputTC = ltcDecoder.CurrentTimecode;
+                float targetTime = ParseTimecodeToSeconds(outputTC) + timelineOffset;
+                
+                if (targetTime >= 0)
+                {
+                    playableDirector.time = targetTime;
+                    playableDirector.Play();
+                    isPlaying = true;
+                    
+                    LogDebug($"LTC Started - Timeline synced to {outputTC} ({targetTime:F3}s) and playing");
+                }
             }
         }
         
@@ -245,6 +312,72 @@ public class LTCTimelineSync : MonoBehaviour
         
         // 前フレームの状態を記録
         wasReceivingLTC = isReceivingLTC;
+    }
+    
+    /// <summary>
+    /// ハード同期の実行
+    /// </summary>
+    private void PerformHardSync(float targetTime, string targetTC)
+    {
+        // ハード同期: time設定 → Evaluate → Playの順番
+        playableDirector.time = targetTime;
+        
+        // DSPClockモード以外の場合のEvaluate
+        if (updateMode != DirectorUpdateMode.DSPClock)
+        {
+            playableDirector.Evaluate();
+        }
+        
+        playableDirector.Play();
+        isPlaying = true;
+        
+        // ドリフト状態を即座にリセット
+        isDrifting = false;
+        driftStartTime = 0f;
+        
+        // Phase F: 測定用ログ
+        if (enableMeasurementLog)
+        {
+            float actualTime = (float)playableDirector.time;
+            float difference = Mathf.Abs(actualTime - targetTime);
+            float frameTime = 1f / ltcDecoder.GetActualFrameRate();
+            float differenceInFrames = difference / frameTime;
+            
+            Debug.Log($"[LTC Sync Measurement] Hard Sync Executed:\n" +
+                     $"  Target TC: {targetTC}\n" +
+                     $"  Target Time: {targetTime:F4}s\n" +
+                     $"  Actual Time: {actualTime:F4}s\n" +
+                     $"  Difference: {difference:F4}s ({differenceInFrames:F2} frames)\n" +
+                     $"  Update Mode: {updateMode}\n" +
+                     $"  DSP Time: {AudioSettings.dspTime:F4}");
+        }
+        
+        LogDebug($"Hard Sync - Timeline jumped to {targetTC} ({targetTime:F3}s with offset: {timelineOffset:F3}s)");
+    }
+    
+    /// <summary>
+    /// TimelineのFPSを取得
+    /// </summary>
+    private float GetTimelineFps()
+    {
+        if (playableDirector != null && playableDirector.playableAsset != null)
+        {
+            var timeline = playableDirector.playableAsset as TimelineAsset;
+            if (timeline != null)
+            {
+                // TimelineAssetのEditorSettingsからFPSを取得
+                // 注: EditorSettingsはEditorでのみアクセス可能なため、
+                // Runtimeではデフォルト値を返す
+                #if UNITY_EDITOR
+                return (float)timeline.editorSettings.frameRate;
+                #else
+                // Runtimeではデフォルトの30fpsを使用
+                // またはLTCDecoderのフレームレートを使用
+                return ltcDecoder != null ? ltcDecoder.GetActualFrameRate() : 30f;
+                #endif
+            }
+        }
+        return 30f; // デフォルト値
     }
     
     /// <summary>

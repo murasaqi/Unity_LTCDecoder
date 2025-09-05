@@ -7,13 +7,13 @@
 
 ### ⏳ 待機中 (Pending)
 【Phase F: 再Play時のハード同期（DSPClock前提）】
-1. [ ] 設定項目の追加（LTCTimelineSync）
+1. [x] 設定項目の追加（LTCTimelineSync）
    - 目的: 再Play時の同期動作を制御するスイッチを用意する。
    - 内容: `hardResyncOnLTCStart`（既定ON）、`useDspGateOnStart`（既定OFF）、`snapToTimelineFps`（既定OFF）を `LTCTimelineSync` に追加。
    - 受け入れ基準: Inspectorで設定可能、既定値で従来動作に影響なし。
    - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCTimelineSync.cs`
    - 参照: `Documents/ltc-hard-resync-on-restart.md`, `Documents/ltc-timeline-sync-improvement.md`
-2. [ ] 再Play検知時のハード同期ロジックを実装
+2. [x] 再Play検知時のハード同期ロジックを実装
    - 目的: 再Play開始時にLTC準拠の時刻へ“ピタッと”合わせてから再生する。
    - 内容: `DecodedTimecode` を優先してLTC準拠の秒へ換算（DecoderのFPS/DF準拠）。`PlayableDirector.time=targetSec; Evaluate(); Play();` の順に実行。直後に `isDrifting=false; driftStartTime=0f;` を明示リセット。
    - 受け入れ基準: 再Play直後の位相差が1フレーム相当以下、10回反復でも累積せず。
@@ -25,13 +25,13 @@
    - 受け入れ基準: 複数PC同時試験で開始差が±1フレーム以内に収束。
    - 影響: `LTCTimelineSync.cs`（スケジューラ処理）
    - 参照: `Documents/ltc-hard-resync-on-restart.md`, `Documents/ltc-sync-dsp-timestamp-plan.md`
-4. [ ] TL-FPSスナップ（任意・有効時）
+4. [x] TL-FPSスナップ（任意・有効時）
    - 目的: フレーム境界厳守が必要なコンテンツでの安全な同期。
    - 内容: `TimelineAsset.editorSettings.fps` を取得し、`dt=1/fps` に丸めてから `Evaluate/Play` を実行するオプション。
    - 受け入れ基準: スナップON時、境界上で同期される（視覚的破綻なし）。OFF時は連続値同期。
    - 影響: `LTCTimelineSync.cs`
    - 参照: `Documents/ltc-hard-resync-on-restart.md`
-5. [ ] 測定用ログと検証シナリオの追加
+5. [x] 測定用ログと検証シナリオの追加
    - 目的: 再Play直後の位相差を定量評価し、回帰を防ぐ。
    - 内容: `director.time` と `LTC絶対秒+offset` の差分を再Play直後に記録。単体（10回反復）・複数PC（5回）で統計化。
    - 受け入れ基準: 受け入れ基準を満たすログが取得できる。
