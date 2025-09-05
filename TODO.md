@@ -8,6 +8,19 @@
 ### ⏳ 待機中 (Pending)
 （なし）
 
+### ✅ 完了済み (Completed) - 改善
+【LTC再開時のタイミング改善（2025-09-05）】
+1. [x] LTC停止時の内部時刻リセット
+   - LTCDecoder.csでinternalTcTime = 0を追加
+   - 古いタイムコード値が残らないように修正
+2. [x] 同期パラメータの最適化
+   - syncThreshold: 0.5秒 → 0.033秒（約1フレーム）
+   - continuousObservationTime: 1.0秒 → 0.1秒
+   - 最小値を0.01秒に変更（従来は0.1秒）
+3. [x] LTC再開時の待機処理
+   - 100ms待機して安定したLTC信号を取得
+   - PerformInitialSync()で確実な同期を実行
+
 ### ✅ 完了済み (Completed) - 不具合是正
 【不具合是正：LTC再開時のフラッシュ防止（最小修正）（2025-09-05）】
 1. [x] 再開時の同期順序を修正（time → Evaluate → Play）

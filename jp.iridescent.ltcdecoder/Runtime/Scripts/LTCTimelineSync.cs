@@ -22,10 +22,10 @@ public class LTCTimelineSync : MonoBehaviour
     
     [Header("Sync Settings")]
     [Tooltip("Sync when time difference exceeds this value continuously (seconds) / 時間差がこの値を超えた状態が継続したら同期（秒）")]
-    [SerializeField, Range(0.1f, 2.0f)] private float syncThreshold = 0.5f;
+    [SerializeField, Range(0.01f, 2.0f)] private float syncThreshold = 0.033f;  // 約1フレーム@30fps
     
     [Tooltip("Continuous observation time required for sync decision (seconds) / 同期判定に必要な連続観測時間（秒）")]
-    [SerializeField, Range(0.1f, 5.0f)] private float continuousObservationTime = 1.0f;
+    [SerializeField, Range(0.01f, 5.0f)] private float continuousObservationTime = 0.1f;  // 100ms
     
     [Tooltip("Enable synchronization / 同期を有効にする")]
     [SerializeField] private bool enableSync = true;
@@ -69,6 +69,11 @@ public class LTCTimelineSync : MonoBehaviour
     private float scheduledTargetTime = 0f;
     private string scheduledTargetTC = "00:00:00:00";
     
+    // LTC再開時の待機処理用
+    private bool isWaitingForStableLTC = false;
+    private float ltcRestartWaitTime = 0f;
+    private const float LTC_RESTART_WAIT_DURATION = 0.1f;  // 100ms待機
+    
     // Properties
     public bool IsPlaying => isPlaying;
     public float TimeDifference => currentTimeDifference;
@@ -80,12 +85,12 @@ public class LTCTimelineSync : MonoBehaviour
     public float SyncThreshold
     {
         get => syncThreshold;
-        set => syncThreshold = Mathf.Max(0.1f, value);
+        set => syncThreshold = Mathf.Max(0.01f, value);
     }
     public float ContinuousObservationTime
     {
         get => continuousObservationTime;
-        set => continuousObservationTime = Mathf.Max(0.1f, value);
+        set => continuousObservationTime = Mathf.Max(0.01f, value);
     }
     public bool HardResyncOnLTCStart
     {
@@ -192,7 +197,36 @@ public class LTCTimelineSync : MonoBehaviour
         // LTC開始時の処理
         if (isReceivingLTC && !wasReceivingLTC)
         {
-            // Phase F: ハード同期の実装
+            // 待機処理を開始
+            isWaitingForStableLTC = true;
+            ltcRestartWaitTime = Time.time;
+            LogDebug($"LTC restart detected - waiting {LTC_RESTART_WAIT_DURATION:F2}s for stable signal");
+        }
+        
+        // 待機中の処理
+        if (isWaitingForStableLTC && isReceivingLTC)
+        {
+            // 待機時間が経過したかチェック
+            if (Time.time - ltcRestartWaitTime >= LTC_RESTART_WAIT_DURATION)
+            {
+                isWaitingForStableLTC = false;
+                LogDebug("Wait period completed - starting sync");
+                
+                // 初回同期処理を実行
+                PerformInitialSync();
+            }
+            // 待機中は他の同期処理をスキップ
+            else
+            {
+                wasReceivingLTC = isReceivingLTC;
+                return;
+            }
+        }
+        
+        // 通常のLTC開始時の処理（待機処理完了後には実行されない）
+        else if (isReceivingLTC && !wasReceivingLTC && !isWaitingForStableLTC)
+        {
+            // Phase F: ハード同期の実装（待機処理が無効の場合）
             if (hardResyncOnLTCStart)
             {
                 // DecodedTimecodeを優先して使用（より正確なLTC時刻）
@@ -283,6 +317,9 @@ public class LTCTimelineSync : MonoBehaviour
                 LogDebug("DSP Gate scheduling cancelled due to LTC stop");
             }
             
+            // 待機フラグもリセット
+            isWaitingForStableLTC = false;
+            
             LogDebug("LTC Stopped - Timeline paused");
         }
         
@@ -352,6 +389,39 @@ public class LTCTimelineSync : MonoBehaviour
         
         // 前フレームの状態を記録
         wasReceivingLTC = isReceivingLTC;
+    }
+    
+    /// <summary>
+    /// 初回同期処理（待機完了後に実行）
+    /// </summary>
+    private void PerformInitialSync()
+    {
+        if (!ltcDecoder || !playableDirector) return;
+        
+        // DecodedTimecodeを優先して使用（より正確なLTC時刻）
+        string targetTC = !string.IsNullOrEmpty(ltcDecoder.DecodedTimecode) 
+            ? ltcDecoder.DecodedTimecode 
+            : ltcDecoder.CurrentTimecode;
+        
+        float targetTime = ParseTimecodeToSeconds(targetTC) + timelineOffset;
+        
+        if (targetTime >= 0)
+        {
+            // TL-FPSスナップ（任意）
+            if (snapToTimelineFps)
+            {
+                float timelineFps = GetTimelineFps();
+                if (timelineFps > 0)
+                {
+                    float dt = 1f / timelineFps;
+                    targetTime = Mathf.Round(targetTime / dt) * dt;
+                    LogDebug($"Snapped to Timeline FPS boundary: {targetTime:F3}s (FPS: {timelineFps})");
+                }
+            }
+            
+            // ハード同期を実行
+            PerformHardSync(targetTime, targetTC);
+        }
     }
     
     /// <summary>
@@ -706,6 +776,9 @@ public class LTCTimelineSync : MonoBehaviour
         scheduledTargetTime = 0f;
         scheduledTargetTC = "00:00:00:00";
         
+        // 待機フラグもリセット
+        isWaitingForStableLTC = false;
+        
         LogDebug("Timeline sync reset");
     }
     
@@ -796,8 +869,8 @@ public class LTCTimelineSync : MonoBehaviour
     private void OnValidate()
     {
         // 値の範囲チェック
-        syncThreshold = Mathf.Max(0.1f, syncThreshold);
-        continuousObservationTime = Mathf.Max(0.1f, continuousObservationTime);
+        syncThreshold = Mathf.Max(0.01f, syncThreshold);
+        continuousObservationTime = Mathf.Max(0.01f, continuousObservationTime);
     }
     #endif
     

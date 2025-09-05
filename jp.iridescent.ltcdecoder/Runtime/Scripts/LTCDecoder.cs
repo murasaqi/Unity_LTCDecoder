@@ -531,6 +531,7 @@ namespace jp.iridescent.ltcdecoder
                     // デコードがタイムアウト = LTC停止
                     hasSignal = false;
                     isRunning = false;
+                    internalTcTime = 0;  // 内部時刻をリセット
                     currentState = SyncState.NoSignal;
                     
                     LogDebug($"LTC decoding stopped - timeout after {timeSinceLastDecode:F2}s");
@@ -899,6 +900,7 @@ namespace jp.iridescent.ltcdecoder
             currentState = SyncState.NoSignal;
             hasSignal = false;
             isRunning = false;
+            internalTcTime = 0;  // 内部時刻をリセット
             
             LogDebug("Stopped recording");
         }
