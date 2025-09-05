@@ -38,13 +38,13 @@ public class LTCTimelineSync : MonoBehaviour
     [SerializeField] private DirectorUpdateMode updateMode = DirectorUpdateMode.DSPClock;
     
     [Header("Hard Resync Settings")]
-    [Tooltip("Enable hard resync when LTC playback restarts / LTC再生再開時のハード同期を有効にする")]
+    [Tooltip("Hard resync on LTC restart / LTC再開時のハード同期")]
     [SerializeField] private bool hardResyncOnLTCStart = true;
     
-    [Tooltip("Use DSP gate scheduling for synchronized start (experimental) / 同期開始のためのDSPゲートスケジューリングを使用（実験的）")]
+    [Tooltip("DSP gate for synchronized start (experimental) / DSP同期開始（実験的）")]
     [SerializeField] private bool useDspGateOnStart = false;
     
-    [Tooltip("Snap to Timeline FPS boundaries / TimelineのFPS境界にスナップ")]
+    [Tooltip("Snap to FPS boundaries / FPS境界へスナップ")]
     [SerializeField] private bool snapToTimelineFps = true;
     
     [Header("Status")]

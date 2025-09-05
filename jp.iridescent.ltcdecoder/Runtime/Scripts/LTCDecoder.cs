@@ -115,19 +115,19 @@ namespace jp.iridescent.ltcdecoder
         public UnityEvent<float> onSignalLevelChanged = new UnityEvent<float>();
         
         [Header("Advanced Drift Control")]
-        [Tooltip("Drifts below this size are completely ignored (considered noise) / このサイズ以下のドリフトは完全に無視（ノイズとみなす）")]
+        [Tooltip("Ignore Threshold - drifts below this are considered noise / 無視閾値 - これ以下のドリフトはノイズとみなす")]
         [SerializeField, Range(0.01f, 0.1f)] private float driftDeadzoneSmall = 0.03f;
         
-        [Tooltip("Drifts below this size are corrected gradually / このサイズ以下のドリフトは緩やかに補正")]
+        [Tooltip("Gradual Correction Threshold / 緩やか補正閾値")]
         [SerializeField, Range(0.05f, 0.3f)] private float driftDeadzoneMedium = 0.1f;
         
-        [Tooltip("Drifts above this size are synced immediately / このサイズ以上のドリフトは即座に同期")]
+        [Tooltip("Immediate Sync Threshold / 即座同期閾値")]
         [SerializeField, Range(0.2f, 1.0f)] private float driftThresholdLarge = 0.3f;
         
-        [Tooltip("Correction rate for small drifts (0-1, smaller is slower) / 小さなドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [Tooltip("Small drift correction rate (0-1) / 小ドリフト補正率（0-1）")]
         [SerializeField, Range(0.001f, 0.1f)] private float driftCorrectionSlow = 0.01f;
         
-        [Tooltip("Correction rate for normal drifts (0-1, smaller is slower) / 通常ドリフトの補正率（0-1、小さいほどゆっくり）")]
+        [Tooltip("Normal drift correction rate (0-1) / 通常ドリフト補正率（0-1）")]
         [SerializeField, Range(0.01f, 0.5f)] private float driftCorrectionNormal = 0.1f;
         
         #endregion
