@@ -176,13 +176,13 @@ namespace jp.iridescent.ltcdecoder.Editor
             GameObject timelineSyncSection = CreateTimelineSyncSection(mainPanel);
             timelineSyncSection.SetActive(false);  // デフォルトで非表示
             
-            // Control Buttons (Timeline Syncセクションがある場合位置調整)
-            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(70, -340), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(160, -340), new Vector2(80, 35));
-            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(250, -340), new Vector2(80, 35));
+            // Control Buttons (サイズを縮小し位置を再調整)
+            CreateButtonAtPosition(mainPanel, "ClearButton", "Clear", new Vector2(80, -350), new Vector2(65, 28));
+            CreateButtonAtPosition(mainPanel, "ExportButton", "Export", new Vector2(155, -350), new Vector2(65, 28));
+            CreateButtonAtPosition(mainPanel, "CopyButton", "Copy", new Vector2(230, -350), new Vector2(65, 28));
             
-            // Debug Message Area
-            CreateDebugScrollView(mainPanel, new Vector2(10, -390), new Vector2(360, 300));
+            // Debug Message Area (ボタン位置変更に合わせて調整)
+            CreateDebugScrollView(mainPanel, new Vector2(10, -385), new Vector2(360, 300));
             
             // LTCUIControllerを追加して参照を設定
             SetupUIController(mainPanel, ltcObject);
