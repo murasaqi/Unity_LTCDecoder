@@ -8,6 +8,36 @@
 ### ⏳ 待機中 (Pending)
 （なし）
 
+### ✅ 完了済み (Completed) - 不具合是正
+【不具合是正：LTC再開時のフラッシュ防止（最小修正）（2025-09-05）】
+1. [x] 再開時の同期順序を修正（time → Evaluate → Play）
+   - 目的: 再Play直後に過去状態や別時刻が一瞬描画される現象を防ぐ。
+   - 内容: LTC開始検知ブロックで `PlayableDirector.time = targetSec;` → `PlayableDirector.Evaluate();` → `PlayableDirector.Play();` の順序に統一。
+   - 受け入れ基準: Play/Stopを10回繰り返しても再Play直後にフラッシュ（大きなズレ描画）が発生しない。
+   - 影響: `jp.iridescent.ltcdecoder/Runtime/Scripts/LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-hard-resync-on-restart.md`
+
+2. [x] 再開時に `DecodedTimecode` を優先使用（`CurrentTimecode` はフォールバック）
+   - 目的: 直前までの許容ドリフトを持ち越さず、受信生TCに揃えて開始する。
+   - 内容: 再開時の基準TCは `!string.IsNullOrEmpty(DecodedTimecode) ? DecodedTimecode : CurrentTimecode` で選択。
+   - 受け入れ基準: 再Play直後の `|director.time - (LTC秒+offset)|` が常に1フレーム相当以下。
+   - 影響: `LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-hard-resync-on-restart.md`
+
+3. [x] 秒換算でDecoderのFPS/DFを参照（30fps固定を廃止）
+   - 目的: 25/24/29.97(DF/NDF)/30 いずれでも開始地点の秒換算が正しくなるようにする（大ズレ回避）。
+   - 内容: `ParseTimecodeToSeconds`（または相当処理）で `decoder.GetActualFrameRate()` と `decoder.DropFrame` に準拠して換算する（厳密DF換算は別タスク）。
+   - 受け入れ基準: 各フレームレート素材で再Play直後の大ズレが発生しない。
+   - 影響: `LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-timeline-sync-improvement.md`, `Documents/ltc-hard-resync-on-restart.md`
+
+4. [x] 再開直後にドリフト観測状態をリセット
+   - 目的: 直前の観測状態を持ち越さず、再開後の同期判定を安定化させる。
+   - 内容: 再Play直後に `isDrifting=false; driftStartTime=0f;` を明示セット。
+   - 受け入れ基準: 再Play直後の補正判定が即時に誤発動しない（観測リセットが効いている）。
+   - 影響: `LTCTimelineSync.cs`
+   - 参照: `Documents/ltc-hard-resync-on-restart.md`
+
 ### ✅ 完了済み (Completed) - Phase F
 【Phase F: 再Play時のハード同期（DSPClock前提）（2025-09-05）】
 1. [x] 設定項目の追加（LTCTimelineSync）

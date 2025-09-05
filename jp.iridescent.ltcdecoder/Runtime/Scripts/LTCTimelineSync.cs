@@ -239,15 +239,29 @@ public class LTCTimelineSync : MonoBehaviour
             }
             else
             {
-                // 従来の動作（ハード同期なし）
-                string outputTC = ltcDecoder.CurrentTimecode;
+                // 従来の動作（ハード同期なし - ただしフラッシュ防止のため順序は修正）
+                // DecodedTimecodeを優先して使用（より正確なLTC時刻）
+                string outputTC = !string.IsNullOrEmpty(ltcDecoder.DecodedTimecode) 
+                    ? ltcDecoder.DecodedTimecode 
+                    : ltcDecoder.CurrentTimecode;
+                    
                 float targetTime = ParseTimecodeToSeconds(outputTC) + timelineOffset;
                 
                 if (targetTime >= 0)
                 {
+                    // フラッシュ防止のため、time → Evaluate → Playの順序で実行
                     playableDirector.time = targetTime;
+                    
+                    // Evaluateを呼んで描画を更新
+                    playableDirector.Evaluate();
+                    
+                    // その後Playを開始
                     playableDirector.Play();
                     isPlaying = true;
+                    
+                    // ドリフト観測状態もリセット
+                    isDrifting = false;
+                    driftStartTime = 0f;
                     
                     LogDebug($"LTC Started - Timeline synced to {outputTC} ({targetTime:F3}s) and playing");
                 }
