@@ -63,6 +63,12 @@ public class LTCTimelineSync : MonoBehaviour
     private bool isDrifting = false;
     private bool wasReceivingLTC = false;
     
+    // Phase F-3: DSPゲートスケジューリング用
+    private bool isScheduledForGate = false;
+    private double scheduledGateDspTime = 0.0;
+    private float scheduledTargetTime = 0f;
+    private string scheduledTargetTC = "00:00:00:00";
+    
     // Properties
     public bool IsPlaying => isPlaying;
     public float TimeDifference => currentTimeDifference;
@@ -141,6 +147,12 @@ public class LTCTimelineSync : MonoBehaviour
     
     private void Update()
     {
+        // DSPゲートスケジューリングのチェック
+        if (isScheduledForGate)
+        {
+            CheckAndExecuteScheduledGate();
+        }
+        
         // 同期処理
         if (enableSync && ltcDecoder != null && playableDirector != null)
         {
@@ -204,12 +216,19 @@ public class LTCTimelineSync : MonoBehaviour
                         }
                     }
                     
-                    // DSPゲートスケジューリング（将来実装）
+                    // DSPゲートスケジューリング（Phase F-3）
                     if (useDspGateOnStart && updateMode == DirectorUpdateMode.DSPClock)
                     {
-                        // TODO: Phase F-3: DSPゲートスケジューリングの実装
-                        // 現在は通常のハード同期を実行
-                        PerformHardSync(targetTime, targetTC);
+                        // DSPゲートスケジューリングを試みる
+                        if (TryScheduleDspGate(targetTime, targetTC))
+                        {
+                            LogDebug($"Scheduled DSP gate sync at {scheduledGateDspTime:F3}s for TC {targetTC}");
+                        }
+                        else
+                        {
+                            // スケジューリング失敗時は通常のハード同期
+                            PerformHardSync(targetTime, targetTC);
+                        }
                     }
                     else
                     {
@@ -242,6 +261,13 @@ public class LTCTimelineSync : MonoBehaviour
             playableDirector.Pause();
             isPlaying = false;
             isDrifting = false;  // ドリフト状態もリセット
+            
+            // DSPゲートスケジューリングもキャンセル
+            if (isScheduledForGate)
+            {
+                isScheduledForGate = false;
+                LogDebug("DSP Gate scheduling cancelled due to LTC stop");
+            }
             
             LogDebug("LTC Stopped - Timeline paused");
         }
@@ -312,6 +338,100 @@ public class LTCTimelineSync : MonoBehaviour
         
         // 前フレームの状態を記録
         wasReceivingLTC = isReceivingLTC;
+    }
+    
+    /// <summary>
+    /// DSPゲートスケジューリングを試みる
+    /// </summary>
+    private bool TryScheduleDspGate(float targetTime, string targetTC)
+    {
+        // LTCDecoderからDSP情報を取得できるか確認
+        double currentDspTime = AudioSettings.dspTime;
+        
+        // ゲート時刻を決定（次の整数秒または0.5秒単位）
+        double gateInterval = 0.5; // 0.5秒間隔のゲート
+        double nextGateTime = Math.Ceiling(targetTime / gateInterval) * gateInterval;
+        
+        // DSPゲート時刻を計算
+        // 現在のDSP時刻からゲートまでの時間を加算
+        double timeTillGate = nextGateTime - targetTime;
+        
+        // ゲートが近すぎる場合（100ms未満）はスケジューリングしない
+        if (timeTillGate < 0.1)
+        {
+            return false;
+        }
+        
+        // スケジューリング設定
+        scheduledGateDspTime = currentDspTime + timeTillGate;
+        scheduledTargetTime = (float)nextGateTime;
+        scheduledTargetTC = targetTC;
+        isScheduledForGate = true;
+        
+        // Timelineを一時停止（ゲートで開始）
+        if (playableDirector.state == PlayState.Playing)
+        {
+            playableDirector.Pause();
+        }
+        
+        LogDebug($"DSP Gate Scheduled: Target={nextGateTime:F3}s, DSP={scheduledGateDspTime:F3}, Wait={timeTillGate:F3}s");
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// スケジュールされたDSPゲートのチェックと実行
+    /// </summary>
+    private void CheckAndExecuteScheduledGate()
+    {
+        if (!isScheduledForGate) return;
+        
+        double currentDspTime = AudioSettings.dspTime;
+        
+        // ゲート時刻に到達したかチェック
+        if (currentDspTime >= scheduledGateDspTime)
+        {
+            // スケジュールされた同期を実行
+            playableDirector.time = scheduledTargetTime;
+            
+            // DSPClockモード以外の場合のEvaluate
+            if (updateMode != DirectorUpdateMode.DSPClock)
+            {
+                playableDirector.Evaluate();
+            }
+            
+            playableDirector.Play();
+            isPlaying = true;
+            
+            // ドリフト状態をリセット
+            isDrifting = false;
+            driftStartTime = 0f;
+            
+            // 測定用ログ
+            if (enableMeasurementLog)
+            {
+                float actualTime = (float)playableDirector.time;
+                float difference = Mathf.Abs(actualTime - scheduledTargetTime);
+                float frameTime = 1f / ltcDecoder.GetActualFrameRate();
+                float differenceInFrames = difference / frameTime;
+                
+                Debug.Log($"[LTC Sync Measurement] DSP Gate Sync Executed:\n" +
+                         $"  Scheduled TC: {scheduledTargetTC}\n" +
+                         $"  Scheduled Time: {scheduledTargetTime:F4}s\n" +
+                         $"  Actual Time: {actualTime:F4}s\n" +
+                         $"  Difference: {difference:F4}s ({differenceInFrames:F2} frames)\n" +
+                         $"  DSP Gate Time: {scheduledGateDspTime:F4}\n" +
+                         $"  Current DSP: {currentDspTime:F4}");
+            }
+            
+            LogDebug($"DSP Gate Sync Executed - Timeline jumped to {scheduledTargetTC} ({scheduledTargetTime:F3}s)");
+            
+            // スケジューリング状態をクリア
+            isScheduledForGate = false;
+            scheduledGateDspTime = 0.0;
+            scheduledTargetTime = 0f;
+            scheduledTargetTC = "00:00:00:00";
+        }
     }
     
     /// <summary>
@@ -565,6 +685,12 @@ public class LTCTimelineSync : MonoBehaviour
         currentLTC = "00:00:00:00";
         isDrifting = false;
         driftStartTime = 0f;
+        
+        // DSPゲートスケジューリングもリセット
+        isScheduledForGate = false;
+        scheduledGateDspTime = 0.0;
+        scheduledTargetTime = 0f;
+        scheduledTargetTC = "00:00:00:00";
         
         LogDebug("Timeline sync reset");
     }

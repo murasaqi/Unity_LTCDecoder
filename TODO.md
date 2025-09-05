@@ -6,7 +6,10 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
-【Phase F: 再Play時のハード同期（DSPClock前提）】
+（なし）
+
+### ✅ 完了済み (Completed) - Phase F
+【Phase F: 再Play時のハード同期（DSPClock前提）（2025-09-05）】
 1. [x] 設定項目の追加（LTCTimelineSync）
    - 目的: 再Play時の同期動作を制御するスイッチを用意する。
    - 内容: `hardResyncOnLTCStart`（既定ON）、`useDspGateOnStart`（既定OFF）、`snapToTimelineFps`（既定OFF）を `LTCTimelineSync` に追加。
@@ -19,7 +22,7 @@
    - 受け入れ基準: 再Play直後の位相差が1フレーム相当以下、10回反復でも累積せず。
    - 影響: `LTCTimelineSync.cs`
    - 参照: `Documents/ltc-hard-resync-on-restart.md`, `Documents/ltc-drop-frame-conversion.md`
-3. [ ] 将来ゲートへの予約Evaluate/Play（任意・有効時）
+3. [x] 将来ゲートへの予約Evaluate/Play（任意・有効時）
    - 目的: 複数PCで開始位相をさらに一致させる。
    - 内容: 直近LTCの“絶対秒”と“DSP刻印”から `dsp_gate` を算出し、その時刻に `time/Evaluate/Play` を予約実行。DSPClock未対応環境では近似予約。
    - 受け入れ基準: 複数PC同時試験で開始差が±1フレーム以内に収束。
@@ -37,8 +40,6 @@
    - 受け入れ基準: 受け入れ基準を満たすログが取得できる。
    - 影響: `LTCTimelineSync.cs`（ログ）/ ドキュメント（検証手順）
    - 参照: `Documents/ltc-hard-resync-on-restart.md`
-
-
 
 ### ✅ 完了済み (Completed)
 【駆動方式の見直し（2025-09-03）】
