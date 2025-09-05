@@ -75,11 +75,10 @@ namespace jp.iridescent.ltcdecoder
         [SerializeField] private LTCFrameRate ltcFrameRate = LTCFrameRate.FPS_30;
         [SerializeField] private bool useDropFrame = false;
         
-        [Header("Time Offset")]
-        [Tooltip("Offset applied to Output TC (seconds) / 出力タイムコード（Output TC）に適用するオフセット（秒）")]
+        [Tooltip("Time offset applied to Output TC (seconds) / 出力TCに適用する時間オフセット（秒）")]
         [SerializeField] private float timeOffset = 0f;
         
-        [Header("Debug")]
+        [Tooltip("Enable debug logging / デバッグログを有効化")]
         [SerializeField] private bool enableDebugLogging = false;
         
         [Header("Events")]

@@ -33,7 +33,6 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("Offset applied during Timeline sync (seconds) / Timeline同期時に適用するオフセット（秒）")]
     [SerializeField] private float timelineOffset = 0f;
     
-    [Header("Drive Mode")]
     [Tooltip("Timeline drive mode / Timeline駆動モード")]
     [SerializeField] private DirectorUpdateMode updateMode = DirectorUpdateMode.DSPClock;
     
