@@ -172,6 +172,12 @@ namespace jp.iridescent.ltcdecoder.Editor
             CreateSectionTitle(content, "Debug Messages");
             GameObject debugContainer = CreateDebugMessageContainer(content);
             
+            // セパレータ
+            CreateContentSeparator(content);
+            
+            // ボタンセクション（Debug Messageの下に配置）
+            GameObject buttonSection = CreateButtonSection(content);
+            
             // 互換性のために非表示要素を作成（LTCUIControllerが参照する可能性があるため）
             CreateHiddenCompatibilityElements(mainPanel);
             
@@ -225,73 +231,91 @@ namespace jp.iridescent.ltcdecoder.Editor
         }
         
         /// <summary>
-        /// ヘッダー（ツールバー）作成
+        /// シンプルなヘッダー作成（タイトルのみ）
         /// </summary>
         private static GameObject CreateHeader(GameObject parent)
         {
             GameObject header = new GameObject("Header");
             header.transform.SetParent(parent.transform, false);
             
-            // LayoutElementで高さを固定
+            // LayoutElementで高さを固定（コンパクトに）
             LayoutElement headerLayout = header.AddComponent<LayoutElement>();
-            headerLayout.preferredHeight = 30;
-            headerLayout.minHeight = 30;
+            headerLayout.preferredHeight = 25;
+            headerLayout.minHeight = 25;
             
-            // HorizontalLayoutGroupを追加
-            HorizontalLayoutGroup hlg = header.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 6;
-            hlg.padding = new RectOffset(5, 5, 2, 2);
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childForceExpandWidth = false;
-            hlg.childForceExpandHeight = true;
-            hlg.childControlWidth = true;
-            hlg.childControlHeight = true;
-            
-            // タイトルテキスト
-            GameObject titleObj = new GameObject("Title");
-            titleObj.transform.SetParent(header.transform, false);
-            Text titleText = titleObj.AddComponent<Text>();
+            // タイトルテキスト（センター配置）
+            Text titleText = header.AddComponent<Text>();
             titleText.text = "LTC Debug UI";
             titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            titleText.fontSize = 18;
+            titleText.fontSize = 16;
             titleText.fontStyle = FontStyle.Bold;
-            titleText.color = Color.white;
-            titleText.alignment = TextAnchor.MiddleLeft;
-            LayoutElement titleLayout = titleObj.AddComponent<LayoutElement>();
-            titleLayout.preferredWidth = 120;
-            
-            // Flexible Space（ボタンを右寄せにする）
-            GameObject spacer = new GameObject("Spacer");
-            spacer.transform.SetParent(header.transform, false);
-            LayoutElement spacerLayout = spacer.AddComponent<LayoutElement>();
-            spacerLayout.flexibleWidth = 1;
-            
-            // Clear Button
-            GameObject clearBtn = CreateHeaderButton(header, "ClearButton", "Clear", null);
-            
-            // Export Button
-            GameObject exportBtn = CreateHeaderButton(header, "ExportButton", "Export", null);
-            
-            // Copy Button
-            GameObject copyBtn = CreateHeaderButton(header, "CopyButton", "Copy", null);
+            titleText.color = new Color(0.5f, 0.8f, 1f);
+            titleText.alignment = TextAnchor.MiddleCenter;
             
             return header;
         }
         
         /// <summary>
-        /// ヘッダー用ボタン作成
+        /// ボタンセクション作成（Debug Messageの下に配置）
         /// </summary>
-        private static GameObject CreateHeaderButton(GameObject parent, string name, string text, UnityEngine.Events.UnityAction onClick)
+        private static GameObject CreateButtonSection(GameObject parent)
+        {
+            GameObject buttonSection = new GameObject("ButtonSection");
+            buttonSection.transform.SetParent(parent.transform, false);
+            
+            // HorizontalLayoutGroupで横並び配置
+            HorizontalLayoutGroup hlg = buttonSection.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 5;
+            hlg.padding = new RectOffset(10, 10, 5, 5);
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            
+            // LayoutElementで高さを固定
+            LayoutElement sectionLayout = buttonSection.AddComponent<LayoutElement>();
+            sectionLayout.preferredHeight = 35;
+            sectionLayout.minHeight = 35;
+            
+            // Flexible Space（左側）
+            GameObject leftSpacer = new GameObject("LeftSpacer");
+            leftSpacer.transform.SetParent(buttonSection.transform, false);
+            LayoutElement leftSpacerLayout = leftSpacer.AddComponent<LayoutElement>();
+            leftSpacerLayout.flexibleWidth = 1;
+            
+            // Clear Button
+            CreateActionButton(buttonSection, "ClearButton", "Clear");
+            
+            // Export Button
+            CreateActionButton(buttonSection, "ExportButton", "Export");
+            
+            // Copy Button
+            CreateActionButton(buttonSection, "CopyButton", "Copy");
+            
+            // Flexible Space（右側）
+            GameObject rightSpacer = new GameObject("RightSpacer");
+            rightSpacer.transform.SetParent(buttonSection.transform, false);
+            LayoutElement rightSpacerLayout = rightSpacer.AddComponent<LayoutElement>();
+            rightSpacerLayout.flexibleWidth = 1;
+            
+            return buttonSection;
+        }
+        
+        /// <summary>
+        /// アクションボタン作成
+        /// </summary>
+        private static GameObject CreateActionButton(GameObject parent, string name, string text)
         {
             GameObject buttonObj = new GameObject(name);
             buttonObj.transform.SetParent(parent.transform, false);
             
             // LayoutElementで幅と高さを設定
             LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
-            layout.preferredWidth = 72;
-            layout.preferredHeight = 26;
-            layout.minWidth = 64;
-            layout.minHeight = 26;
+            layout.preferredWidth = 80;
+            layout.preferredHeight = 28;
+            layout.minWidth = 70;
+            layout.minHeight = 28;
             
             // ボタン背景
             Image buttonImage = buttonObj.AddComponent<Image>();
@@ -300,7 +324,6 @@ namespace jp.iridescent.ltcdecoder.Editor
             // ボタンコンポーネント
             Button button = buttonObj.AddComponent<Button>();
             button.targetGraphic = buttonImage;
-            if (onClick != null) button.onClick.AddListener(onClick);
             
             // ボタンテキスト
             GameObject textObj = new GameObject("Text");
@@ -1546,10 +1569,10 @@ namespace jp.iridescent.ltcdecoder.Editor
             // Setupを呼び出し
             controller.Setup(decoder, debugger);
             
-            // ボタンのイベント設定（新レイアウトではHeader内のボタンを参照）
-            Button clearButton = mainPanel.transform.Find("Header/ClearButton")?.GetComponent<Button>();
-            Button exportButton = mainPanel.transform.Find("Header/ExportButton")?.GetComponent<Button>();
-            Button copyButton = mainPanel.transform.Find("Header/CopyButton")?.GetComponent<Button>();
+            // ボタンのイベント設定（新レイアウトではButtonSection内のボタンを参照）
+            Button clearButton = scrollContent?.Find("ButtonSection/ClearButton")?.GetComponent<Button>();
+            Button exportButton = scrollContent?.Find("ButtonSection/ExportButton")?.GetComponent<Button>();
+            Button copyButton = scrollContent?.Find("ButtonSection/CopyButton")?.GetComponent<Button>();
             
             if (clearButton) clearButton.onClick.AddListener(() => 
             {
