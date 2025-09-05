@@ -37,7 +37,7 @@ public class LTCTimelineSync : MonoBehaviour
     [Tooltip("Timeline drive mode / Timeline駆動モード")]
     [SerializeField] private DirectorUpdateMode updateMode = DirectorUpdateMode.DSPClock;
     
-    [Header("Hard Resync Settings (Phase F)")]
+    [Header("Hard Resync Settings")]
     [Tooltip("Enable hard resync when LTC playback restarts / LTC再生再開時のハード同期を有効にする")]
     [SerializeField] private bool hardResyncOnLTCStart = true;
     
@@ -56,14 +56,14 @@ public class LTCTimelineSync : MonoBehaviour
     
     [Header("Debug")]
     [SerializeField] private bool enableDebugLog = false;
-    [SerializeField] private bool enableMeasurementLog = false;  // Phase F: 測定用ログ
+    [SerializeField] private bool enableMeasurementLog = false;  // 測定用ログ
     
     // Private fields
     private float driftStartTime = 0f;
     private bool isDrifting = false;
     private bool wasReceivingLTC = false;
     
-    // Phase F-3: DSPゲートスケジューリング用
+    // DSPゲートスケジューリング用
     private bool isScheduledForGate = false;
     private double scheduledGateDspTime = 0.0;
     private float scheduledTargetTime = 0f;
@@ -226,7 +226,7 @@ public class LTCTimelineSync : MonoBehaviour
         // 通常のLTC開始時の処理（待機処理完了後には実行されない）
         else if (isReceivingLTC && !wasReceivingLTC && !isWaitingForStableLTC)
         {
-            // Phase F: ハード同期の実装（待機処理が無効の場合）
+            // ハード同期の実装（待機処理が無効の場合）
             if (hardResyncOnLTCStart)
             {
                 // DecodedTimecodeを優先して使用（より正確なLTC時刻）
@@ -250,7 +250,7 @@ public class LTCTimelineSync : MonoBehaviour
                         }
                     }
                     
-                    // DSPゲートスケジューリング（Phase F-3）
+                    // DSPゲートスケジューリング
                     if (useDspGateOnStart && updateMode == DirectorUpdateMode.DSPClock)
                     {
                         // DSPゲートスケジューリングを試みる
@@ -539,7 +539,7 @@ public class LTCTimelineSync : MonoBehaviour
         isDrifting = false;
         driftStartTime = 0f;
         
-        // Phase F: 測定用ログ
+        // 測定用ログ
         if (enableMeasurementLog)
         {
             float actualTime = (float)playableDirector.time;

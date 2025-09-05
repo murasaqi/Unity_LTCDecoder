@@ -159,7 +159,7 @@ namespace jp.iridescent.ltcdecoder
         private int lastSamplePosition;
         private Coroutine audioProcessingCoroutine;
         
-        // DSP時刻スタンプ管理（Phase A）
+        // DSP時刻スタンプ管理
         private double micStartDspTime = -1;  // マイク録音開始時のDSP時刻
         private int wrapCount = 0;  // リングバッファのラップ回数
         private int clipSamples = 0;  // AudioClipの総サンプル数
@@ -174,7 +174,7 @@ namespace jp.iridescent.ltcdecoder
         }
         private Queue<LTCSample> ltcBuffer;
         
-        // Phase E-16: 固定長リングバッファ
+        // 固定長リングバッファ
         private LTCSample[] ltcRingBuffer;
         private int ltcRingBufferHead = 0;
         private int ltcRingBufferCount = 0;
@@ -195,7 +195,7 @@ namespace jp.iridescent.ltcdecoder
         private float lastNoiseUpdateTime = 0f;    // 最後のノイズ更新時刻
         private const float NoiseUpdateInterval = 0.1f;  // 100ms間隔で更新
         
-        // イベント管理用（Phase D-12: 単一ステートマシン化）
+        // イベント管理用（単一ステートマシン化）
         private enum LTCEventState
         {
             Stopped,      // LTC停止中
@@ -409,7 +409,7 @@ namespace jp.iridescent.ltcdecoder
             decoder = new TimecodeDecoder();
             ltcBuffer = new Queue<LTCSample>(bufferQueueSize);
             
-            // Phase E-16: バッファの事前確保
+            // バッファの事前確保
             ltcRingBuffer = new LTCSample[LTC_RING_BUFFER_SIZE];
             audioBuffer = new float[bufferSize * 2];  // 最大サイズを事前確保
             
@@ -536,7 +536,7 @@ namespace jp.iridescent.ltcdecoder
                     
                     LogDebug($"LTC decoding stopped - timeout after {timeSinceLastDecode:F2}s");
                     
-                    // ステートマシンで停止イベント管理（Phase D-12）
+                    // ステートマシンで停止イベント管理
                     UpdateEventStateMachine(false);
                 }
             }
@@ -949,7 +949,7 @@ namespace jp.iridescent.ltcdecoder
         
         private void ProcessAudioSegment(int startPosition, int length)
         {
-            // Phase E-16: 再割り当てを防止
+            // 再割り当てを防止
             if (length > audioBuffer.Length)
             {
                 // エラーログを出して、バッファサイズ内で処理
@@ -959,7 +959,7 @@ namespace jp.iridescent.ltcdecoder
             
             microphoneClip.GetData(audioBuffer, startPosition);
             
-            // DSP時刻の計算（Phase A-4）
+            // DSP時刻の計算
             if (micStartDspTime >= 0)
             {
                 // セグメント終端の絶対サンプル番号を計算
@@ -1041,7 +1041,7 @@ namespace jp.iridescent.ltcdecoder
             hasSignal = true;
             lastDecodedTime = Time.realtimeSinceStartup; // デコード成功時刻を記録
             
-            // ステートマシンによるイベント管理（Phase D-12）
+            // ステートマシンによるイベント管理
             UpdateEventStateMachine(true, tcString, tc);
             
             // 互換性のための旧フラグ更新
@@ -1052,7 +1052,7 @@ namespace jp.iridescent.ltcdecoder
             
             var sample = new LTCSample
             {
-                // Phase A-5: サンプル由来のDSP時刻を使用（較正済みの場合）
+                // サンプル由来のDSP時刻を使用（較正済みの場合）
                 dspTime = micStartDspTime >= 0 ? lastSegmentEndDsp : AudioSettings.dspTime,
                 timecode = tcString,
                 tcSeconds = TimecodeToSeconds(tc)
@@ -1089,7 +1089,7 @@ namespace jp.iridescent.ltcdecoder
                 ltcBuffer.Dequeue();
             }
             
-            // Phase E-16: リングバッファにも追加
+            // リングバッファにも追加
             AddToRingBuffer(sample);
             
             // バッファ解析
@@ -1111,7 +1111,7 @@ namespace jp.iridescent.ltcdecoder
                 return;
             }
             
-            // Phase E-15: LINQ除去 - 手書きループで最後の5要素を取得
+            // LINQ除去 - 手書きループで最後の5要素を取得
             int takeCount = Math.Min(5, ltcBuffer.Count);
             var samples = new LTCSample[takeCount];
             int index = 0;
@@ -1183,7 +1183,7 @@ namespace jp.iridescent.ltcdecoder
         {
             if (samples.Length < 3) return false;
             
-            // Phase E-15: LINQ除去 - 配列の事前確保とループ処理
+            // LINQ除去 - 配列の事前確保とループ処理
             const int maxDiffs = 10;  // 最大差分数
             double[] diffs = new double[maxDiffs];
             int diffCount = 0;
@@ -1332,7 +1332,7 @@ namespace jp.iridescent.ltcdecoder
         #region Ring Buffer Methods
         
         /// <summary>
-        /// リングバッファにサンプルを追加（Phase E-16）
+        /// リングバッファにサンプルを追加
         /// </summary>
         private void AddToRingBuffer(LTCSample sample)
         {
@@ -1346,7 +1346,7 @@ namespace jp.iridescent.ltcdecoder
         }
         
         /// <summary>
-        /// リングバッファから最後のN個のサンプルを取得（Phase E-16）
+        /// リングバッファから最後のN個のサンプルを取得
         /// </summary>
         private LTCSample[] GetLastSamplesFromRingBuffer(int count)
         {
@@ -1367,7 +1367,7 @@ namespace jp.iridescent.ltcdecoder
         #region Event State Machine
         
         /// <summary>
-        /// イベントステートマシンの更新（Phase D-12）
+        /// イベントステートマシンの更新
         /// </summary>
         private void UpdateEventStateMachine(bool hasLTCSignal, string tcString = null, Timecode tc = null)
         {
@@ -1439,7 +1439,7 @@ namespace jp.iridescent.ltcdecoder
                 // 絶対フレーム番号を計算
                 long absoluteFrames = TimecodeToAbsoluteFrames(tcString, useDropFrame, GetNominalFrameRate());
                 
-                // 拡張メタデータ付きイベントデータ（Phase D-14）
+                // 拡張メタデータ付きイベントデータ
                 var eventData = new LTCEventData(
                     tcString,
                     (float)TimecodeToSeconds(tc),
@@ -1469,7 +1469,7 @@ namespace jp.iridescent.ltcdecoder
             // 絶対フレーム番号を計算
             long absoluteFrames = TimecodeToAbsoluteFrames(currentTimecode, useDropFrame, GetNominalFrameRate());
             
-            // 拡張メタデータ付きイベントデータ（Phase D-14）
+            // 拡張メタデータ付きイベントデータ
             var eventData = new LTCEventData(
                 currentTimecode,
                 (float)(internalTcTime),
