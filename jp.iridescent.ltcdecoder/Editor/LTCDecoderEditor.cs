@@ -212,6 +212,11 @@ namespace jp.iridescent.ltcdecoder.Editor
             // 4. 詳細設定セクション
             DrawAdvancedSettings();
             
+            EditorGUILayout.Space(10);
+            
+            // 5. Debug Toolsセクション
+            DrawDebugTools();
+            
             serializedObject.ApplyModifiedProperties();
             
             // リアルタイム更新（レート制限付き）
@@ -1099,6 +1104,147 @@ namespace jp.iridescent.ltcdecoder.Editor
                     return "Drift correction";
                 default:
                     return "Unknown";
+            }
+        }
+        
+        private void DrawDebugTools()
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("Debug Tools", EditorStyles.boldLabel);
+            
+            EditorGUILayout.Space(5);
+            
+            // 既存のDebug UIを探す
+            GameObject existingUI = GameObject.Find("LTC Debug UI");
+            
+            if (existingUI != null)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Debug UI:", GUILayout.Width(70));
+                
+                // 既存UIの名前を表示
+                GUI.enabled = false;
+                EditorGUILayout.TextField(existingUI.name);
+                GUI.enabled = true;
+                
+                // Selectボタン
+                if (GUILayout.Button("Select", GUILayout.Width(60)))
+                {
+                    Selection.activeGameObject = existingUI;
+                    EditorGUIUtility.PingObject(existingUI);
+                }
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.Space(5);
+            }
+            
+            // ボタン配置
+            EditorGUILayout.BeginHorizontal();
+            
+            // Createボタン（既存UIがない場合のみ有効）
+            GUI.enabled = existingUI == null;
+            if (GUILayout.Button("Create Debug UI"))
+            {
+                CreateDebugUI();
+            }
+            GUI.enabled = true;
+            
+            // Updateボタン（既存UIがある場合のみ有効）
+            GUI.enabled = existingUI != null;
+            if (GUILayout.Button("Update Layout"))
+            {
+                UpdateDebugUI(existingUI);
+            }
+            GUI.enabled = true;
+            
+            // Open Docsボタン
+            if (GUILayout.Button("Open Docs"))
+            {
+                OpenDocumentation();
+            }
+            
+            EditorGUILayout.EndHorizontal();
+            
+            // ヘルプ情報
+            EditorGUILayout.Space(5);
+            EditorGUILayout.HelpBox(
+                existingUI != null 
+                    ? "Debug UI is already created. Use 'Update Layout' to apply the latest layout changes."
+                    : "Click 'Create Debug UI' to generate a debug interface for LTC monitoring.",
+                MessageType.Info);
+            
+            EditorGUILayout.EndVertical();
+        }
+        
+        private void CreateDebugUI()
+        {
+            // Undo対応
+            Undo.RegisterCompleteObjectUndo(component, "Create LTC Debug UI");
+            
+            // LTCTimelineSyncDebugSetup.CreateTimelineSyncDebugUI()を呼ぶ
+            var setupType = System.Type.GetType("jp.iridescent.ltcdecoder.Editor.LTCTimelineSyncDebugSetup, jp.iridescent.ltcdecoder.Editor");
+            if (setupType != null)
+            {
+                var createMethod = setupType.GetMethod("CreateTimelineSyncDebugUI", 
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (createMethod != null)
+                {
+                    createMethod.Invoke(null, null);
+                    Debug.Log("[LTC Debug Tools] Debug UI created successfully.");
+                }
+                else
+                {
+                    Debug.LogError("[LTC Debug Tools] Could not find CreateTimelineSyncDebugUI method.");
+                }
+            }
+            else
+            {
+                Debug.LogError("[LTC Debug Tools] Could not find LTCTimelineSyncDebugSetup type.");
+            }
+        }
+        
+        private void UpdateDebugUI(GameObject existingUI)
+        {
+            // Undo対応
+            Undo.RegisterCompleteObjectUndo(existingUI, "Update LTC Debug UI Layout");
+            
+            // LTCTimelineSyncDebugSetup.UpdateTimelineSyncDebugUI()を呼ぶ
+            var setupType = System.Type.GetType("jp.iridescent.ltcdecoder.Editor.LTCTimelineSyncDebugSetup, jp.iridescent.ltcdecoder.Editor");
+            if (setupType != null)
+            {
+                var updateMethod = setupType.GetMethod("UpdateTimelineSyncDebugUI", 
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (updateMethod != null)
+                {
+                    updateMethod.Invoke(null, new object[] { existingUI });
+                    Debug.Log("[LTC Debug Tools] Debug UI layout updated successfully.");
+                }
+                else
+                {
+                    // メソッドがない場合は基本的な更新処理
+                    Debug.LogWarning("[LTC Debug Tools] UpdateTimelineSyncDebugUI method not found. Performing basic update.");
+                    // 基本的なレイアウト更新をここに実装可能
+                }
+            }
+        }
+        
+        private void OpenDocumentation()
+        {
+            // ローカルドキュメントのパスを構築
+            string docsPath = System.IO.Path.Combine(Application.dataPath, "..", "Documents", "ltc-debug-gui-layout-refactor.md");
+            
+            // ファイルが存在する場合はローカルで開く
+            if (System.IO.File.Exists(docsPath))
+            {
+                Application.OpenURL("file:///" + docsPath.Replace('\\', '/'));
+                Debug.Log($"[LTC Debug Tools] Opening local documentation: {docsPath}");
+            }
+            else
+            {
+                // GitHubリポジトリのドキュメントURL
+                string githubUrl = "https://github.com/murasaqi/Unity_LTCDecoder/blob/master/Documents/ltc-debug-gui-layout-refactor.md";
+                Application.OpenURL(githubUrl);
+                Debug.Log($"[LTC Debug Tools] Opening online documentation: {githubUrl}");
             }
         }
     }

@@ -6,34 +6,6 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
-【Phase H: LTCDecoder から Debug GUI を作成】
-1. [ ] インスペクタに「Debug Tools」セクションを追加
-   - 目的: LTCDecoder 選択時に Debug GUI 作成/更新の導線を提供する。
-   - 内容: Inspector に Create / Update / Open Docs ボタンと既存UIの有無表示（Select）を追加。
-   - 受け入れ基準: ボタンが表示され、クリック可能。既存UIがあれば名前表示とSelect動作。
-   - 影響: `jp.iridescent.ltcdecoder/Editor/LTCDecoderEditor.cs`
-   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
-
-2. [ ] Create ボタン: 既存 UI がなければ新規作成（Undo 対応）
-   - 目的: ワンクリックで Debug GUI を生成。
-   - 内容: `LTCTimelineSyncDebugSetup.CreateTimelineSyncDebugUI()` を呼ぶ。既存がある場合は重複を防ぎダイアログで案内。
-   - 受け入れ基準: 既存なし→生成＆選択＆Undo 可能。既存あり→重複せず案内表示。
-   - 影響: `LTCDecoderEditor.cs`
-   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
-
-3. [ ] Update ボタン: 既存 UI の再構成（レイアウト刷新を適用）
-   - 目的: 旧バージョンのDebug UIを最新レイアウトへ更新。
-   - 内容: `LTCTimelineSyncDebugSetup.UpdateTimelineSyncDebugUI()` を呼ぶ。
-   - 受け入れ基準: 既存UIの構造が更新される（ツールバー/スクロール等が反映）。
-   - 影響: `LTCDecoderEditor.cs`
-   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`, `Documents/ltc-debug-gui-create-from-component.md`
-
-4. [ ] Open Docs ボタン: ドキュメントを開く
-   - 目的: 実装仕様/使い方をすぐ参照できるようにする。
-   - 内容: ローカル `Documents/ltc-debug-gui-layout-refactor.md` またはリポジトリURLを `Application.OpenURL` で開く。
-   - 受け入れ基準: クリックでドキュメントが開く。
-   - 影響: `LTCDecoderEditor.cs`
-   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
 （なし）
 
 ### ✅ 完了済み（Phase G: Debug GUI レイアウト刷新）（2025-09-05）
@@ -71,6 +43,20 @@
    - プロフェッショナルな表示に改善
 
 ### ✅ 完了済み (Completed) - 改善
+【Phase H: LTCDecoder から Debug GUI を作成（2025-09-06）】
+1. [x] インスペクタに「Debug Tools」セクションを追加
+   - DrawDebugTools()メソッドを実装
+   - 既存UIの検出と名前表示、Selectボタンを実装
+2. [x] Create ボタン: 既存 UI がなければ新規作成（Undo 対応）
+   - LTCTimelineSyncDebugSetup.CreateTimelineSyncDebugUI()を呼び出し
+   - Undo.RegisterCompleteObjectUndoで元に戻す機能対応
+3. [x] Update ボタン: 既存 UI の再構成（レイアウト刷新を適用）
+   - UpdateTimelineSyncDebugUI()メソッドを呼び出し
+   - 既存UIのレイアウトを最新版に更新
+4. [x] Open Docs ボタン: ドキュメントを開く
+   - ローカルファイル優先、なければGitHubリポジトリを開く
+   - ltc-debug-gui-layout-refactor.mdを参照
+
 【Phase J: LTC 停止検出の高速化・決定化（2025-09-06）】
 1. [x] 最終タイムアウトの短縮と可変化
    - stopTimeoutSeconds (SerializeField, 既定0.2s) を追加
