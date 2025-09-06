@@ -144,7 +144,8 @@ public class LTCTimelineSync : MonoBehaviour
         // 初期状態の設定
         if (playableDirector != null)
         {
-            // 設定された駆動モードを適用
+            // 設定された駆動モードを適用（DSPClockを推奨）
+            // DSPClockモードは初期フレームの決定性を高め、フラッシュを防止
             playableDirector.timeUpdateMode = updateMode;
         }
     }
@@ -282,6 +283,9 @@ public class LTCTimelineSync : MonoBehaviour
                 
                 if (targetTime >= 0)
                 {
+                    // 目標時刻のクランプ（Timeline範囲内に制限）
+                    targetTime = Mathf.Clamp(targetTime, 0f, (float)playableDirector.duration);
+                    
                     // フラッシュ防止のため、time → Evaluate → Playの順序で実行
                     playableDirector.time = targetTime;
                     
@@ -406,6 +410,9 @@ public class LTCTimelineSync : MonoBehaviour
         
         if (targetTime >= 0)
         {
+            // 目標時刻のクランプ（Timeline範囲内に制限）
+            targetTime = Mathf.Clamp(targetTime, 0f, (float)playableDirector.duration);
+            
             // TL-FPSスナップ（任意）
             if (snapToTimelineFps)
             {
@@ -522,6 +529,9 @@ public class LTCTimelineSync : MonoBehaviour
     /// </summary>
     private void PerformHardSync(float targetTime, string targetTC)
     {
+        // 目標時刻のクランプ（Timeline範囲内に制限）
+        targetTime = Mathf.Clamp(targetTime, 0f, (float)playableDirector.duration);
+        
         // ハード同期: time設定 → Evaluate → Playの順番
         playableDirector.time = targetTime;
         

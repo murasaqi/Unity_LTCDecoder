@@ -6,6 +6,34 @@
 （なし）
 
 ### ⏳ 待機中 (Pending)
+【Phase H: LTCDecoder から Debug GUI を作成】
+1. [ ] インスペクタに「Debug Tools」セクションを追加
+   - 目的: LTCDecoder 選択時に Debug GUI 作成/更新の導線を提供する。
+   - 内容: Inspector に Create / Update / Open Docs ボタンと既存UIの有無表示（Select）を追加。
+   - 受け入れ基準: ボタンが表示され、クリック可能。既存UIがあれば名前表示とSelect動作。
+   - 影響: `jp.iridescent.ltcdecoder/Editor/LTCDecoderEditor.cs`
+   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
+
+2. [ ] Create ボタン: 既存 UI がなければ新規作成（Undo 対応）
+   - 目的: ワンクリックで Debug GUI を生成。
+   - 内容: `LTCTimelineSyncDebugSetup.CreateTimelineSyncDebugUI()` を呼ぶ。既存がある場合は重複を防ぎダイアログで案内。
+   - 受け入れ基準: 既存なし→生成＆選択＆Undo 可能。既存あり→重複せず案内表示。
+   - 影響: `LTCDecoderEditor.cs`
+   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
+
+3. [ ] Update ボタン: 既存 UI の再構成（レイアウト刷新を適用）
+   - 目的: 旧バージョンのDebug UIを最新レイアウトへ更新。
+   - 内容: `LTCTimelineSyncDebugSetup.UpdateTimelineSyncDebugUI()` を呼ぶ。
+   - 受け入れ基準: 既存UIの構造が更新される（ツールバー/スクロール等が反映）。
+   - 影響: `LTCDecoderEditor.cs`
+   - 参照: `Documents/ltc-debug-gui-layout-refactor.md`, `Documents/ltc-debug-gui-create-from-component.md`
+
+4. [ ] Open Docs ボタン: ドキュメントを開く
+   - 目的: 実装仕様/使い方をすぐ参照できるようにする。
+   - 内容: ローカル `Documents/ltc-debug-gui-layout-refactor.md` またはリポジトリURLを `Application.OpenURL` で開く。
+   - 受け入れ基準: クリックでドキュメントが開く。
+   - 影響: `LTCDecoderEditor.cs`
+   - 参照: `Documents/ltc-debug-gui-create-from-component.md`
 （なし）
 
 ### ✅ 完了済み（Phase G: Debug GUI レイアウト刷新）（2025-09-05）
@@ -43,6 +71,23 @@
    - プロフェッショナルな表示に改善
 
 ### ✅ 完了済み (Completed) - 改善
+【Phase I: Timeline 再開時コード修正（最小修正）（2025-09-06）】
+1. [x] 再生順序を修正（time → Evaluate → Play）
+   - 再開直後に過去時刻が一瞬描画される"フラッシュ"を確実に防止
+   - LTC開始検知ブロックで正しい順序を確認・維持
+2. [x] 基準TCを DecodedTimecode 優先に変更（Current はフォールバック）
+   - 受信生値に揃えて開始し、ロック前自走誤差の持ち越しを排除
+   - 既存実装で対応済みを確認
+3. [x] 秒換算を Decoder の FPS/DF 準拠に（30固定廃止）
+   - ParseTimecodeToSecondsでLTCDecoderのユーティリティを使用済み
+   - 24/25/29.97(DF/NDF)/30 いずれでも正しく動作
+4. [x] 目標時刻のクランプと観測リセット
+   - targetTime = Mathf.Clamp()で範囲制限を追加
+   - isDrifting=false, driftStartTime=0fでリセット済み
+5. [x] DSPClock 採用
+   - デフォルトでDirectorUpdateMode.DSPClockを設定
+   - OnEnable()で確実に適用
+
 【LTC再開時のタイミング改善（2025-09-05）】
 1. [x] LTC停止時の内部時刻リセット
    - LTCDecoder.csでinternalTcTime = 0を追加
