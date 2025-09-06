@@ -1116,7 +1116,7 @@ namespace jp.iridescent.ltcdecoder
             // デバッガーへの通知
             if (debugger != null)
             {
-                debugger.AddDebugMessage($"LTC Stop: {reason}", DebugMessageType.Stop);
+                debugger.AddDebugMessage($"LTC Stop: {reason}");
             }
         }
         
