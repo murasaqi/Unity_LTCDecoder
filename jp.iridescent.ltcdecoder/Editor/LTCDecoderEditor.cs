@@ -1181,20 +1181,21 @@ namespace jp.iridescent.ltcdecoder.Editor
             // Undo対応
             Undo.RegisterCompleteObjectUndo(component, "Create LTC Debug UI");
             
-            // LTCDebugSetupWithUI.CreateLTCDecoderWithUI()を呼ぶ
+            // LTCDebugSetupWithUI.CreateDebugUIOnly()を呼ぶ（UIのみ作成）
             var setupType = System.Type.GetType("jp.iridescent.ltcdecoder.Editor.LTCDebugSetupWithUI, jp.iridescent.ltcdecoder.Editor");
             if (setupType != null)
             {
-                var createMethod = setupType.GetMethod("CreateLTCDecoderWithUI", 
+                var createMethod = setupType.GetMethod("CreateDebugUIOnly", 
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                 if (createMethod != null)
                 {
-                    createMethod.Invoke(null, null);
+                    // 現在のLTCDecoderオブジェクトを引数として渡す
+                    createMethod.Invoke(null, new object[] { component.gameObject });
                     Debug.Log("[LTC Debug Tools] Debug UI created successfully.");
                 }
                 else
                 {
-                    Debug.LogError("[LTC Debug Tools] Could not find CreateLTCDecoderWithUI method.");
+                    Debug.LogError("[LTC Debug Tools] Could not find CreateDebugUIOnly method.");
                 }
             }
             else

@@ -18,16 +18,42 @@ namespace jp.iridescent.ltcdecoder.Editor
             // LTCDecoder + Debugger作成
             GameObject ltcObject = CreateLTCDecoderObject();
             
-            // Debug UI Canvas作成
-            GameObject canvas = CreateDebugCanvas();
-            
-            // UI要素作成（固定位置レイアウト）
-            GameObject mainPanel = CreateCompleteUI(canvas, ltcObject);
+            // UIのみ作成（内部メソッドを呼び出し）
+            CreateDebugUIOnly(ltcObject);
             
             // 選択
             Selection.activeGameObject = ltcObject;
             
             UnityEngine.Debug.Log("[LTC Decoder Setup] LTC Decoder with UI created successfully!");
+        }
+        
+        /// <summary>
+        /// Debug UIのみを作成（既存のLTCDecoderに対して）
+        /// </summary>
+        public static void CreateDebugUIOnly(GameObject existingLTCDecoder = null)
+        {
+            // 既存のLTCDecoderを探す（引数がnullの場合）
+            if (existingLTCDecoder == null)
+            {
+                LTCDecoder decoder = GameObject.FindObjectOfType<LTCDecoder>();
+                if (decoder != null)
+                {
+                    existingLTCDecoder = decoder.gameObject;
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("[LTC Debug UI] No LTC Decoder found in the scene!");
+                    return;
+                }
+            }
+            
+            // Debug UI Canvas作成
+            GameObject canvas = CreateDebugCanvas();
+            
+            // UI要素作成（固定位置レイアウト）
+            GameObject mainPanel = CreateCompleteUI(canvas, existingLTCDecoder);
+            
+            UnityEngine.Debug.Log("[LTC Debug UI] Debug UI created successfully!");
         }
         
         /// <summary>
