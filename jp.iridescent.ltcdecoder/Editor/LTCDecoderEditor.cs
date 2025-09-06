@@ -1181,11 +1181,11 @@ namespace jp.iridescent.ltcdecoder.Editor
             // Undo対応
             Undo.RegisterCompleteObjectUndo(component, "Create LTC Debug UI");
             
-            // LTCTimelineSyncDebugSetup.CreateTimelineSyncDebugUI()を呼ぶ
-            var setupType = System.Type.GetType("jp.iridescent.ltcdecoder.Editor.LTCTimelineSyncDebugSetup, jp.iridescent.ltcdecoder.Editor");
+            // LTCDebugSetupWithUI.CreateLTCDecoderWithUI()を呼ぶ
+            var setupType = System.Type.GetType("jp.iridescent.ltcdecoder.Editor.LTCDebugSetupWithUI, jp.iridescent.ltcdecoder.Editor");
             if (setupType != null)
             {
-                var createMethod = setupType.GetMethod("CreateTimelineSyncDebugUI", 
+                var createMethod = setupType.GetMethod("CreateLTCDecoderWithUI", 
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                 if (createMethod != null)
                 {
@@ -1194,12 +1194,12 @@ namespace jp.iridescent.ltcdecoder.Editor
                 }
                 else
                 {
-                    Debug.LogError("[LTC Debug Tools] Could not find CreateTimelineSyncDebugUI method.");
+                    Debug.LogError("[LTC Debug Tools] Could not find CreateLTCDecoderWithUI method.");
                 }
             }
             else
             {
-                Debug.LogError("[LTC Debug Tools] Could not find LTCTimelineSyncDebugSetup type.");
+                Debug.LogError("[LTC Debug Tools] Could not find LTCDebugSetupWithUI type.");
             }
         }
         
