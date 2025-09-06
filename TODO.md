@@ -71,6 +71,23 @@
    - プロフェッショナルな表示に改善
 
 ### ✅ 完了済み (Completed) - 改善
+【Phase J: LTC 停止検出の高速化・決定化（2025-09-06）】
+1. [x] 最終タイムアウトの短縮と可変化
+   - stopTimeoutSeconds (SerializeField, 既定0.2s) を追加
+   - フォールバック用途として機能、Inspectorで調整可能
+2. [x] デコード未更新のフレーム基準化
+   - lastDecodedDspTime/missedFrameCount を導入
+   - missedFrameCount >= stopAfterMissingFrames で高速停止
+3. [x] 連続サイレンスでの早期停止
+   - inSilence/silenceStartDspTime を導入
+   - silenceStopSeconds 継続で即座に停止
+4. [x] 停止確定の一元化関数 ConfirmStop() の追加
+   - すべての停止経路を統一、二重発火防止
+   - デバッグメッセージで停止理由を明示
+5. [x] コルーチン待機の微調整（頻度向上）
+   - WaitForSecondsRealtime(0.005f) に変更
+   - 停止検出レイテンシを5msに短縮
+
 【Phase I: Timeline 再開時コード修正（最小修正）（2025-09-06）】
 1. [x] 再生順序を修正（time → Evaluate → Play）
    - 再開直後に過去時刻が一瞬描画される"フラッシュ"を確実に防止

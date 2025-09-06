@@ -58,6 +58,16 @@ namespace jp.iridescent.ltcdecoder
         [Tooltip("Signal detection threshold / 信号検出閾値")]
         [SerializeField, Range(0.001f, 0.1f)] private float signalThreshold = 0.01f;
         
+        [Header("Stop Detection Settings")]
+        [Tooltip("Stop timeout seconds (fallback) / 停止タイムアウト秒（フォールバック）")]
+        [SerializeField, Range(0.1f, 1.0f)] private float stopTimeoutSeconds = 0.2f;
+        
+        [Tooltip("Stop after missing frames / 未更新フレーム数で停止")]
+        [SerializeField, Range(1, 10)] private int stopAfterMissingFrames = 3;
+        
+        [Tooltip("Silence stop seconds / サイレンス停止秒数")]
+        [SerializeField, Range(0.05f, 0.5f)] private float silenceStopSeconds = 0.1f;
+        
         [Header("Status")]
         [SerializeField] private SyncState currentState = SyncState.NoSignal;
         [SerializeField] private string currentTimecode = "00:00:00:00";
@@ -207,11 +217,16 @@ namespace jp.iridescent.ltcdecoder
         private const float startHysteresis = 0.1f;  // 開始検出のヒステリシス時間（100ms）
         private const float stopHysteresis = 0.5f;   // 停止検出のヒステリシス時間（500ms）
         
+        // 停止検出高速化用
+        private double lastDecodedDspTime = 0;     // 最後にLTCがデコードされたDSP時刻
+        private int missedFrameCount = 0;          // 継続して未更新のLTCフレーム数
+        private double silenceStartDspTime = 0;    // サイレンス開始時刻
+        private bool inSilence = false;            // サイレンス中か
+        
         // 旧フィールド（互換性のため残す）
         private bool wasReceivingLTC = false;      // 前フレームでLTC受信していたか
         private bool isDecodingLTC = false;        // 現在LTCをデコード中か
         private float lastDecodedTime = 0f;        // 最後にデコード成功した時刻
-        private const float decodeTimeoutSeconds = 0.5f; // デコードタイムアウト（秒）
         private string lastCheckedTimecode = "00:00:00:00"; // 最後にチェックしたタイムコード（巻き戻し検知用）
         private bool wasDecodingLTC = false;       // 前フレームでデコード中だったか
         
@@ -524,19 +539,23 @@ namespace jp.iridescent.ltcdecoder
             // デコード中でタイムアウトしたかチェック
             if (isDecodingLTC)
             {
-                float timeSinceLastDecode = Time.realtimeSinceStartup - lastDecodedTime;
-                if (timeSinceLastDecode > decodeTimeoutSeconds)
+                // DSP時刻ベースの高速停止検出
+                double now = AudioSettings.dspTime;
+                double elapsed = now - lastDecodedDspTime;
+                float fps = GetActualFrameRate();
+                
+                // 未更新フレーム数を計算
+                missedFrameCount = (int)Mathf.Floor((float)(elapsed * fps));
+                
+                // フレーム基準の停止検出
+                if (missedFrameCount >= stopAfterMissingFrames)
                 {
-                    // デコードがタイムアウト = LTC停止
-                    hasSignal = false;
-                    isRunning = false;
-                    internalTcTime = 0;  // 内部時刻をリセット
-                    currentState = SyncState.NoSignal;
-                    
-                    LogDebug($"LTC decoding stopped - timeout after {timeSinceLastDecode:F2}s");
-                    
-                    // ステートマシンで停止イベント管理
-                    UpdateEventStateMachine(false);
+                    ConfirmStop($"Missed {missedFrameCount} frames (~{elapsed:F3}s)");
+                }
+                // フォールバック: 秒単位のタイムアウト
+                else if (elapsed >= stopTimeoutSeconds)
+                {
+                    ConfirmStop($"Timeout {elapsed:F3}s");
                 }
             }
         }
@@ -942,7 +961,8 @@ namespace jp.iridescent.ltcdecoder
                     lastSamplePosition = currentPosition;
                 }
                 
-                yield return new WaitForSeconds(0.01f);
+                // 高速ポーリング（5ms間隔）で停止検出レイテンシを削減
+                yield return new WaitForSecondsRealtime(0.005f);
             }
         }
         
@@ -999,11 +1019,29 @@ namespace jp.iridescent.ltcdecoder
             // 音声信号の有無判定（生の振幅で判定）
             bool audioSignalPresent = maxAmplitude > signalThreshold;
             
+            // 連続サイレンスでの早期停止
             if (!audioSignalPresent)
             {
-                // 音声信号なし - デコードタイムアウトで処理されるため、ここでは何もしない
-                // CheckDecodeTimeout()で適切なタイミングでStoppedイベントが発火される
+                if (!inSilence)
+                {
+                    inSilence = true;
+                    silenceStartDspTime = AudioSettings.dspTime;
+                }
+                else if (AudioSettings.dspTime - silenceStartDspTime >= silenceStopSeconds)
+                {
+                    // サイレンスが継続したら停止
+                    if (isDecodingLTC)
+                    {
+                        ConfirmStop($"Silence {AudioSettings.dspTime - silenceStartDspTime:F3}s");
+                    }
+                }
+                // デコードタイムアウトでも処理される
                 return;
+            }
+            else
+            {
+                // 信号が検出されたらサイレンス状態をリセット
+                inSilence = false;
             }
             
             // 音声信号があるが、まだhasSignalはLTCデコード成功まで待つ
@@ -1028,6 +1066,61 @@ namespace jp.iridescent.ltcdecoder
         #region LTC Buffer Analysis
         
         /// <summary>
+        /// 停止確定の一元化関数
+        /// </summary>
+        private void ConfirmStop(string reason)
+        {
+            // 既に停止している場合は何もしない（二重発火防止）
+            if (!hasSignal && !isRunning && currentState == SyncState.NoSignal && !isDecodingLTC)
+                return;
+            
+            // 停止状態を設定
+            hasSignal = false;
+            isRunning = false;
+            currentState = SyncState.NoSignal;
+            isDecodingLTC = false;
+            
+            // 内部タイムコードをリセット
+            internalTcTime = 0;
+            
+            // デバッグログ
+            if (enableDebugLogging)
+            {
+                Debug.Log($"[LTCDecoder] Stop confirmed: {reason}");
+            }
+            
+            // イベント発火（重複防止のガード付き）
+            if (eventState != LTCEventState.Stopped)
+            {
+                eventState = LTCEventState.Stopped;
+                eventStateTimer = 0f;
+                
+                // イベントデータを作成
+                var eventData = new LTCEventData(
+                    currentTimecode,
+                    (float)internalTcTime,
+                    false,
+                    signalLevel,
+                    AudioSettings.dspTime,
+                    0,
+                    useDropFrame,
+                    GetActualFrameRate()
+                );
+                
+                // 停止イベントを発火
+                OnLTCStopped?.Invoke(eventData);
+                onLTCStopped?.Invoke();
+                OnLTCNoSignal?.Invoke(eventData);
+            }
+            
+            // デバッガーへの通知
+            if (debugger != null)
+            {
+                debugger.AddDebugMessage($"LTC Stop: {reason}", DebugMessageType.Stop);
+            }
+        }
+        
+        /// <summary>
         /// デコードされたLTCを処理
         /// </summary>
         private void ProcessDecodedLTC(string tcString, Timecode tc)
@@ -1039,6 +1132,9 @@ namespace jp.iridescent.ltcdecoder
             consecutiveStops = 0;  // 停止カウントをリセット
             hasSignal = true;
             lastDecodedTime = Time.realtimeSinceStartup; // デコード成功時刻を記録
+            lastDecodedDspTime = AudioSettings.dspTime;  // DSP時刻を記録（高速停止検出用）
+            missedFrameCount = 0;  // 未更新フレーム数をリセット
+            inSilence = false;  // サイレンス状態をリセット
             
             // ステートマシンによるイベント管理
             UpdateEventStateMachine(true, tcString, tc);
